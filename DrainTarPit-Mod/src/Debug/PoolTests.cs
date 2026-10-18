@@ -98,7 +98,7 @@ namespace DrainTarPit.Debug
             if (sub == "stop") { _cancel = true; Say("ptest: stopping the running test."); return; }
             if (sub == "out")
             {
-                if (args.Length > 1) { ModSettings.TestOutDir.Value = string.Join(" ", args, 1, args.Length - 1); }
+                if (args.Length > 1) { ModSettings.TestOutDir.Value = CleanPath(string.Join(" ", args, 1, args.Length - 1)); }
                 Say("ptest: report file = " + Path.Combine(OutDir(), ReportFile));
                 return;
             }
@@ -118,6 +118,13 @@ namespace DrainTarPit.Debug
         }
 
         const string Help = "dtp ptest watch [sec] | pour [n] [interval] | tank [R] [wallH] [n] [flood|inject] | matrix | rim | fields | out [folder] | stop   (report: DrainTarPit.PoolTests.txt)";
+
+        // The game console turns a typed backslash sequence into a control character ("\testruns" arrives with a TAB in it). Put the backslash back,
+        // so a Windows path can be typed either way; forward slashes work too.
+        static string CleanPath(string p)
+        {
+            return p.Replace("\t", "\\t").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\b", "\\b").Replace("\f", "\\f").Trim().Trim('"');
+        }
 
         static float Arg(string[] a, int i, float def)
         {
