@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Folder with the game/BepInEx/Jotunn DLLs (your refs folder). Override: dotnet build -p:ValheimRefs=C:\path\refs -->
+    <ValheimRefs Condition="'$(ValheimRefs)' == ''">$(MSBuildThisFileDirectory)ref</ValheimRefs>
+    <!-- Set to your BepInEx/plugins/TarPitDrain folder to auto-copy after build -->
+    <DeployDir></DeployDir>
+    <PackageId>DrainTarPit</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx"><HintPath>$(ValheimRefs)\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(ValheimRefs)\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Jotunn"><HintPath>$(ValheimRefs)\Jotunn.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_valheim"><HintPath>$(ValheimRefs)\assembly_valheim.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_guiutils"><HintPath>$(ValheimRefs)\assembly_guiutils.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Mono.Cecil">
+      <HintPath>$(ValheimRefs)\Mono.Cecil.dll</HintPath><Private>false</Private>
+    </Reference>
+    <Reference Include="netstandard">
+      <HintPath>$(ValheimRefs)\netstandard.dll</HintPath><Private>false</Private>
+    </Reference>
+    <Reference Include="SoftReferenceableAssets"><HintPath>$(ValheimRefs)\SoftReferenceableAssets.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_utils"><HintPath>$(ValheimRefs)\assembly_utils.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ValheimRefs)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ValheimRefs)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ValheimRefs)\UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(ValheimRefs)\UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ValheimRefs)\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ValheimRefs)\UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ValheimRefs)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <!-- WaterEditor (live water editor, IMGUI) -->
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(ValheimRefs)\UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ValheimRefs)\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule"><HintPath>$(ValheimRefs)\UnityEngine.UnityWebRequestModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(ValheimRefs)\UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Copy the built bundle to TarPitDrain/Assets/draintarpit; it is embedded in the DLL. -->
+    <EmbeddedResource Include="Assets\draintarpit" LogicalName="draintarpit" Condition="Exists('Assets\draintarpit')" />
+    <!-- Recorded sounds: used when the asset bundle does not contain them (assets/audio/*.ogg in the bundle win). -->
+    <EmbeddedResource Include="audio\pump_up.ogg" LogicalName="pump_up.ogg" />
+    <EmbeddedResource Include="audio\oil_pumped.ogg" LogicalName="oil_pumped.ogg" />
+  </ItemGroup>
+  <Target Name="Deploy" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(DeployDir)" />
+  </Target>
+
+
+
+  <!-- Copy dll after build -->
+  <Target Name="CopyDll" AfterTargets="Build">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\Assets;$(MSBuildProjectDirectory)\build" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\Assets" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\build" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(USERPROFILE)\AppData\Roaming\com.kesomannen.gale\valheim\profiles\test\BepInEx\plugins\DrainTarPit" />
+  </Target>
+</Project>

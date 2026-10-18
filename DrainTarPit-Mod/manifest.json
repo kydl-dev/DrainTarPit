@@ -1,0 +1,10 @@
+{
+  "name": "DrainTarPit",
+  "version_number": "1.0.0",
+  "website_url": "",
+  "description": "Drain tar pits and move water with a hand pump and hoses. Pump with E (hold to keep pumping), strainer in the tar or water, nozzle over a hole, moat or wall ring: the liquid fills it and runs naturally. A strainer is locked to tar or water when built. Only the liquid is removed; anything lying in the pit stays for you to pick up.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2202",
+    "ValheimModding-Jotunn-2.30.2"
+  ]
+}
