@@ -924,6 +924,49 @@ namespace DrainTarPit.Drain
             }
         }
 
+        // --- test support (Debug/PoolTests.cs) --------------------------------------------------------------------------
+        // Narrow doors for the in-game test harness (console `dtp ptest`); nothing in the normal game path uses them.
+        internal static System.IDisposable Lock(LiquidVolume v) { return Hold(v); }
+        internal static List<float> DepthList(LiquidVolume v) { return Depths(v); }
+        internal static List<float> HeightList(LiquidVolume v) { return Heights(v); }
+        internal static bool Ready(LiquidVolume v) { return HeightsReady(v); }
+        internal static void MarkChanged(LiquidVolume v) { FDirty.SetValue(v, true); FNeedsSaving.SetValue(v, true); }
+        internal static Budget BudgetFor(LiquidVolume v) { return BudgetOf(v); }
+
+        static readonly System.Type TZdoVars = AccessTools.TypeByName("ZDOVars");
+        static readonly FieldInfo FLiquidDataHash = TZdoVars != null ? AccessTools.Field(TZdoVars, "s_liquidData") : null;
+        static readonly MethodInfo MGetBytes = AccessTools.Method(typeof(ZDO), "GetByteArray", new[] { typeof(int), typeof(byte[]) });
+
+        /// The numbers that show a save / reload cycle of the pool: the revision the volume believes it has loaded (m_lastDataRevision), the ZDO's own revision, and
+        /// size + checksum of the depth data the game saved in the ZDO (-1 when it cannot be read).
+        internal static void Revisions(LiquidVolume v, out long own, out long zdo, out int savedBytes, out int savedHash)
+        {
+            own = -1; zdo = -1; savedBytes = -1; savedHash = 0;
+            try
+            {
+                if (FLastRev != null) own = System.Convert.ToInt64(FLastRev.GetValue(v));
+                var nv = Nview(v);
+                if (nv == null || !nv.IsValid()) return;
+                var z = nv.GetZDO();
+                zdo = System.Convert.ToInt64(z.DataRevision);
+                if (FLiquidDataHash == null || MGetBytes == null) return;
+                var bytes = MGetBytes.Invoke(z, new object[] { (int)FLiquidDataHash.GetValue(null), null }) as byte[];
+                if (bytes == null) { savedBytes = 0; return; }
+                savedBytes = bytes.Length;
+                int h = 17;
+                for (int i = 0; i < bytes.Length; i++) h = h * 31 + bytes[i];
+                savedHash = h;
+            }
+            catch (System.Exception e) { ModLog.VerboseWarn("Revisions: " + e.Message); }
+        }
+
+        /// The wall cells (grid index) this pool remembers (owner or not, from the ZDO after a load).
+        internal static int WallCellCount(LiquidVolume v)
+        {
+            WallMemo m;
+            return Memos.TryGetValue(v, out m) ? m.Cells.Count : 0;
+        }
+
         // --- Harmony hooks ------------------------------------------------------------------------------------------
         // The three RPCs live on the pit's ZNetView. ZNetView.Register throws on a duplicate, and the ZDO may not exist yet when LiquidVolume.Awake
         // runs (component order), so registration is retried from Update until it has happened exactly once per volume.
@@ -1224,6 +1267,8 @@ namespace DrainTarPit.Drain
                 catch (System.Exception e) { ModLog.VerboseWarn("FixMissedHeights: " + e.Message); }
                 try { ApplyWalls(__instance); }
                 catch (System.Exception e) { ModLog.VerboseWarn("ApplyWalls: " + e.Message); }
+                try { DrainTarPit.Debug.PoolTests.ApplySynthetic(__instance); }
+                catch (System.Exception e) { ModLog.VerboseWarn("PoolTests.ApplySynthetic: " + e.Message); }
             }
         }
 

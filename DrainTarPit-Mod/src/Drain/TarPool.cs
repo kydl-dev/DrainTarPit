@@ -361,6 +361,18 @@ namespace DrainTarPit.Drain
             return lv;
         }
 
+        /// Test harness (Debug/PoolTests.cs): a fresh, flagged, empty water pool with its origin at the rim height of `land`.
+        internal static LiquidVolume SpawnForTest(Vector3 land) { return Spawn(land, PumpLiquid.Water); }
+
+        /// Test harness: removes a pool made by SpawnForTest.
+        internal static void DestroyForTest(LiquidVolume v)
+        {
+            var nv = v != null ? TarPits.Nview(v) : null;
+            if (nv == null || !nv.IsValid() || ZNetScene.instance == null) return;
+            nv.ClaimOwnership();
+            ZNetScene.instance.Destroy(v.gameObject);
+        }
+
         // --- runoff into the next pool --------------------------------------------------------------------------------------
         /// Runs on the owner of `from`. The liquid reached the edge of from's grid and the ground goes on downhill there (a long moat, a ditch, a slope):
         /// the rest `volume` (m3) is poured into the pool beyond the edge, which is made if it does not exist yet. `hop` counts the pools in a row,

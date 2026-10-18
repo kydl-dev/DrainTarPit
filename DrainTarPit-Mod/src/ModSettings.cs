@@ -11,6 +11,7 @@ internal static class ModSettings
 {
     // [General] / [Visuals]
     public static ConfigEntry<bool> DebugLog;
+    public static ConfigEntry<string> TestOutDir;
     public static ConfigEntry<int> ConfigVersion;
     public static ConfigEntry<string> ShaderName;
     public static ConfigEntry<bool> UseMaskMap;
@@ -117,6 +118,8 @@ internal static class ModSettings
                 new AcceptableValueRange<float>(0.1f, 1f)));
         DebugLog = c.Bind("General", "DebugLog", false,
             "Verbose logging (bundle contents, shader properties, per-material fixes, drain/pump events). Turn off once everything works.");
+        TestOutDir = c.Bind("General", "TestOutDir", "",
+            "Folder where the console tests (dtp ptest ...) write their report DrainTarPit.PoolTests.txt. Empty = the BepInEx config folder. The console command 'dtp ptest out <folder>' sets it.");
 
         TiltKey = c.Bind("Building", "TiltKey", KeyCode.LeftAlt,
             "Hold while scrolling to tilt the held piece up/down (pitch) instead of turning it. Keyboard/mouse only.");
