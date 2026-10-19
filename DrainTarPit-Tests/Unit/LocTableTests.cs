@@ -126,29 +126,9 @@ namespace DrainTarPit.Tests.Unit
             Assert.That(json, Is.EqualTo("{}"));
         }
 
-        [Test]
-        public void T_UnknownKey_ReturnsTheKeyItself()
-        {
-            var text = (string)ModAssembly.Call(LocType, "T", "dtp_this_key_does_not_exist", new string[0]);
-
-            Assert.That(text, Is.EqualTo("dtp_this_key_does_not_exist"));
-        }
-
-        [Test]
-        public void T_KnownKeyWithArgument_FillsThePlaceholder()
-        {
-            var text = (string)ModAssembly.Call(LocType, "T", "dtp_strokes", new[] { "7" });
-
-            Assert.That(text, Is.EqualTo("Strokes: 7"));
-        }
-
-        [Test]
-        public void T_KnownKeyWithNullArguments_LeavesThePlaceholder()
-        {
-            var text = (string)ModAssembly.Call(LocType, "T", "dtp_strokes", (string[])null);
-
-            Assert.That(text, Does.Contain("{0}"));
-        }
+        // Loc.T (the lookup with the game's Localization as the first choice and the English table as fallback) is NOT tested here: it calls the
+        // game's Localization class, which needs .NET Standard 2.1 types (ReadOnlySpan) that a .NET Framework test host does not have (checked: TypeLoadException).
+        // That path is covered by the runtime smoke test (_agent/SMOKE_TESTS.md step: hover a hose piece, read the German and English tooltip).
 
         [Test]
         public void Token_AnyKey_AddsTheDollarPrefix()

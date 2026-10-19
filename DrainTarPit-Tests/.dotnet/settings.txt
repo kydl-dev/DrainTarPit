@@ -1,0 +1,58 @@
+﻿--- files
+ModSettings.cs (248 lines)
+ModSettingsDrain.cs (98 lines)
+ModSettingsPump.cs (109 lines)
+=== ModSettings.cs (head 14)
+using BepInEx.Configuration;
+using DrainTarPit.Drain;
+using DrainTarPit.Logging;
+using DrainTarPit.Visuals;
+using UnityEngine;
+
+namespace DrainTarPit;
+
+/// All BepInEx config entries in one place. Bound once from Plugin.Awake.
+internal static class ModSettings
+{
+    // [General] / [Visuals]
+    public static ConfigEntry<bool> DebugLog;
+    public static ConfigEntry<string> TestOutDir;
+--- binds
+10: internal static class ModSettings
+104: public static void Bind(ConfigFile c)
+=== ModSettingsDrain.cs (head 14)
+using BepInEx.Configuration;
+using DrainTarPit.Drain;
+using DrainTarPit.Logging;
+using DrainTarPit.Visuals;
+using UnityEngine;
+using static DrainTarPit.ModSettings;
+
+namespace DrainTarPit;
+
+/// The [Drain] config entries and the water pool entries listed with them (flow, films, pool mesh, editor key). The entries themselves are fields of ModSettings; called from ModSettings.Bind.
+internal static class ModSettingsDrain
+{
+    public static void Bind(ConfigFile c)
+    {
+--- binds
+11: internal static class ModSettingsDrain
+13: public static void Bind(ConfigFile c)
+=== ModSettingsPump.cs (head 14)
+using BepInEx.Configuration;
+using DrainTarPit.Drain;
+using DrainTarPit.Logging;
+using DrainTarPit.Visuals;
+using UnityEngine;
+using static DrainTarPit.ModSettings;
+
+namespace DrainTarPit;
+
+/// The [Pump] config entries (stroke, posture, hand IK, stand position). The entries themselves are fields of ModSettings; called from ModSettings.Bind.
+internal static class ModSettingsPump
+{
+    public static void Bind(ConfigFile c)
+    {
+--- binds
+11: internal static class ModSettingsPump
+13: public static void Bind(ConfigFile c)

@@ -1,0 +1,7 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  DrainTarPit.UnitTests -> E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Unit\bin\Debug\net48\DrainTarPit.UnitTests.dll
+Test run for E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Unit\bin\Debug\net48\DrainTarPit.UnitTests.dll (.NETFramework,Version=v4.8)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   184, Skipped:     0, Total:   184, Duration: 222 ms - DrainTarPit.UnitTests.dll (net48)

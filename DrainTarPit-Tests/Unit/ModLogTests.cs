@@ -44,6 +44,8 @@ namespace DrainTarPit.Tests.Unit
         {
             BepInEx.Logging.Logger.Sources.Remove(_source);
             BepInEx.Logging.Logger.Listeners.Remove(_listener);
+            _source.Dispose();
+            _listener.Dispose();
             ModAssembly.SetStatic(LogType, "_source", null);
             ModAssembly.SetStatic(LogType, "_sessionStarted", false);
         }

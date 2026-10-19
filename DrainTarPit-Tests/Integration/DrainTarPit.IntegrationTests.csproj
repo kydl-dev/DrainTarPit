@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Integration tests: real BepInEx config files in a temp folder, manifest/dependency checks, and game-assembly target discovery. No game running. See _agent/TESTING.md. -->
+  <PropertyGroup>
+    <AssemblyName>DrainTarPit.IntegrationTests</AssemblyName>
+    <RootNamespace>DrainTarPit.Tests.Integration</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx"><HintPath>$(ValheimRefs)\BepInEx.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ValheimRefs)\UnityEngine.CoreModule.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="Mono.Cecil"><HintPath>$(ValheimRefs)\Mono.Cecil.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+</Project>

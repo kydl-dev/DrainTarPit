@@ -1,0 +1,48 @@
+﻿    /// yourself is left alone. Entries that no longer exist are dropped from the file.
+    static void Migrate(ConfigFile c)
+    {
+        try
+        {
+            ConfigVersion = c.Bind("General", "ConfigVersion", 0,
+                new ConfigDescription("Internal: used to carry old config files over to new defaults. Do not change.", null, new ConfigurationManagerAttributes { Browsable = false }));
+            if (ConfigVersion.Value < 1)
+            {
+                if (Mathf.Approximately(VolumePerStroke.Value, 1.5f)) VolumePerStroke.Value = 6f;
+                if (Mathf.Approximately(DrainRadius.Value, 2.5f)) DrainRadius.Value = 4f;
+                if (Mathf.Approximately(TarFlowSpeed.Value, 2.5f)) TarFlowSpeed.Value = 3.5f;
+                if (Mathf.Approximately(TarSlugLength.Value, 1.2f)) TarSlugLength.Value = 2f;
+                ConfigVersion.Value = 1;
+            }
+            if (ConfigVersion.Value < 2)
+            {
+                // pump posture: hips held still, the upper body does the work (little knee bend, more back bend)
+                if (Mathf.Approximately(MaxKneeBend.Value, 0.25f)) MaxKneeBend.Value = 0.08f;
+                if (Mathf.Approximately(MaxBackBend.Value, 35f)) MaxBackBend.Value = 45f;
+                ConfigVersion.Value = 2;
+            }
+            // entries of removed options (DropTarItems / TarItemsPerCubicMeter / ClearHoses) are dropped from the file; the property is not public in every BepInEx build
+            var orphans = typeof(ConfigFile).GetProperty("OrphanedEntries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            var dict = orphans != null ? orphans.GetValue(c, null) as System.Collections.IDictionary : null;
+            if (ConfigVersion.Value < 3)
+            {
+                // 0.7.0: [Visuals] ClearHoses (true / false) became the HoseStyle dropdown; carry the old choice over once
+                if (dict != null)
+                    foreach (System.Collections.DictionaryEntry e in dict)
+                    {
+                        var def = e.Key as ConfigDefinition;
+                        if (def != null && def.Section == "Visuals" && def.Key == "ClearHoses" && string.Equals(e.Value as string, "false", System.StringComparison.OrdinalIgnoreCase))
+                            HoseStyle.Value = HoseStyleOption.Solid;
+                    }
+                ConfigVersion.Value = 3;
+            }
+            if (dict != null) dict.Clear();
+            c.Save();
+        }
+        catch (System.Exception e) { ModLog.Warn("Config migration skipped: " + e.Message); }
+    }
+
+    sealed class ConfigurationManagerAttributes { public bool? Browsable; }
+}
+
+/// Entries of an enum config value show up as a drop-down menu in the config manager (and list their values in the .cfg file).
+internal enum HoseStyleOption { Transparent, Solid }

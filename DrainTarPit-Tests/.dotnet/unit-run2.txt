@@ -1,0 +1,28 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  DrainTarPit.UnitTests -> E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Unit\bin\Debug\net48\DrainTarPit.UnitTests.dll
+Test run for E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Unit\bin\Debug\net48\DrainTarPit.UnitTests.dll (.NETFramework,Version=v4.8)
+A total of 1 test files matched the specified pattern.
+  Failed T_KnownKeyWithArgument_FillsThePlaceholder [73 ms]
+  Error Message:
+   System.TypeLoadException : Could not load type 'System.ReadOnlySpan`1' from assembly 'netstandard, Version=2.1.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51'.
+  Stack Trace:
+     at DrainTarPit.Tests.ModAssembly.Call(String typeName, String method, Object[] args) in E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Common\TestSupport.cs:line 87
+   at DrainTarPit.Tests.Unit.LocTableTests.T_KnownKeyWithArgument_FillsThePlaceholder() in E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Unit\LocTableTests.cs:line 140
+
+  Failed T_KnownKeyWithNullArguments_LeavesThePlaceholder [1 ms]
+  Error Message:
+   System.TypeLoadException : Could not load type 'System.ReadOnlySpan`1' from assembly 'netstandard, Version=2.1.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51'.
+  Stack Trace:
+     at DrainTarPit.Tests.ModAssembly.Call(String typeName, String method, Object[] args) in E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Common\TestSupport.cs:line 87
+   at DrainTarPit.Tests.Unit.LocTableTests.T_KnownKeyWithNullArguments_LeavesThePlaceholder() in E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Unit\LocTableTests.cs:line 148
+
+  Failed T_UnknownKey_ReturnsTheKeyItself [< 1 ms]
+  Error Message:
+   System.TypeLoadException : Could not load type 'System.ReadOnlySpan`1' from assembly 'netstandard, Version=2.1.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51'.
+  Stack Trace:
+     at DrainTarPit.Tests.ModAssembly.Call(String typeName, String method, Object[] args) in E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Common\TestSupport.cs:line 87
+   at DrainTarPit.Tests.Unit.LocTableTests.T_UnknownKey_ReturnsTheKeyItself() in E:\Projects\Valheim\DrainTarPit\DrainTarPit-Tests\Unit\LocTableTests.cs:line 132
+
+
+Failed!  - Failed:     3, Passed:   184, Skipped:     0, Total:   187, Duration: 541 ms - DrainTarPit.UnitTests.dll (net48)
