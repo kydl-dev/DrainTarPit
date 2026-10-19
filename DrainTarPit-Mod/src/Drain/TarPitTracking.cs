@@ -63,6 +63,44 @@ namespace DrainTarPit.Drain
             if (purged > 0 && ModSettings.DebugLog.Value) ModLog.Info("Pit " + v.name + ": dropped " + purged + " stale tracked object(s) outside its grid");
         }
 
+        /// Replays the game's exit (Decrement -> at 0 SetLiquidLevel(-10000)) for EVERY object this volume's surfaces track, then empties their lists.
+        /// Called before a pool is destroyed while someone may stand in it (test pools, TarPool.DestroyForTest): after the T-16 suite the player swam in
+        /// the invisible water of the last, destroyed test pool (m_waterLevel stayed on its surface). Done before the destroy, so the game's own teardown
+        /// finds empty lists and nothing is counted twice. Returns one line per released object (for the test report).
+        internal static List<string> ReleaseAll(LiquidVolume v)
+        {
+            var lines = new List<string>();
+            if (v == null || FInWater == null) return lines;
+            foreach (var ls in v.GetComponentsInChildren<LiquidSurface>(true))
+            {
+                var list = FInWater.GetValue(ls) as List<IWaterInteractable>;
+                if (list == null || list.Count == 0) continue;
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var w = list[i];
+                    var c = w as Component;
+                    if (c == null) continue;
+                    int left = w.Decrement(v.m_liquidType);
+                    if (left <= 0) w.SetLiquidLevel(-10000f, v.m_liquidType, ls);
+                    lines.Add(c.name + " released (" + v.m_liquidType + " counter now " + left + (left <= 0 ? ", level reset" : ", NOT reset: another volume still counts") + ")");
+                }
+                list.Clear();
+            }
+            return lines;
+        }
+
+        static readonly FieldInfo FWaterLevel = AccessTools.Field(typeof(Character), "m_waterLevel");
+        static readonly FieldInfo FTarLevel = AccessTools.Field(typeof(Character), "m_tarLevel");
+
+        /// The local player's water / tar level and feet height (test report: is a destroyed pool still felt?).
+        internal static string PlayerLiquidLine()
+        {
+            var p = Player.m_localPlayer;
+            if (p == null) return "no local player";
+            string Lv(FieldInfo f) { var o = f != null ? f.GetValue(p) : null; return o is float x ? x.ToString("0.00") : "n/a"; }
+            return "player waterLevel " + Lv(FWaterLevel) + " tarLevel " + Lv(FTarLevel) + " feet y " + p.transform.position.y.ToString("0.00") + (p.IsSwimming() ? " SWIMMING" : "");
+        }
+
         /// true when this tar surface already tracks the object behind `col` (what the game's OnTriggerEnter would find by attachedRigidbody -> IWaterInteractable).
         internal static bool AlreadyTracked(LiquidSurface ls, Collider col)
         {

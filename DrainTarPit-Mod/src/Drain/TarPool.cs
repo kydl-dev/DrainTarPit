@@ -391,6 +391,7 @@ namespace DrainTarPit.Drain
         {
             var nv = v != null ? TarPits.Nview(v) : null;
             if (nv == null || !nv.IsValid() || ZNetScene.instance == null) return;
+            foreach (var l in TarPitTracking.ReleaseAll(v)) ModLog.Info("Test pool " + v.name + ": " + l);
             nv.ClaimOwnership();
             ZNetScene.instance.Destroy(v.gameObject);
         }

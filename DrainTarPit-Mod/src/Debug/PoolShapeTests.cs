@@ -16,7 +16,8 @@ namespace DrainTarPit.Debug
     ///   shape <name> [water|tar] [rim0|rim1] [strokes]   one shape (PoolShapes.All) with [Drain] PoolRimDisappear off / on.
     ///   walls <open|thick|submerged|full|real>            the wall pass against synthetic pieces put into standing water (real = real colliders).
     ///   suite                                             all of them in a fixed order, then a PASS / FAIL table.
-    /// PoolRimDisappear and PoolRunoff are set for the test and put back afterwards (runoff off: the tests must not spawn pools beyond the grid).
+    /// PoolRimDisappear and PoolRunoff are set for the test and put back afterwards (runoff off: the tests must not spawn pools beyond the grid);
+    /// the walls tests also turn PoolShedFilm off (only the wall pass may change the total).
     /// </summary>
     internal static class PoolShapeTests
     {
@@ -56,6 +57,8 @@ namespace DrainTarPit.Debug
                 var res = new Result();
                 var run = a[0] == "walls" ? WallsRun(a[1], res) : ShapeRun(a[1], a[2] == "tar" ? PumpLiquid.Tar : PumpLiquid.Water, a[3] == "rim1", 6, res);
                 while (run.MoveNext()) yield return run.Current;
+                yield return new WaitForFixedUpdate();
+                Out("after " + spec + ": " + TarPitTracking.PlayerLiquidLine());
                 results.Add(res.Summary);
                 if (res.Summary.Contains(": PASS")) pass++; else fail++;
                 yield return new WaitForSeconds(1f);
@@ -144,6 +147,10 @@ namespace DrainTarPit.Debug
             string label = "walls " + kind;
             var tank = new Tank { R = 10, Floor = -1f, Top = 1f, Shape = "closed", RealWalls = kind == "real" };
             if (kind != "open" && kind != "thick" && kind != "submerged" && kind != "full" && kind != "real") { res.Summary = label + ": FAILED - use open | thick | submerged | full | real"; yield break; }
+            var cfg = Plugin.Instance.Config;                                 // shedding / runoff off: the wall pass alone must keep the total (T-16 'walls full' lost
+            bool oldSave = cfg.SaveOnConfigSet, oShed = ModSettings.PoolShedFilm.Value, oRun = ModSettings.PoolRunoff.Value;   // 0.30 m3 to border films)
+            cfg.SaveOnConfigSet = false;
+            ModSettings.PoolShedFilm.Value = false; ModSettings.PoolRunoff.Value = false;
             LiquidVolume v = null;
             try
             {
@@ -188,7 +195,11 @@ namespace DrainTarPit.Debug
                     ", later " + F2(later) + ", repeat " + F2(b.WallRepeat) + ", no open cell (stayed) " + F2(b.WallLost) + ", standing on the piece " + F2(onBlock) + ", wall passes " + b.WallPasses;
                 Out("WALLS RESULT " + res.Summary);
             }
-            finally { if (v != null) { TarPool.DestroyForTest(v); Synth.Remove(v); } }
+            finally
+            {
+                ModSettings.PoolShedFilm.Value = oShed; ModSettings.PoolRunoff.Value = oRun; cfg.SaveOnConfigSet = oldSave;
+                if (v != null) { TarPool.DestroyForTest(v); Synth.Remove(v); }
+            }
         }
 
         // --- helpers -----------------------------------------------------------------------------------------------------------------------
