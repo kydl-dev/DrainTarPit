@@ -162,7 +162,7 @@ namespace DrainTarPit.Drain
         {
             if (pumpView == null || !pumpView.IsValid() || !pumpView.IsOwner()) return;
             var zdo = pumpView.GetZDO();
-            if (zdo != null && zdo.GetInt(Pump.PumpController.ZPumpLiquid, 0) != (int)liquid) zdo.Set(Pump.PumpController.ZPumpLiquid, (int)liquid);
+            if (zdo != null && zdo.GetInt(Pump.PumpZdo.Liquid, 0) != (int)liquid) zdo.Set(Pump.PumpZdo.Liquid, (int)liquid);
         }
 
         /// Called on the pumping client with the volume that really came out of the source. The pump only moves the LIQUID - Tar items, meat or anything
@@ -170,7 +170,7 @@ namespace DrainTarPit.Drain
         /// deposited where the stream lands NOT now but when the slug of this stroke has travelled through the hoses and reaches the nozzle
         /// (PumpFx.PourWhenArrives); the pit owner's answer only says how much came out. The pour is also written to the pump's ZDO (counter +
         /// position + volume) right away, so every other client that has the pump loaded shows it too, lined up with its own copy of the slug
-        /// (PumpController.ObserverUpdate). The liquid - tar or water - is deposited into a real LiquidVolume where the stream lands (TarPool).
+        /// (PumpObserver.Update). The liquid - tar or water - is deposited into a real LiquidVolume where the stream lands (TarPool).
         public static void Poured(ZNetView pumpView, Vector3 nozzleTip, float volume, PumpLiquid liquid = PumpLiquid.Tar)
         {
             if (volume <= 0f) return;
@@ -190,11 +190,11 @@ namespace DrainTarPit.Drain
             if (pumpView == null || !pumpView.IsValid()) return;
             if (!pumpView.IsOwner()) return;                        // someone else took over the pump meanwhile; they cannot hear this stroke
             var zdo = pumpView.GetZDO();
-            zdo.Set(Pump.PumpController.ZPumpLiquid, (int)liquid);
-            zdo.Set(Pump.PumpController.ZNozzle, at);
-            zdo.Set(Pump.PumpController.ZNozzleDir, dir);
-            zdo.Set(Pump.PumpController.ZSplashVol, volume);
-            zdo.Set(Pump.PumpController.ZSplashSeq, zdo.GetInt(Pump.PumpController.ZSplashSeq, 0) + 1);
+            zdo.Set(Pump.PumpZdo.Liquid, (int)liquid);
+            zdo.Set(Pump.PumpZdo.Nozzle, at);
+            zdo.Set(Pump.PumpZdo.NozzleDir, dir);
+            zdo.Set(Pump.PumpZdo.SplashVol, volume);
+            zdo.Set(Pump.PumpZdo.SplashSeq, zdo.GetInt(Pump.PumpZdo.SplashSeq, 0) + 1);
         }
     }
 }
