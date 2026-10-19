@@ -72,8 +72,8 @@ namespace DrainTarPit.Drain
                 catch (System.Exception e) { ModLog.VerboseWarn("FixMissedHeights: " + e.Message); }
                 try { ApplyWalls(__instance); }
                 catch (System.Exception e) { ModLog.VerboseWarn("ApplyWalls: " + e.Message); }
-                try { DrainTarPit.Debug.PoolTests.ApplySynthetic(__instance); }
-                catch (System.Exception e) { ModLog.VerboseWarn("PoolTests.ApplySynthetic: " + e.Message); }
+                try { DrainTarPit.Debug.PoolTankTests.ApplySynthetic(__instance); }
+                catch (System.Exception e) { ModLog.VerboseWarn("PoolTankTests.ApplySynthetic: " + e.Message); }
             }
         }
 
