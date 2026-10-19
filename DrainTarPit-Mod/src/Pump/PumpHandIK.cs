@@ -13,6 +13,7 @@ namespace DrainTarPit.Pump
     ///      fingers pointing along the lever,
     ///   4. the four fingers curl around the bar.
     /// Done by rotating the bones in LateUpdate, so it does not depend on the player controller having an IK pass.
+    /// Finger / thumb curl lives in PumpFingers, the back / knee reach bend and leg IK in PumpReachBend, the bone pose bookkeeping in PumpBones.
     ///
     /// Grip points = the lever's interact_point +- GripSpread along the handle (left/right is decided by where the
     /// player stands), lifted by half the bar height + GripPalmOffset, then shifted by GripUp / GripForward
@@ -33,36 +34,7 @@ namespace DrainTarPit.Pump
         const float PalmCentre = 0.6f;          // palm centre = this fraction of the way from the wrist to the middle knuckle
         const float WristTwistShare = 0.5f;     // how much of the hand's roll is taken by the forearm
 
-        // finger bone chains that curl (index .. little); the thumb keeps its animation pose
-        static readonly HumanBodyBones[][] RightFingers =
-        {
-            new[] { HumanBodyBones.RightIndexProximal,  HumanBodyBones.RightIndexIntermediate,  HumanBodyBones.RightIndexDistal },
-            new[] { HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightMiddleIntermediate, HumanBodyBones.RightMiddleDistal },
-            new[] { HumanBodyBones.RightRingProximal,   HumanBodyBones.RightRingIntermediate,   HumanBodyBones.RightRingDistal },
-            new[] { HumanBodyBones.RightLittleProximal, HumanBodyBones.RightLittleIntermediate, HumanBodyBones.RightLittleDistal },
-        };
-        static readonly HumanBodyBones[][] LeftFingers =
-        {
-            new[] { HumanBodyBones.LeftIndexProximal,  HumanBodyBones.LeftIndexIntermediate,  HumanBodyBones.LeftIndexDistal },
-            new[] { HumanBodyBones.LeftMiddleProximal, HumanBodyBones.LeftMiddleIntermediate, HumanBodyBones.LeftMiddleDistal },
-            new[] { HumanBodyBones.LeftRingProximal,   HumanBodyBones.LeftRingIntermediate,   HumanBodyBones.LeftRingDistal },
-            new[] { HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftLittleIntermediate, HumanBodyBones.LeftLittleDistal },
-        };
-        static readonly HumanBodyBones[] RightThumb = { HumanBodyBones.RightThumbProximal, HumanBodyBones.RightThumbIntermediate, HumanBodyBones.RightThumbDistal };
-        static readonly HumanBodyBones[] LeftThumb  = { HumanBodyBones.LeftThumbProximal,  HumanBodyBones.LeftThumbIntermediate,  HumanBodyBones.LeftThumbDistal };
-        static readonly float[] ThumbAngles = { 25f, 35f, 30f };    // degrees per joint at ThumbCurl = 1
-        static readonly Dictionary<Transform, float> ThumbSign = new();   // which way is "away from the fist" for a thumb bone (decided once)
-        // curl per joint (degrees at FingerCurl = 1): knuckle, middle joint, fingertip joint; the little finger wraps a bit more
-        static readonly float[] CurlAngles = { 70f, 80f, 40f };
-        static readonly float[] FingerScale = { 0.9f, 1f, 1f, 1.1f };
-
-        // Finger bones are rotated on top of whatever the animator wrote this frame. If the player's animator does not
-        // rewrite a finger bone every frame the rotation would pile up, so the bone's original local rotation is
-        // remembered and put back first whenever the bone still holds exactly what we set last time.
-        sealed class Saved { public Quaternion Base, Applied; }
-        static readonly Dictionary<Transform, Saved> Fingers = new();
-
-        const float ReachComfort = 0.97f;       // AutoReach wants the wrist within this fraction of the full arm length; the IK never stretches the arm further than this (a fully straight arm makes the elbow direction flip)
+        internal const float ReachComfort = 0.97f;       // AutoReach wants the wrist within this fraction of the full arm length; the IK never stretches the arm further than this (a fully straight arm makes the elbow direction flip)
         const float PoleSmooth = 14f;           // 1/s: how fast the elbow bend direction may change (low-pass, stops the elbow flicker)
         static readonly Dictionary<Transform, Vector3> Poles = new();   // last elbow bend direction per upper-arm bone
 
@@ -85,45 +57,21 @@ namespace DrainTarPit.Pump
             Vector3 rightGrip = centre + handle.right * (rightIsPlusX ? spread : -spread);
             Vector3 leftGrip = centre + handle.right * (rightIsPlusX ? -spread : spread);
 
-            if (ModSettings.BendToReach.Value && weight > 0.001f) ReachBend(p, a, rightGrip, leftGrip, weight);
+            if (ModSettings.BendToReach.Value && weight > 0.001f) PumpReachBend.Apply(p, a, rightGrip, leftGrip, weight);
 
             float r = Hand(a, true, rightGrip, handle, weight);
             float l = Hand(a, false, leftGrip, handle, weight);
             return Mathf.Max(r, l);
         }
 
-        /// Puts every finger bone we touched back to its original pose (called when the IK has blended out).
+        /// Puts every bone we touched back to its original pose (called when the IK has blended out).
         public static void Release(Player p)
         {
             if (p != null) Pinned.Remove(p);
             if (Poles.Count > 0) { var dead = new List<Transform>(); foreach (var kv in Poles) if (kv.Key == null || (p != null && kv.Key.IsChildOf(p.transform))) dead.Add(kv.Key); foreach (var t in dead) Poles.Remove(t); }
-            if (ThumbSign.Count > 0) { var dead2 = new List<Transform>(); foreach (var kv in ThumbSign) if (kv.Key == null || (p != null && kv.Key.IsChildOf(p.transform))) dead2.Add(kv.Key); foreach (var t in dead2) ThumbSign.Remove(t); }
-            if (BendState.Count > 0) { var dead3 = new List<Animator>(); foreach (var kv in BendState) if (kv.Key == null || (p != null && kv.Key.transform.IsChildOf(p.transform))) dead3.Add(kv.Key); foreach (var k in dead3) BendState.Remove(k); }
-            if (HipRef.Count > 0) { var dead4 = new List<Animator>(); foreach (var kv in HipRef) if (kv.Key == null || (p != null && kv.Key.transform.IsChildOf(p.transform))) dead4.Add(kv.Key); foreach (var k in dead4) HipRef.Remove(k); }
-            if (HipPos.Count > 0)
-            {
-                var deadH = new List<Transform>();
-                foreach (var kv in HipPos)
-                {
-                    var t = kv.Key;
-                    if (t == null) { deadH.Add(t); continue; }
-                    if (p != null && !t.IsChildOf(p.transform)) continue;
-                    if ((t.localPosition - kv.Value[1]).sqrMagnitude < 1e-8f) t.localPosition = kv.Value[0];
-                    deadH.Add(t);
-                }
-                foreach (var t in deadH) HipPos.Remove(t);
-            }
-            if (Fingers.Count == 0) return;
-            var gone = new List<Transform>();
-            foreach (var kv in Fingers)
-            {
-                var t = kv.Key;
-                if (t == null) { gone.Add(t); continue; }
-                if (p != null && !t.IsChildOf(p.transform)) continue;
-                if (Quaternion.Angle(t.localRotation, kv.Value.Applied) < 0.01f) t.localRotation = kv.Value.Base;
-                gone.Add(t);
-            }
-            foreach (var t in gone) Fingers.Remove(t);
+            PumpFingers.Release(p);
+            PumpReachBend.Release(p);
+            PumpBones.Release(p);
         }
 
         static float Hand(Animator a, bool isRight, Vector3 palmTarget, Transform handle, float w)
@@ -172,21 +120,12 @@ namespace DrainTarPit.Pump
             // 4) fingers: curl around the bar, axis = across the knuckles (finger direction x palm normal)
             float curl = ModSettings.FingerCurl.Value * w;
             if (curl > 0.001f && HandFrame(a, C, isRight, out f, out n, out palm))
-            {
-                Vector3 axis = Vector3.Cross(f, n).normalized;       // rotating by + about this axis swings the fingertips towards the palm side
-                var chains = isRight ? RightFingers : LeftFingers;
-                for (int i = 0; i < chains.Length; i++)
-                    for (int j = 0; j < chains[i].Length; j++)
-                    {
-                        var bone = a.GetBoneTransform(chains[i][j]);
-                        if (bone != null) CurlBone(bone, axis, CurlAngles[j] * FingerScale[i] * curl);
-                    }
-            }
+                PumpFingers.Curl(a, isRight, f, n, curl);
 
             // 5) thumb: swung away from the fist, then curled down and under the bar (opposing the fingers)
             float tc = ModSettings.ThumbCurl.Value * w, ts = ModSettings.ThumbSpread.Value * w;
             if ((tc > 0.001f || ts > 0.001f) && HandFrame(a, C, isRight, out f, out n, out palm))
-                Thumb(a, isRight, f, n, tc, ts);
+                PumpFingers.Thumb(a, isRight, f, n, tc, ts);
             return short_;
         }
 
@@ -220,241 +159,6 @@ namespace DrainTarPit.Pump
             float m = Mathf.Sqrt(proj.x * proj.x + proj.y * proj.y + proj.z * proj.z + q.w * q.w);
             if (m < 1e-6f) return Quaternion.identity;
             return new Quaternion(proj.x / m, proj.y / m, proj.z / m, q.w / m);
-        }
-
-        static void CurlBone(Transform t, Vector3 axis, float degrees) { ApplyDelta(t, Quaternion.AngleAxis(degrees, axis)); }
-
-        /// Rotates a finger/thumb bone by a world-space delta on top of the animator's pose (see Saved).
-        static void ApplyDelta(Transform t, Quaternion worldDelta)
-        {
-            Saved s;
-            if (Fingers.TryGetValue(t, out s))
-            {
-                if (Quaternion.Angle(t.localRotation, s.Applied) < 0.01f) t.localRotation = s.Base;   // the animator did not rewrite it: start from the original pose
-                else s.Base = t.localRotation;                                                           // animator wrote a fresh pose: that is the new base
-            }
-            else { s = new Saved { Base = t.localRotation }; Fingers[t] = s; }
-            t.rotation = worldDelta * t.rotation;
-            s.Applied = t.localRotation;
-        }
-
-        /// Thumb: the proximal bone is swung `spread` degrees away from the fist about the palm normal, then all three joints
-        /// curl about the knuckle axis (same axis as the fingers) so the tip ends up under the bar.
-        static void Thumb(Animator a, bool isRight, Vector3 f, Vector3 n, float curl, float spread)
-        {
-            var chain = isRight ? RightThumb : LeftThumb;
-            var b0 = a.GetBoneTransform(chain[0]); if (b0 == null) return;
-            var idx = a.GetBoneTransform(isRight ? HumanBodyBones.RightIndexProximal : HumanBodyBones.LeftIndexProximal);
-            var lit = a.GetBoneTransform(isRight ? HumanBodyBones.RightLittleProximal : HumanBodyBones.LeftLittleProximal);
-            Vector3 axis = Vector3.Cross(f, n).normalized;
-
-            for (int j = 0; j < chain.Length; j++)
-            {
-                var bone = a.GetBoneTransform(chain[j]); if (bone == null) continue;
-                Quaternion delta = Quaternion.AngleAxis(ThumbAngles[j] * curl, axis);
-                if (j == 0 && spread > 0.001f && idx != null && lit != null)
-                {
-                    float sign;
-                    if (!ThumbSign.TryGetValue(b0, out sign))
-                    {
-                        // decide once: rotate a little about the palm normal, keep the direction that moves the thumb towards the thumb side of the hand
-                        var tip = a.GetBoneTransform(chain[2]) ?? a.GetBoneTransform(chain[1]);
-                        Vector3 side = (idx.position - lit.position).normalized;
-                        Vector3 d = (tip != null ? tip.position : b0.position + f * 0.05f) - b0.position;
-                        sign = Vector3.Dot(Quaternion.AngleAxis(10f, n) * d, side) >= Vector3.Dot(d, side) ? 1f : -1f;
-                        ThumbSign[b0] = sign;
-                    }
-                    delta = Quaternion.AngleAxis(sign * spread, n) * delta;
-                }
-                ApplyDelta(bone, delta);
-            }
-        }
-
-        // --- reach assist: bend the back, then the knees ----------------------------------------------------------------------
-        // The lever handle is out of arm's reach at the bottom of the stroke. Before the arm IK runs, the shoulders are brought to
-        // the handle: the spine chain bends forward (up to MaxBackBend degrees, spread over Spine / Chest / UpperChest), and if that is
-        // still not enough the hips sink (MaxKneeBend m) with the feet kept on the ground by a two-bone leg IK. The amounts are found
-        // per frame (bisection on how far the hands are out of reach) and smoothed, so the player follows the lever down and up.
-        static readonly Dictionary<Animator, float[]> BendState = new();                // smoothed { back degrees, hip drop m }
-        sealed class HipRefState { public Vector3 Pos; public Quaternion Rot; }
-        static readonly Dictionary<Animator, HipRefState> HipRef = new();               // slow average of the animated hips (local), the spot the hips are held at
-        static Quaternion _hipsRot = Quaternion.identity;                               // hips local rotation BendPose sets (the locked one)
-        const float HipRefSeconds = 1.2f;                                               // time constant of that average (longer than a stroke)
-        static float _nextReachLog;
-        static readonly Dictionary<Transform, Vector3[]> HipPos = new();                // hips: { animator's local position, what we set }
-        static readonly Transform[] BB = new Transform[3];
-        static readonly float[] BW = { 0.4f, 0.35f, 0.25f };
-        static readonly Quaternion[] BSnap = new Quaternion[3];
-        const float ReachMargin = 0.03f;        // keep the arms this far from straight (m)
-        const float PalmBeyondWrist = 0.05f;    // the grip point is on the palm, a bit beyond the wrist
-
-        // puts a bone back to the animator's pose when it still holds exactly what we set last frame (the animator did not rewrite it)
-        static void Begin(Transform t)
-        {
-            Saved s;
-            if (Fingers.TryGetValue(t, out s))
-            {
-                if (Quaternion.Angle(t.localRotation, s.Applied) < 0.01f) t.localRotation = s.Base; else s.Base = t.localRotation;
-            }
-            else Fingers[t] = new Saved { Base = t.localRotation, Applied = t.localRotation };
-        }
-        static void End(Transform t) { Saved s; if (Fingers.TryGetValue(t, out s)) s.Applied = t.localRotation; }
-
-        static float OutOfReach(Transform A, Transform B, Transform C, Vector3 grip)
-        {
-            float l1 = (B.position - A.position).magnitude, l2 = (C.position - B.position).magnitude;
-            return (grip - A.position).magnitude - ((l1 + l2) * ReachComfort + PalmBeyondWrist);
-        }
-
-        static void BendPose(Transform hips, Vector3 hipsLocal, Vector3 axis, float degrees, float drop)
-        {
-            hips.localPosition = hipsLocal;
-            hips.localRotation = _hipsRot;
-            if (drop > 0f) hips.position -= Vector3.up * drop;
-            for (int i = 0; i < 3; i++) if (BB[i] != null) BB[i].localRotation = BSnap[i];
-            if (degrees != 0f)
-                for (int i = 0; i < 3; i++) if (BB[i] != null) BB[i].rotation = Quaternion.AngleAxis(degrees * BW[i], axis) * BB[i].rotation;
-        }
-
-        static void ReachBend(Player p, Animator a, Vector3 rightGrip, Vector3 leftGrip, float w)
-        {
-            var hips = a.GetBoneTransform(HumanBodyBones.Hips);
-            BB[0] = a.GetBoneTransform(HumanBodyBones.Spine); BB[1] = a.GetBoneTransform(HumanBodyBones.Chest); BB[2] = a.GetBoneTransform(HumanBodyBones.UpperChest);
-            var rA = a.GetBoneTransform(HumanBodyBones.RightUpperArm); var rB = a.GetBoneTransform(HumanBodyBones.RightLowerArm); var rC = a.GetBoneTransform(HumanBodyBones.RightHand);
-            var lA = a.GetBoneTransform(HumanBodyBones.LeftUpperArm); var lB = a.GetBoneTransform(HumanBodyBones.LeftLowerArm); var lC = a.GetBoneTransform(HumanBodyBones.LeftHand);
-            if (hips == null || BB[0] == null || rA == null || rB == null || rC == null || lA == null || lB == null || lC == null) return;
-            float maxDeg = ModSettings.MaxBackBend.Value, maxDrop = ModSettings.MaxKneeBend.Value, hipLock = Mathf.Clamp01(ModSettings.HipLock.Value);
-            if (maxDeg <= 0.01f && maxDrop <= 0.001f && hipLock <= 0.001f) return;
-
-            // legs: remember where the feet are before anything moves
-            var uL = a.GetBoneTransform(HumanBodyBones.LeftUpperLeg); var kL = a.GetBoneTransform(HumanBodyBones.LeftLowerLeg); var fL = a.GetBoneTransform(HumanBodyBones.LeftFoot);
-            var uR = a.GetBoneTransform(HumanBodyBones.RightUpperLeg); var kR = a.GetBoneTransform(HumanBodyBones.RightLowerLeg); var fR = a.GetBoneTransform(HumanBodyBones.RightFoot);
-            bool legs = uL != null && kL != null && fL != null && uR != null && kR != null && fR != null;
-
-            // the animator's pose (undo what we added last frame if the animator did not rewrite the bones)
-            Vector3[] hp;
-            if (HipPos.TryGetValue(hips, out hp)) { if ((hips.localPosition - hp[1]).sqrMagnitude < 1e-8f) hips.localPosition = hp[0]; else hp[0] = hips.localPosition; }
-            else HipPos[hips] = hp = new[] { hips.localPosition, hips.localPosition };
-            Begin(hips);
-            for (int i = 0; i < 3; i++) if (BB[i] != null) Begin(BB[i]);
-            if (legs) { Begin(uL); Begin(kL); Begin(fL); Begin(uR); Begin(kR); Begin(fR); }
-            Vector3 fLp = legs ? fL.position : Vector3.zero, fRp = legs ? fR.position : Vector3.zero;
-            Quaternion fLr = legs ? fL.rotation : Quaternion.identity, fRr = legs ? fR.rotation : Quaternion.identity;
-
-            Vector3 hipsPos0 = hips.position; Quaternion hipsRot0 = hips.rotation;      // the animator's hips (world), to see later whether the legs need IK
-            Vector3 hipsLocal = hips.localPosition; _hipsRot = hips.localRotation;
-            if (hipLock > 0.001f)
-            {
-                // Hip lock: the clips swing the hips with every stroke. A slow average of the animated hips is the calm spot; the hips are held
-                // there (HipLock = how much) so the stroke comes from the upper body (spine bend + arms), and the leg IK below keeps the feet planted.
-                HipRefState hr;
-                if (!HipRef.TryGetValue(a, out hr)) HipRef[a] = hr = new HipRefState { Pos = hipsLocal, Rot = _hipsRot };
-                float kr = 1f - Mathf.Exp(-Mathf.Max(Time.deltaTime, 0.001f) / HipRefSeconds);
-                hr.Pos = Vector3.Lerp(hr.Pos, hipsLocal, kr); hr.Rot = Quaternion.Slerp(hr.Rot, _hipsRot, kr);
-                float relax = 0f; float[] rs;
-                if (BendState.TryGetValue(a, out rs) && rs.Length > 2) relax = rs[2];
-                float lw = hipLock * w * (1f - relax);
-                hipsLocal = Vector3.Lerp(hipsLocal, hr.Pos, lw); _hipsRot = Quaternion.Slerp(_hipsRot, hr.Rot, lw);
-            }
-            for (int i = 0; i < 3; i++) BSnap[i] = BB[i] != null ? BB[i].localRotation : Quaternion.identity;
-            Vector3 right = p.transform.right;
-
-            // forward bend = positive rotation about the player's right axis (Unity: AngleAxis(+, right) tips "up" towards "forward").
-            // Fixed on purpose: the old "try both directions, keep the closer one" decision flipped from frame to frame when the camera
-            // twisted the torso, and the whole back snapped between leaning forwards and backwards (the flicker).
-            Vector3 axis = right;
-
-            float wantDeg = 0f, wantDrop = 0f, resid = 0f;      // resid: how far the hands are still out of reach with every limit used
-            BendPose(hips, hipsLocal, axis, 0f, 0f);
-            float S0 = Mathf.Max(OutOfReach(rA, rB, rC, rightGrip), OutOfReach(lA, lB, lC, leftGrip));
-            if (S0 > -ReachMargin)
-            {
-                BendPose(hips, hipsLocal, axis, maxDeg, 0f);
-                float S1 = Mathf.Max(OutOfReach(rA, rB, rC, rightGrip), OutOfReach(lA, lB, lC, leftGrip));
-                if (S1 <= -ReachMargin)
-                {
-                    float lo = 0f, hi = maxDeg;
-                    for (int it = 0; it < 8; it++)
-                    {
-                        float mid = 0.5f * (lo + hi);
-                        BendPose(hips, hipsLocal, axis, mid, 0f);
-                        float s = Mathf.Max(OutOfReach(rA, rB, rC, rightGrip), OutOfReach(lA, lB, lC, leftGrip));
-                        if (s > -ReachMargin) lo = mid; else hi = mid;
-                    }
-                    wantDeg = hi;
-                }
-                else
-                {
-                    wantDeg = maxDeg; resid = S1 + ReachMargin;
-                    if (maxDrop > 0.001f && legs)
-                    {
-                        BendPose(hips, hipsLocal, axis, maxDeg, maxDrop);
-                        resid = 0f;
-                        float S2 = Mathf.Max(OutOfReach(rA, rB, rC, rightGrip), OutOfReach(lA, lB, lC, leftGrip));
-                        if (S2 > -ReachMargin) { wantDrop = maxDrop; resid = S2 + ReachMargin; }
-                        else
-                        {
-                            float lo = 0f, hi = maxDrop;
-                            for (int it = 0; it < 8; it++)
-                            {
-                                float mid = 0.5f * (lo + hi);
-                                BendPose(hips, hipsLocal, axis, maxDeg, mid);
-                                float s = Mathf.Max(OutOfReach(rA, rB, rC, rightGrip), OutOfReach(lA, lB, lC, leftGrip));
-                                if (s > -ReachMargin) lo = mid; else hi = mid;
-                            }
-                            wantDrop = hi;
-                        }
-                    }
-                }
-            }
-
-            // smooth (the lever moves fast), then apply
-            float[] st;
-            if (!BendState.TryGetValue(a, out st)) BendState[a] = st = new float[3];
-            float dt = Mathf.Max(Time.deltaTime, 0.001f);
-            float k = 1f - Mathf.Exp(-Mathf.Max(1f, ModSettings.BendSmooth.Value) * dt);       // release (back up): soft
-            float ka = 1f - Mathf.Exp(-30f * dt);                                                // attack (down to the lever): quick, so the hands are never left behind
-            st[0] = Mathf.Lerp(st[0], wantDeg, wantDeg > st[0] ? ka : k); st[1] = Mathf.Lerp(st[1], wantDrop, wantDrop > st[1] ? ka : k);
-            // still out of reach with the hips held: let the hips follow the clip again for a while (fast on, slow off)
-            float relaxTo = resid > 0.01f ? 1f : 0f;
-            st[2] = Mathf.Lerp(st[2], relaxTo, relaxTo > st[2] ? ka : 1f - Mathf.Exp(-1.5f * dt));
-            if (resid > 0.01f && ModSettings.DebugLog.Value && Time.time > _nextReachLog) { _nextReachLog = Time.time + 1f; ModLog.Info("Pump reach: still " + resid.ToString("0.00") + " m short with back bend " + wantDeg.ToString("0") + " deg, hip drop " + wantDrop.ToString("0.00") + " m, hip relax " + st[2].ToString("0.00")); }
-            float deg = st[0] * w, drop = st[1] * w;
-            BendPose(hips, hipsLocal, axis, deg, drop);
-            hp[1] = hips.localPosition;
-            for (int i = 0; i < 3; i++) if (BB[i] != null) End(BB[i]);
-            End(hips);
-
-            bool hipsMoved = (hips.position - hipsPos0).sqrMagnitude > 4e-6f || Quaternion.Angle(hips.rotation, hipsRot0) > 0.2f;
-            if (legs && (drop > 0.002f || hipsMoved))
-            {
-                Vector3 fwd = Vector3.ProjectOnPlane(p.transform.forward, Vector3.up);
-                if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
-                Leg(uL, kL, fL, fLp, fLr, fwd); Leg(uR, kR, fR, fRp, fRr, fwd);
-            }
-            if (legs) { End(uL); End(kL); End(fL); End(uR); End(kR); End(fR); }
-        }
-
-        /// Two-bone leg IK: the hips have sunk, so thigh and shin swing (knee forward) to keep the foot where it was.
-        static void Leg(Transform U, Transform L, Transform F, Vector3 foot, Quaternion footRot, Vector3 kneeDir)
-        {
-            Vector3 pa = U.position, pb = L.position, pc = F.position;
-            float l1 = (pb - pa).magnitude, l2 = (pc - pb).magnitude;
-            if (l1 < 0.01f || l2 < 0.01f) return;
-            Vector3 toT = foot - pa;
-            float d = Mathf.Clamp(toT.magnitude, 0.05f, (l1 + l2) * 0.999f);
-            Vector3 dir = toT.sqrMagnitude > 1e-8f ? toT.normalized : (pc - pa).normalized;
-            Vector3 pole = Vector3.ProjectOnPlane(kneeDir, dir);
-            if (pole.sqrMagnitude < 1e-6f) return;
-            pole.Normalize();
-            float cosA = Mathf.Clamp((l1 * l1 + d * d - l2 * l2) / (2f * l1 * d), -1f, 1f);
-            float sinA = Mathf.Sqrt(1f - cosA * cosA);
-            Vector3 knee = pa + (dir * cosA + pole * sinA) * l1;
-            Vector3 ankle = pa + dir * d;
-            U.rotation = Quaternion.FromToRotation(pb - pa, knee - pa) * U.rotation;
-            Vector3 b2 = L.position;
-            L.rotation = Quaternion.FromToRotation(F.position - b2, ankle - b2) * L.rotation;
-            F.rotation = footRot;
         }
 
         /// Two-bone IK: swings the upper arm and forearm so the wrist (hand bone) ends up on `wrist`.
