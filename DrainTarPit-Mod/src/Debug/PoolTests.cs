@@ -530,7 +530,7 @@ namespace DrainTarPit.Debug
             res.Summary = label + ": poured " + F2(r.Poured) + " m3 -> after the last stroke " + F2(endPour.Total) + " in the pool (" + F2(kept * 100f) + " %), final " + F2(fin.Total) + " (" + F2(fin.Total / Mathf.Max(0.01f, r.Poured) * 100f) + " %); " +
                           "level rise " + F2(levelRise) + " m (expected " + F2(r.Poured / areaIn) + ", " + F2(levelRise / Mathf.Max(0.001f, r.Poured / areaIn) * 100f) + " %), final level rise " + F2(fin.Level - (o.y + tank.Floor)) + ", max level rise " + F2(r.MaxLevel - (o.y + tank.Floor)) +
                           "; final: in tank " + F2(fin.TankIn) + ", on wall cells " + F2(fin.Ring) + ", elsewhere " + F2(fin.Total - fin.TankIn - fin.Ring) + ", grid edge " + F2(fin.Border) + "; reloads " + r.Reloads + ", saves " + r.Saves + ", drops " + r.Drops +
-                          "; mod budget: stayed " + F2(b.Stayed) + " edge " + F2(b.Edge) + " thin " + F2(b.Thin) + " lost " + F2(b.Lost) + " shedEdge " + F2(b.ShedEdge) + " evap " + F2(b.Evap);
+                          "; mod budget: stayed " + F2(b.Stayed) + " edge " + F2(b.Edge) + " thin " + F2(b.Thin) + " lost " + F2(b.Lost) + " shedEdge " + F2(b.ShedEdge) + " evap " + F2(b.Evap) + " wallPushed " + F2(b.WallPushed) + " wallDestroyed " + F2(b.WallLost) + " wallPasses " + b.WallPasses;
             Out("TANK RESULT " + res.Summary);
             TarPool.DestroyForTest(v); Synth.Remove(v);
         }

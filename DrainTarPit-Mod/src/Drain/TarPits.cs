@@ -525,7 +525,7 @@ namespace DrainTarPit.Drain
         // Stayed = raised in the basin, Edge = reached the border of the grid (continues into the next pool or runs off), Thin = a thin film behind a rim that
         // FloodPass does not keep, Lost = in none of the others (no basin found / no reachable cell), ShedEdge = films that ShedFilms let run off the grid border,
         // Evap = films that ShedFilms evaporated. If 'Stayed' is a small part of 'Poured' the water is not staying in the pool, and the other numbers say why.
-        internal sealed class Budget { public float Poured, Stayed, Edge, Thin, Lost, ShedEdge, Evap; }
+        internal sealed class Budget { public float Poured, Stayed, Edge, Thin, Lost, ShedEdge, Evap, WallPushed, WallLost; public int WallPasses; }
         static readonly Dictionary<LiquidVolume, Budget> Budgets = new();
         static float _dropThin;      // depth sum (cell units) FloodPass dropped as a thin film behind a rim during the current FillBasin
 
@@ -540,7 +540,7 @@ namespace DrainTarPit.Drain
         {
             Budget b;
             if (v == null || !Budgets.TryGetValue(v, out b)) return "nothing poured into this pool on this machine yet";
-            return "poured " + b.Poured.ToString("0.0") + " m3 -> stayed in the basin " + b.Stayed.ToString("0.0") + ", reached the grid edge " + b.Edge.ToString("0.0") + ", thin film behind a rim dropped " + b.Thin.ToString("0.0") + ", no basin " + b.Lost.ToString("0.0") + "   |   later: films run off the grid border " + b.ShedEdge.ToString("0.0") + ", evaporated " + b.Evap.ToString("0.0");
+            return "poured " + b.Poured.ToString("0.0") + " m3 -> stayed in the basin " + b.Stayed.ToString("0.0") + ", reached the grid edge " + b.Edge.ToString("0.0") + ", thin film behind a rim dropped " + b.Thin.ToString("0.0") + ", no basin " + b.Lost.ToString("0.0") + "   |   later: films run off the grid border " + b.ShedEdge.ToString("0.0") + ", evaporated " + b.Evap.ToString("0.0") + "   |   wall pass (ApplyWalls): pushed to open neighbours " + b.WallPushed.ToString("0.0") + ", destroyed (no open neighbour) " + b.WallLost.ToString("0.0") + " in " + b.WallPasses + " passes";
         }
 
         /// Live tuning (editor): sets the base viscosity (the pool's own flow value without the pouring boost). A boost that is running keeps its factor.
@@ -1212,7 +1212,7 @@ namespace DrainTarPit.Drain
                 if (walls == null) return;
 
                 // tar that stood where a wall is now is pushed to the open cells next to it
-                bool moved = false;
+                bool moved = false; float wPushed = 0f, wLost = 0f, wc2 = v.m_scale * v.m_scale; int wWet = 0, wNoFree = 0;
                 var isWall = new bool[n];
                 foreach (int i in walls) isWall[i] = true;
                 int[] ox = { 1, -1, 0, 0 }, oy = { 0, 0, 1, -1 };
@@ -1227,17 +1227,23 @@ namespace DrainTarPit.Drain
                     }
                     if (free > 0)
                     {
-                        float share = d[i] / free;
+                        float share = d[i] / free; wPushed += d[i] * wc2;
                         for (int k = 0; k < 4; k++)
                         {
                             int x = cx + ox[k], y = cy + oy[k];
                             if (x >= 0 && y >= 0 && x <= w && y <= w && !isWall[y * stride + x]) d[y * stride + x] += share;
                         }
                     }
+                    wWet++; if (free == 0) { wLost += d[i] * wc2; wNoFree++; }     // a wall cell with no open neighbour (inside a thick wall / piece): its liquid is destroyed here
                     d[i] = 0f; moved = true;
                 }
                 FDirty.SetValue(v, true);
                 if (moved) FNeedsSaving.SetValue(v, true);
+                if (wWet > 0)
+                {
+                    var wb = BudgetOf(v); wb.WallPasses++; wb.WallPushed += wPushed; wb.WallLost += wLost;
+                    ModLog.Verbose("Pit " + v.name + ": wall pass: " + wWet + " of " + walls.Count + " wall cells held liquid; pushed to open neighbours " + wPushed.ToString("0.000") + " m3, DESTROYED (" + wNoFree + " cells with no open neighbour) " + wLost.ToString("0.000") + " m3");
+                }
             }
             if (memo.Logged != walls.Count) { memo.Logged = walls.Count; ModLog.Verbose("Pit " + v.name + ": " + walls.Count + " cells raised by built pieces"); }       // only when the number changes (it was one line per pool per second)
         }
