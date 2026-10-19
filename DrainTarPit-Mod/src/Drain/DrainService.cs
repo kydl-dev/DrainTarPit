@@ -133,7 +133,7 @@ namespace DrainTarPit.Drain
             if (c.Liquid == PumpLiquid.Water && c.Pit == null) return StrokeWater(pump, pumpView, c, r);     // the sea: no pit to ask
 
             float radius = ModSettings.DrainRadius.Value;
-            float avail = TarPits.Available(c.Pit, c.Center, radius);
+            float avail = TarPitDrain.Available(c.Pit, c.Center, radius);
             if (avail < 0.01f) { r.Dry = true; r.Message = Loc.T("dtp_err_air"); return r; }
 
             r.Volume = Mathf.Min(ModSettings.VolumePerStroke.Value, avail);
@@ -142,7 +142,7 @@ namespace DrainTarPit.Drain
             // owner's answer - Poured - comes back inside RequestDrain, and Poured lines the nozzle effects up with this slug (TarFlow.ClaimArrival).
             TarFlow.Stroke(pump, true, c.Liquid);
             r.SlugStarted = true;
-            TarPits.RequestDrain(c.Pit, c.Center, radius, r.Volume, c.Nozzle, pumpId);   // the pit owner answers -> TarPits.OnDrained -> Poured
+            TarPitDrain.RequestDrain(c.Pit, c.Center, radius, r.Volume, c.Nozzle, pumpId);   // the pit owner answers -> TarPitDrain.OnDrained -> Poured
             return r;
         }
 

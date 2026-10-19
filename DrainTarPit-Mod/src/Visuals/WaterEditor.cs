@@ -42,7 +42,7 @@ namespace DrainTarPit.Visuals
         // nearest water pool (refreshed twice a second)
         static float _nextInfo;
         static LiquidVolume _pool;
-        static TarPits.PoolStats _stats;
+        static TarPitStats.PoolStats _stats;
         static bool _haveStats;
         static float _poolDist;
 
@@ -139,8 +139,8 @@ namespace DrainTarPit.Visuals
         static void RefreshPool()
         {
             var p = Player.m_localPlayer;
-            _pool = p != null ? TarPits.Nearest(p.transform.position, LiquidType.Water) : null;
-            _haveStats = _pool != null && TarPits.Stats(_pool, out _stats);
+            _pool = p != null ? TarPitStats.Nearest(p.transform.position, LiquidType.Water) : null;
+            _haveStats = _pool != null && TarPitStats.Stats(_pool, out _stats);
             if (_pool != null)
             {
                 var o = _pool.transform.position; var q = p.transform.position;
@@ -256,11 +256,11 @@ namespace DrainTarPit.Visuals
                 GUILayout.Label("volume " + _stats.Total.ToString("0.00", Inv) + " m3   wet cells " + _stats.Wet + " (thinner than film depth: " + _stats.Thin + ")   deepest " + _stats.Max.ToString("0.000", Inv) + " m   wall cells " + _stats.WallCells);
             }
             else GUILayout.Label("pool found but its data is not ready");
-            GUILayout.Label("last deposit: " + TarPits.LastDeposit);
-            GUILayout.Label("where the water went (this pool, since the world was loaded): " + TarPits.BudgetText(_pool));
+            GUILayout.Label("last deposit: " + TarPitStats.LastDeposit);
+            GUILayout.Label("where the water went (this pool, since the world was loaded): " + TarPitStats.BudgetText(_pool));
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Pour one stroke at crosshair")) _status = PourAtCrosshair();
-            if (GUILayout.Button("Empty this pool")) _status = _pool != null && TarPits.DebugEmpty(_pool) ? "pool emptied" : "not emptied (no pool, or you are not its owner)";
+            if (GUILayout.Button("Empty this pool")) _status = _pool != null && TarPitDebug.DebugEmpty(_pool) ? "pool emptied" : "not emptied (no pool, or you are not its owner)";
             GUILayout.EndHorizontal();
         }
 

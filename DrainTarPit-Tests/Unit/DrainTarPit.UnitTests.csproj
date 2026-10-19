@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Unit tests: pure logic, no game running, no Unity player, no Valheim state. See _agent/TESTING.md. -->
+  <PropertyGroup>
+    <AssemblyName>DrainTarPit.UnitTests</AssemblyName>
+    <RootNamespace>DrainTarPit.Tests.Unit</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx"><HintPath>$(ValheimRefs)\BepInEx.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+</Project>

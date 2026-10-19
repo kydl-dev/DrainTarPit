@@ -1,0 +1,32 @@
+<Project>
+  <!--
+    Shared settings for every test project in this folder.
+    * net48 = the runtime family the game's Mono is closest to (NOT .NET 10: BCL differences would hide bugs).
+    * NuGet packages are restored INTO this folder (.nuget\packages), never into the user profile (PROJECT_RULES rule 4).
+    * Game / BepInEx / Jotunn DLLs come from the mod's ref\ folder (git-ignored). To test against the real, installed game instead:
+        dotnet test -p:ValheimRefs="C:\...\Valheim\valheim_Data\Managed"   (and set DTP_REF_DIR to the same folder)
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <RestorePackagesPath>$(MSBuildThisFileDirectory).nuget\packages</RestorePackagesPath>
+    <ValheimRefs Condition="'$(ValheimRefs)' == ''">$(MSBuildThisFileDirectory)..\DrainTarPit-Mod\ref</ValheimRefs>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- versions = the ones `dotnet new nunit` ships with this SDK (10.0.300) -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="NUnit.Framework" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\*.cs" LinkBase="Common" />
+  </ItemGroup>
+</Project>

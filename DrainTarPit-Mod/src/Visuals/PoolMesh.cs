@@ -10,7 +10,7 @@ namespace DrainTarPit.Visuals
     ///   - a wet grid point (depth > 0) gets y = ground + max(depth, 0.1 m), a dry one gets y = ground height (CalcVertex),
     ///   - the vertex colour alpha is 0 for dry points and 1 for wet ones.
     /// For a tar pit on a gentle slope that is fine: the dry points sit on the ground. But the walls of a pool are cells whose ground height is the TOP of the wall
-    /// (TarPits.ApplyWalls), so the quads between the water and the first wall cells climb straight up to the top of the wall: a translucent sheet
+    /// (TarPitWalls.ApplyWalls), so the quads between the water and the first wall cells climb straight up to the top of the wall: a translucent sheet
     /// (with spiky triangles, because each quad is split along one diagonal) hangs on the wall, and the ocean material does not hide it with the vertex alpha.
     ///
     /// Fix, for volumes of type Water only (every one of them is a pool of this mod): while the worker thread builds the mesh a dry grid point
@@ -35,7 +35,7 @@ namespace DrainTarPit.Visuals
         {
             if (ModSettings.PoolMeshFix != null) _enabled = ModSettings.PoolMeshFix.Value;
             if (ModSettings.PoolMeshReach != null) _reach = Mathf.Clamp(ModSettings.PoolMeshReach.Value, 1, 24);
-            DrainTarPit.Drain.TarPits.MarkMeshDirty(LiquidType.Water);       // the pools rebuild their mesh with the new setting
+            DrainTarPit.Drain.TarPitDebug.MarkMeshDirty(LiquidType.Water);       // the pools rebuild their mesh with the new setting
         }
 
         // min over a (2R+1) x (2R+1) window of the wet surface heights, done as two 1-D passes

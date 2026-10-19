@@ -1,0 +1,5 @@
+﻿LiquidVolume.m_depths : System.Collections.Generic.List`1<System.Single>
+LiquidVolume.m_heights : System.Collections.Generic.List`1<System.Single>
+LiquidVolume.m_liquidType : LiquidType
+LiquidVolume.m_width : System.Int32
+--- all fields: liquidSaveVersion, updateHeightTimer, m_tempVertises, m_tempNormals, m_tempUVs, m_tempIndices, m_tempColors, m_tempColliderVertises, m_tempColliderIndices, m_width, m_scale, m_maxDepth, m_liquidType, m_physicsOffset, m_initialVolume, m_initialArea, m_viscocity, m_noiseHeight, m_noiseFrequency, m_noiseSpeed, m_castShadow, m_groundLayer, m_collider, m_saveInterval, m_randomEffectInterval, m_randomEffectList, m_heights, m_depths, m_randomEffectTimer, m_haveHeights, m_needsSaving, m_timeSinceSaving, m_dirty, m_dirtyMesh, m_mesh, m_meshFilter, m_builder, m_meshDataLock, m_stopThread, m_timerLock, m_timeToSimulate, m_updateDelayTimer, m_nview, m_lastDataRevision, m_savePkg, m_compressedArray, m_maxVertex, m_raycastResults, m_raycastCommands, m_raycastHitsArray

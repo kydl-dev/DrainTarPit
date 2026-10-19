@@ -41,22 +41,22 @@ namespace DrainTarPit.Debug
         internal sealed class Tank { public int R; public int Ring = 3; public float Floor = -1f; public float Top; }
         static readonly Dictionary<LiquidVolume, Tank> Synth = new Dictionary<LiquidVolume, Tank>();
 
-        /// Called from the UpdateHeights postfix (TarPits.Patch_UpdateHeights) with the pool's lock held: forces the heights of a test pool to the tank.
+        /// Called from the UpdateHeights postfix (TarPitHooks.Patch_UpdateHeights) with the pool's lock held: forces the heights of a test pool to the tank.
         internal static void ApplySynthetic(LiquidVolume v)
         {
             Tank t;
             if (Synth.Count == 0 || !Synth.TryGetValue(v, out t)) return;
-            var h = TarPits.HeightList(v);
+            var h = TarPitDebug.HeightList(v);
             int w = v.m_width, stride = w + 1, n = stride * stride, c = w / 2;
             if (h == null || h.Count < n) return;
-            using (TarPits.Lock(v))
+            using (TarPitDebug.Lock(v))
             {
                 for (int i = 0; i < n; i++)
                 {
                     int cheb = Mathf.Max(Mathf.Abs(i % stride - c), Mathf.Abs(i / stride - c));
                     h[i] = cheb <= t.R ? t.Floor : cheb <= t.R + t.Ring ? t.Top : t.Floor - 0.5f;
                 }
-                TarPits.MarkChanged(v);
+                TarPitDebug.MarkChanged(v);
             }
         }
 
@@ -171,9 +171,9 @@ namespace DrainTarPit.Debug
             var s = new Snap();
             int w = v.m_width, stride = w + 1, n = stride * stride;
             if (_d.Length < n) { _d = new float[n]; _h = new float[n]; _seen = new bool[n]; _q = new int[n]; }
-            using (TarPits.Lock(v))
+            using (TarPitDebug.Lock(v))
             {
-                var dl = TarPits.DepthList(v); var hl = TarPits.HeightList(v);
+                var dl = TarPitDebug.DepthList(v); var hl = TarPitDebug.HeightList(v);
                 if (dl == null || hl == null || dl.Count < n || hl.Count < n) return s;
                 dl.CopyTo(0, _d, 0, n); hl.CopyTo(0, _h, 0, n);
             }
@@ -196,7 +196,7 @@ namespace DrainTarPit.Debug
             s.Total = (float)sum * c2; s.Border = (float)bor * c2; s.TankIn = (float)tin * c2; s.Ring = (float)ring * c2;
             s.CentreH = _h[cc * stride + cc];
             if (tank != null) s.RingH = _h[cc * stride + cc + tank.R + 1];
-            s.Walls = TarPits.WallCellCount(v);
+            s.Walls = TarPitWalls.WallCellCount(v);
             if (deep < 0) return s;
 
             float surf = _h[deep] + _d[deep];
@@ -296,7 +296,7 @@ namespace DrainTarPit.Debug
             var s = Take(r.V, r.Tank);
             float t = Time.time - r.T0;
             long own, zdo; int bytes, hash;
-            TarPits.Revisions(r.V, out own, out zdo, out bytes, out hash);
+            TarPitDebug.Revisions(r.V, out own, out zdo, out bytes, out hash);
             var ev = new StringBuilder();
             if (r.PrevOwn != long.MinValue)
             {
@@ -354,7 +354,7 @@ namespace DrainTarPit.Debug
 
         static LiquidVolume NearestPool(Vector3 p)
         {
-            return TarPits.Nearest(p, LiquidType.Water);
+            return TarPitStats.Nearest(p, LiquidType.Water);
         }
 
         // --- watch ------------------------------------------------------------------------------------------------------
@@ -389,12 +389,12 @@ namespace DrainTarPit.Debug
             float vol = ModSettings.VolumePerStroke.Value;
             Out("=== POUR " + strokes + " strokes of " + F2(vol) + " m3 every " + F2(interval) + " s at the crosshair " + land.ToString("0.00") + " (the real deposit path), then " + F2(PoolHoldAfterPour) + " s of watching");
             Out(EnvLine(land)); Out(ConfigLine());
-            var v = TarPits.Nearest(land, LiquidType.Water);
+            var v = TarPitStats.Nearest(land, LiquidType.Water);
             float before = v != null ? TarPits.TotalVolume(v) : 0f;
             string first = TarPool.DebugPour(land, vol, PumpLiquid.Water);
             Out("first stroke: " + first);
             yield return null;
-            v = TarPits.Nearest(land, LiquidType.Water);
+            v = TarPitStats.Nearest(land, LiquidType.Water);
             if (v == null) { Say("ptest pour: no pool exists after the first stroke: " + first); yield break; }
             var r = new Obs { Label = "P", V = v, T0 = Time.time, Poured = vol };
             Out("pool: " + v.transform.position.ToString("0.0") + " pump pool=" + TarPits.IsPumpPool(v) + " volume before=" + F2(before) + " m3");
@@ -491,8 +491,8 @@ namespace DrainTarPit.Debug
                 " m3, mode " + (inject ? "inject (even spread, no FloodPass)" : "flood (the real FloodPass)") + ", pool at " + v.transform.position.ToString("0.0"));
             Out(EnvLine(land)); Out(ConfigLine());
             float t0 = Time.time;
-            while (!TarPits.Ready(v) && Time.time < t0 + 15f && !_cancel) yield return null;
-            if (!TarPits.Ready(v)) { res.Summary = label + ": FAILED - the pool never got its ground heights"; TarPool.DestroyForTest(v); Synth.Remove(v); yield break; }
+            while (!TarPitDebug.Ready(v) && Time.time < t0 + 15f && !_cancel) yield return null;
+            if (!TarPitDebug.Ready(v)) { res.Summary = label + ": FAILED - the pool never got its ground heights"; TarPool.DestroyForTest(v); Synth.Remove(v); yield break; }
             t0 = Time.time;
             Snap st = null;
             while (Time.time < t0 + 6f && !_cancel)
@@ -514,7 +514,7 @@ namespace DrainTarPit.Debug
             {
                 if (Time.time >= next)
                 {
-                    if (inject) Inject(v, tank, vol); else TarPits.DepositLocal(v, centre, vol, 0);
+                    if (inject) Inject(v, tank, vol); else TarPitDeposit.DepositLocal(v, centre, vol, 0);
                     r.Poured += vol; done++; next = Time.time + DefaultPourInterval;
                     r.Expected = o.y + tank.Floor + r.Poured / areaIn;
                 }
@@ -526,7 +526,7 @@ namespace DrainTarPit.Debug
             float tEnd = Time.time;
             while (Time.time < tEnd + HoldAfterPour && !_cancel) { Sample(r); yield return new WaitForSeconds(SampleSeconds); }
             var fin = r.Last;
-            var b = TarPits.BudgetFor(v);
+            var b = TarPitDebug.BudgetFor(v);
             res.Summary = label + ": poured " + F2(r.Poured) + " m3 -> after the last stroke " + F2(endPour.Total) + " in the pool (" + F2(kept * 100f) + " %), final " + F2(fin.Total) + " (" + F2(fin.Total / Mathf.Max(0.01f, r.Poured) * 100f) + " %); " +
                           "level rise " + F2(levelRise) + " m (expected " + F2(r.Poured / areaIn) + ", " + F2(levelRise / Mathf.Max(0.001f, r.Poured / areaIn) * 100f) + " %), final level rise " + F2(fin.Level - (o.y + tank.Floor)) + ", max level rise " + F2(r.MaxLevel - (o.y + tank.Floor)) +
                           "; final: in tank " + F2(fin.TankIn) + ", on wall cells " + F2(fin.Ring) + ", elsewhere " + F2(fin.Total - fin.TankIn - fin.Ring) + ", grid edge " + F2(fin.Border) + "; reloads " + r.Reloads + ", saves " + r.Saves + ", drops " + r.Drops +
@@ -540,12 +540,12 @@ namespace DrainTarPit.Debug
         {
             int w = v.m_width, stride = w + 1, c = w / 2, cells = (2 * t.R + 1) * (2 * t.R + 1);
             float per = volume / (cells * v.m_scale * v.m_scale);
-            var d = TarPits.DepthList(v);
-            using (TarPits.Lock(v))
+            var d = TarPitDebug.DepthList(v);
+            using (TarPitDebug.Lock(v))
             {
                 for (int y = c - t.R; y <= c + t.R; y++)
                     for (int x = c - t.R; x <= c + t.R; x++) d[y * stride + x] += per;
-                TarPits.MarkChanged(v);
+                TarPitDebug.MarkChanged(v);
             }
         }
 
@@ -558,10 +558,10 @@ namespace DrainTarPit.Debug
             var v = NearestPool(at);
             if (v == null) { Say("ptest rim: no water pool is loaded."); return; }
             int w = v.m_width, stride = w + 1, n = stride * stride;
-            var hl = TarPits.HeightList(v);
+            var hl = TarPitDebug.HeightList(v);
             if (hl == null || hl.Count < n) { Say("ptest rim: the pool has no heights yet."); return; }
             if (_d.Length < n) { _d = new float[n]; _h = new float[n]; _seen = new bool[n]; _q = new int[n]; }
-            using (TarPits.Lock(v)) { hl.CopyTo(0, _h, 0, n); }
+            using (TarPitDebug.Lock(v)) { hl.CopyTo(0, _h, 0, n); }
             var o = v.transform.position;
             int gx = Mathf.Clamp(Mathf.RoundToInt((at.x - (o.x - w * v.m_scale * 0.5f)) / v.m_scale), 1, w - 1);
             int gy = Mathf.Clamp(Mathf.RoundToInt((at.z - (o.z - w * v.m_scale * 0.5f)) / v.m_scale), 1, w - 1);
@@ -584,7 +584,7 @@ namespace DrainTarPit.Debug
             float s4 = SpillLevel(seed, w, stride, false, out pass4), s8 = SpillLevel(seed, w, stride, true, out pass8);
             string P(int c) { return c >= 0 ? "(" + F2(o.x + (c % stride - w / 2) * v.m_scale) + ", " + F2(o.y + _h[c]) + ", " + F2(o.z + (c / stride - w / 2) * v.m_scale) + ")" : "none"; }
             Say("RIM: basin around the crosshair has its floor at y " + F2(o.y + _h[seed]) + ". Water overflows at y " + F2(o.y + s4) + " (4-neighbour) / y " + F2(o.y + s8) + " (8-neighbour, diagonal) - that is " +
-                F2(s4 - _h[seed]) + " m / " + F2(s8 - _h[seed]) + " m of water. Lowest wall cell near " + P(pass4) + " (diagonal: " + P(pass8) + "). Pool " + v.transform.position.ToString("0.0") + ", wall cells remembered: " + TarPits.WallCellCount(v) +
+                F2(s4 - _h[seed]) + " m / " + F2(s8 - _h[seed]) + " m of water. Lowest wall cell near " + P(pass4) + " (diagonal: " + P(pass8) + "). Pool " + v.transform.position.ToString("0.0") + ", wall cells remembered: " + TarPitWalls.WallCellCount(v) +
                 ", pump pool: " + TarPits.IsPumpPool(v) + (s4 >= MaxLevelProbe - 0.01f ? ". The basin is closed up to the top of the grid's height range." : ""));
         }
 

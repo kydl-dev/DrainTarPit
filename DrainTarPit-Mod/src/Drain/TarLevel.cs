@@ -9,12 +9,12 @@ namespace DrainTarPit.Drain
     /// Why a player standing 4 m under the surface of a tar volume was not tarred (log: tarLevel=-10000, waterLevel=30, 'tracks you' on four volumes):
     /// every LiquidSurface that still tracks a character calls Character.SetLiquidLevel(surface, Tar) from its FixedUpdate, and the call just ASSIGNS
     /// m_tarLevel. With several tar volumes tracking the same player (overlapping vanilla pits, pump pools whose trigger still holds the player 18 m away),
-    /// whichever surface updates LAST wins: a pool that has no tar there (TarPits.Patch_GetSurface answers -10000 outside its grid, a drained pit answers
+    /// whichever surface updates LAST wins: a pool that has no tar there (TarPitHooks.Patch_GetSurface answers -10000 outside its grid, a drained pit answers
     /// its ground height) overwrote the real level of the pit the player was in. m_tarLevel stayed below the water level -> InTar = false, never Tared.
     ///
     /// Fix: within one physics step the highest tar level written by a surface UPDATE wins (a character is in the deepest tar around it).
     ///
-    /// Exits are not updates: OnTriggerExit / OnDestroy (and TarPits.PurgeStale, which replays them) send -10000 once the LAST tar volume let go of the
+    /// Exits are not updates: OnTriggerExit / OnDestroy (and TarPitTracking.PurgeStale, which replays them) send -10000 once the LAST tar volume let go of the
     /// character. Those always go through. (0.6.8 filtered them as well; the exit callback runs in the same physics step as the FixedUpdate that wrote the
     /// last level, so the reset was swallowed and m_tarLevel stayed on the old surface height after leaving the pit.) The two are told apart by a flag that
     /// is set while LiquidSurface.UpdateFloaters runs.
@@ -53,14 +53,14 @@ namespace DrainTarPit.Drain
             }
         }
 
-        /// Marks the surface updates (see above) and first drops the entries that no longer belong to the surface (TarPits.PurgeStale).
+        /// Marks the surface updates (see above) and first drops the entries that no longer belong to the surface (TarPitTracking.PurgeStale).
         [HarmonyPatch(typeof(LiquidSurface), "UpdateFloaters")]
         static class Patch_UpdateFloaters
         {
             static void Prefix(LiquidSurface __instance)
             {
                 _inUpdate = false;                                  // the purge replays OnTriggerExit: its -10000 is an exit
-                try { TarPits.PurgeStale(__instance); }
+                try { TarPitTracking.PurgeStale(__instance); }
                 catch (System.Exception e) { ModLog.VerboseWarn("PurgeStale: " + e.Message); }
                 _inUpdate = true;
             }
@@ -76,7 +76,7 @@ namespace DrainTarPit.Drain
             static bool Prefix(LiquidSurface __instance, object[] __args)
             {
                 var col = __args != null && __args.Length > 0 ? __args[0] as Collider : null;
-                return !TarPits.AlreadyTracked(__instance, col);
+                return !TarPitTracking.AlreadyTracked(__instance, col);
             }
         }
     }

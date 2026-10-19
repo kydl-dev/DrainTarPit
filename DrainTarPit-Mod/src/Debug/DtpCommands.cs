@@ -72,7 +72,7 @@ namespace DrainTarPit.Debug
                 float baseline = zdo != null ? zdo.GetFloat(TarPits.VarBaseline, 0f) : 0f;
                 Print("  " + v.name + " @ " + v.transform.position.ToString("0") + (p != null ? " (" + Vector3.Distance(v.transform.position, p.transform.position).ToString("0") + " m)" : "") +
                     ": " + TarPits.TotalVolume(v).ToString("0.0") + " m3" + (baseline > 0f ? " of " + baseline.ToString("0.0") + " (drained before)" : ""));
-                if (p != null) Print("      " + TarPits.DescribeAt(v, p.transform.position) + ", InTar=" + PlayerInTar(p));
+                if (p != null) Print("      " + TarPitDebug.DescribeAt(v, p.transform.position) + ", InTar=" + PlayerInTar(p));
             }
         }
 

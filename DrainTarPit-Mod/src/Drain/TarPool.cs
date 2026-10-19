@@ -26,7 +26,7 @@ namespace DrainTarPit.Drain
     ///   2) Every stroke the point where the nozzle stream lands is worked out (same exit speed / gravity arc as the visible stream).
     ///   3) If a volume of that liquid (a vanilla pit or one of ours) already covers that point, the liquid goes into it; otherwise a new pool
     ///      is spawned there, its origin at rim height so its ground-height rays see a hole dug with the pickaxe.
-    ///   4) The owner of the volume raises the liquid in the basin around the landing point (TarPits.DepositLocal). The game's own simulation
+    ///   4) The owner of the volume raises the liquid in the basin around the landing point (TarPitDeposit.DepositLocal). The game's own simulation
     ///      does the rest. What does not fit runs over the lowest point of the rim; what reaches the edge of the grid while the ground goes on
     ///      downhill (a long moat) continues into the next pool (Continue).
     /// </summary>
@@ -169,7 +169,7 @@ namespace DrainTarPit.Drain
         static float _tarBaseVisc;       // the vanilla tar viscosity the water pools are derived from (water = this x [Drain] WaterFlow)
 
         /// [Drain] WaterFlow changed (the editor's slider, the config manager, the .cfg file): the water pools that exist and the prefabs for new ones get the new
-        /// viscosity right away. A pouring boost that is running keeps its factor (TarPits.SetBaseViscosity). Nothing happens before the first pool prefab was built.
+        /// viscosity right away. A pouring boost that is running keeps its factor (TarPitFlow.SetBaseViscosity). Nothing happens before the first pool prefab was built.
         internal static void ApplyWaterFlow()
         {
             if (_tarBaseVisc <= 0f || FViscosity == null) return;
@@ -182,7 +182,7 @@ namespace DrainTarPit.Drain
                     if (plv != null) FViscosity.SetValue(plv, value);
                 }
                 foreach (var v in TarPits.All)
-                    if (v != null && v.m_liquidType == LiquidType.Water) TarPits.SetBaseViscosity(v, value);
+                    if (v != null && v.m_liquidType == LiquidType.Water) TarPitFlow.SetBaseViscosity(v, value);
             }
             catch (System.Exception e) { ModLog.VerboseWarn("TarPool.ApplyWaterFlow: " + e.Message); }
         }
@@ -313,7 +313,7 @@ namespace DrainTarPit.Drain
                 var target = FindVolume(land, liquid);
                 if (target == null) target = Spawn(land, liquid);
                 if (target == null) yield break;
-                TarPits.RequestDeposit(target, land, volume, 0);
+                TarPitDeposit.RequestDeposit(target, land, volume, 0);
             }
             catch (System.Exception e) { ModLog.Warn("TarPool deposit failed: " + e.Message); }
         }
@@ -344,7 +344,7 @@ namespace DrainTarPit.Drain
             bool made = false;
             if (target == null) { target = Spawn(land, liquid); made = true; }
             if (target == null) return "no pool prefab (see the log: TarPool ...)";
-            TarPits.RequestDeposit(target, land, volume, 0);
+            TarPitDeposit.RequestDeposit(target, land, volume, 0);
             return (made ? "new pool spawned, " : "existing pool, ") + volume.ToString("0.0") + " m3 requested";
         }
 
@@ -399,7 +399,7 @@ namespace DrainTarPit.Drain
                 }
                 if (target == null || target == from) return;
                 ModLog.Verbose("TarPool: " + volume.ToString("0.00") + " m3 continues into the next pool (hop " + hop + ")");
-                TarPits.RequestDeposit(target, into, volume, hop);
+                TarPitDeposit.RequestDeposit(target, into, volume, hop);
             }
             catch (System.Exception e) { ModLog.Warn("TarPool runoff failed: " + e.Message); }
         }
