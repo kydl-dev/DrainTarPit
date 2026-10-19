@@ -19,7 +19,7 @@ namespace DrainTarPit.Drain
         // Stayed = raised in the basin, Edge = reached the border of the grid (continues into the next pool or runs off), Thin = a thin film behind a rim that
         // FloodPass does not keep, Lost = in none of the others (no basin found / no reachable cell), ShedEdge = films that ShedFilms let run off the grid border,
         // Evap = films that ShedFilms evaporated. If 'Stayed' is a small part of 'Poured' the water is not staying in the pool, and the other numbers say why.
-        internal sealed class Budget { public float Poured, Stayed, Edge, Thin, Lost, ShedEdge, Evap, WallPushed, WallLost; public int WallPasses; }
+        internal sealed class Budget { public float Poured, Stayed, Edge, Thin, Lost, ShedEdge, Evap, WallPushed, WallLost, WallKept; public int WallPasses; }
         internal static readonly Dictionary<LiquidVolume, Budget> Budgets = new();
 
         internal static Budget BudgetOf(LiquidVolume v)

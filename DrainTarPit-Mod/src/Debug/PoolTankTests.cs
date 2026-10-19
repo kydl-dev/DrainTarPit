@@ -113,7 +113,7 @@ namespace DrainTarPit.Debug
             if (v == null) { res.Summary = label + ": FAILED - no pool prefab (see the log)"; yield break; }
             Synth[v] = tank;
             Out("=== TANK " + label + ": R " + radius + " cells (" + F2((2 * radius + 1) * v.m_scale) + " m square), walls " + F2(tank.Top - tank.Floor) + " m high, " + strokes + " strokes of " + F2(ModSettings.VolumePerStroke.Value) +
-                " m3, mode " + (inject ? "inject (even spread, no FloodPass)" : "flood (the real FloodPass)") + ", pool at " + v.transform.position.ToString("0.0"));
+                " m3, mode " + (inject ? "inject (even spread, no FloodPass)" : "flood (the real FloodPass)") + "; synthetic tank observer=" + TarPool.DescribeVolume(v));
             Out(EnvLine(land)); Out(ConfigLine());
             float t0 = Time.time;
             while (!TarPitDebug.Ready(v) && Time.time < t0 + 15f && !Cancel) yield return null;
@@ -124,9 +124,16 @@ namespace DrainTarPit.Debug
             {
                 yield return new WaitForSeconds(0.5f);
                 st = Take(v, tank);
-                if (Mathf.Abs(st.CentreH - tank.Floor) < 0.01f && Mathf.Abs(st.RingH - tank.Top) < 0.01f) break;
+                if (st.Valid && Mathf.Abs(st.CentreH - tank.Floor) < 0.01f && Mathf.Abs(st.RingH - tank.Top) < 0.01f) break;
             }
-            Out("tank heights in the pool: centre " + F(st != null ? st.CentreH : float.NaN) + " (want " + F(tank.Floor) + "), wall " + F(st != null ? st.RingH : float.NaN) + " (want " + F(tank.Top) + ")");
+            Out("tank heights in the pool: centre " + F(st != null && st.Valid ? st.CentreH : float.NaN) + " (want " + F(tank.Floor) + "), wall " + F(st != null && st.Valid ? st.RingH : float.NaN) + " (want " + F(tank.Top) + "); snapshot " + (st != null && st.Valid ? "valid" : "INVALID " + (st != null ? st.InvalidReason : "missing")) + "; observer=" + TarPool.DescribeVolume(v));
+            if (st == null || !st.Valid || Mathf.Abs(st.CentreH - tank.Floor) >= 0.01f || Mathf.Abs(st.RingH - tank.Top) >= 0.01f)
+            {
+                res.Summary = label + ": FAILED - synthetic tank grid/heights were not valid and applied; " + TarPool.DescribeVolume(v);
+                Out("TANK RESULT " + res.Summary);
+                TarPool.DestroyForTest(v); Synth.Remove(v);
+                yield break;
+            }
 
             var o = v.transform.position;
             var centre = new Vector3(o.x, o.y + tank.Floor, o.z);
@@ -147,10 +154,17 @@ namespace DrainTarPit.Debug
                 yield return new WaitForSeconds(SampleSeconds);
             }
             var endPour = Sample(r);
-            float kept = endPour.Total / Mathf.Max(0.01f, r.Poured), levelRise = endPour.Level - (o.y + tank.Floor);
             float tEnd = Time.time;
             while (Time.time < tEnd + HoldAfterPour && !Cancel) { Sample(r); yield return new WaitForSeconds(SampleSeconds); }
             var fin = r.Last;
+            if (!endPour.Valid || fin == null || !fin.Valid)
+            {
+                res.Summary = label + ": FAILED - invalid grid snapshot (after-pour=" + (endPour.Valid ? "valid" : endPour.InvalidReason) + ", final=" + (fin != null && fin.Valid ? "valid" : fin != null ? fin.InvalidReason : "missing") + "); observer=" + TarPool.DescribeVolume(v);
+                Out("TANK RESULT " + res.Summary);
+                TarPool.DestroyForTest(v); Synth.Remove(v);
+                yield break;
+            }
+            float kept = endPour.Total / Mathf.Max(0.01f, r.Poured), levelRise = endPour.Level - (o.y + tank.Floor);
             var b = TarPitDebug.BudgetFor(v);
             res.Summary = label + ": poured " + F2(r.Poured) + " m3 -> after the last stroke " + F2(endPour.Total) + " in the pool (" + F2(kept * 100f) + " %), final " + F2(fin.Total) + " (" + F2(fin.Total / Mathf.Max(0.01f, r.Poured) * 100f) + " %); " +
                           "level rise " + F2(levelRise) + " m (expected " + F2(r.Poured / areaIn) + ", " + F2(levelRise / Mathf.Max(0.001f, r.Poured / areaIn) * 100f) + " %), final level rise " + F2(fin.Level - (o.y + tank.Floor)) + ", max level rise " + F2(r.MaxLevel - (o.y + tank.Floor)) +

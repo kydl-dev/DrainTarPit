@@ -243,6 +243,7 @@ namespace DrainTarPit.Drain
         static void ApplyWallHeights(LiquidVolume v, List<float> h, List<float> d, int w, int stride, int n, Dictionary<int, float> live)
         {
             var memo = MemoOf(v);
+            var prev = memo.Cells;                                   // the wall cells of the last pass (UpdateMemo below replaces memo.Cells)
             var eff = live;
             if (Time.time < memo.GraceUntil)
                 foreach (var kv in memo.Cells)
@@ -251,16 +252,26 @@ namespace DrainTarPit.Drain
                     if (!eff.TryGetValue(kv.Key, out c) || kv.Value > c) eff[kv.Key] = kv.Value;
                 }
             UpdateMemo(v, memo, eff);
+            if (memo.Logged != eff.Count) { memo.Logged = eff.Count; ModLog.Verbose("Pit " + v.name + ": " + eff.Count + " cells raised by built pieces"); }       // only when the number changes (it was one line per pool per second)
             List<int> walls = null;
+            int kept = 0; float keptDepth = 0f;
             using (Hold(v))
             {
+                bool raised = false;
                 foreach (var kv in eff)
                 {
                     int i = kv.Key;
                     if (i < 0 || i >= n || kv.Value <= h[i] + 0.02f) continue;
-                    h[i] = kv.Value;
+                    h[i] = kv.Value; raised = true;
+                    // A cell that was already a wall at the last pass at this height: the game only rewrote the HEIGHTS, the depths are still the ones the
+                    // simulation stepped with over the raised cell, i.e. water that stands ABOVE the piece (a floor, steps, a low wall in the pool). Leave it:
+                    // pushing it off every second (before) carried the water of a submerged piece out of the basin and it flowed back in the next second.
+                    float oldTop;
+                    if (prev.TryGetValue(i, out oldTop) && kv.Value <= oldTop + 0.02f) { if (d[i] > 0f) { kept++; keptDepth += d[i]; } continue; }
                     (walls ??= new List<int>()).Add(i);
                 }
+                if (raised) FDirty.SetValue(v, true);
+                if (kept > 0 || BudgetOf(v).WallKept > 0f) BudgetOf(v).WallKept = keptDepth * v.m_scale * v.m_scale;       // m3 standing on pieces that were already walls (not moved), of the last pass
                 if (walls == null) return;
 
                 // Liquid that stood where a wall is now is pushed to the open cells next to it. A wall cell with no open neighbour (inside a thick
@@ -308,7 +319,6 @@ namespace DrainTarPit.Drain
                     ModLog.Verbose("Pit " + v.name + ": wall pass: " + wWet + " of " + walls.Count + " wall cells held liquid; moved to open cells " + wPushed.ToString("0.000") + " m3 (of it " + wFar.ToString("0.000") + " m3 from " + wNoFree + " cells with no open neighbour, moved outwards), could not be placed and stayed " + wLost.ToString("0.000") + " m3 (DESTROYED: 0, nothing is deleted)");
                 }
             }
-            if (memo.Logged != walls.Count) { memo.Logged = walls.Count; ModLog.Verbose("Pit " + v.name + ": " + walls.Count + " cells raised by built pieces"); }       // only when the number changes (it was one line per pool per second)
         }
     }
 }

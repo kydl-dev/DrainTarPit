@@ -22,11 +22,12 @@ namespace DrainTarPit.Debug
             var p = Player.m_localPlayer.transform.position;
             Vector3 at;
             if (!Crosshair(out at)) at = p;
-            var v = NearestPool(at);
-            if (v == null) { Say("ptest rim: no water pool is loaded."); return; }
+            var v = TarPool.FindVolume(at, PumpLiquid.Water);
+            if (v == null) { Say("ptest rim: the crosshair is not inside a valid pump water pool; aim inside the intended pool and try again."); return; }
+            if (!TarPool.GridIsValid(v)) { Say("ptest rim: invalid or not-yet-initialized pool grid: " + TarPool.DescribeVolume(v)); return; }
             int w = v.m_width, stride = w + 1, n = stride * stride;
             var hl = TarPitDebug.HeightList(v);
-            if (hl == null || hl.Count < n) { Say("ptest rim: the pool has no heights yet."); return; }
+            if (hl == null || hl.Count < n) { Say("ptest rim: invalid height grid for " + TarPool.DescribeVolume(v)); return; }
             if (_d.Length < n) { _d = new float[n]; _h = new float[n]; _seen = new bool[n]; _q = new int[n]; }
             using (TarPitDebug.Lock(v)) { hl.CopyTo(0, _h, 0, n); }
             var o = v.transform.position;
@@ -51,8 +52,8 @@ namespace DrainTarPit.Debug
             float s4 = SpillLevel(seed, w, stride, false, out pass4), s8 = SpillLevel(seed, w, stride, true, out pass8);
             string P(int c) { return c >= 0 ? "(" + F2(o.x + (c % stride - w / 2) * v.m_scale) + ", " + F2(o.y + _h[c]) + ", " + F2(o.z + (c / stride - w / 2) * v.m_scale) + ")" : "none"; }
             Say("RIM: basin around the crosshair has its floor at y " + F2(o.y + _h[seed]) + ". Water overflows at y " + F2(o.y + s4) + " (4-neighbour) / y " + F2(o.y + s8) + " (8-neighbour, diagonal) - that is " +
-                F2(s4 - _h[seed]) + " m / " + F2(s8 - _h[seed]) + " m of water. Lowest wall cell near " + P(pass4) + " (diagonal: " + P(pass8) + "). Pool " + v.transform.position.ToString("0.0") + ", wall cells remembered: " + TarPitWalls.WallCellCount(v) +
-                ", pump pool: " + TarPits.IsPumpPool(v) + (s4 >= MaxLevelProbe - 0.01f ? ". The basin is closed up to the top of the grid's height range." : ""));
+                F2(s4 - _h[seed]) + " m / " + F2(s8 - _h[seed]) + " m of water. Lowest wall cell near " + P(pass4) + " (diagonal: " + P(pass8) + "). Pool: " + TarPool.DescribeVolume(v) + ", wall cells remembered: " + TarPitWalls.WallCellCount(v) +
+                (s4 >= MaxLevelProbe - 0.01f ? ". The basin is closed up to the top of the grid's height range." : ""));
         }
 
         // --- fields: what the game's LiquidVolume is made of -------------------------------------------------------------------------
@@ -60,8 +61,8 @@ namespace DrainTarPit.Debug
         {
             var p = Player.m_localPlayer.transform.position;
             var v = NearestPool(p);
-            if (v == null && TarPits.All.Count > 0) v = TarPits.All[0];
-            Out("=== FIELDS of LiquidVolume / LiquidSurface (names are what the game has; values from " + (v != null ? v.name + " @ " + v.transform.position.ToString("0.0") : "no pool loaded") + ")");
+            if (v == null) { Say("ptest fields: no valid pump water pool is loaded; run dtp pits to inspect loaded pools."); return; }
+            Out("=== FIELDS of LiquidVolume / LiquidSurface (names are what the game has; instance being inspected: " + TarPool.DescribeVolume(v) + ")");
             Dump(typeof(LiquidVolume), v);
             LiquidSurface ls = v != null ? v.GetComponentInChildren<LiquidSurface>(true) : null;
             Dump(typeof(LiquidSurface), ls);

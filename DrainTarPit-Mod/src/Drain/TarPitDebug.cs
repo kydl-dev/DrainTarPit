@@ -25,28 +25,106 @@ namespace DrainTarPit.Drain
             return s + ", tracks you: " + Tracks(v, Player.m_localPlayer) + ", under you: depth " + dep.ToString("0.00") + " m, surface y " + v.GetSurface(p).ToString("0.00") + " (you y " + p.y.ToString("0.00") + ")";
         }
 
-        /// Console `dtp cleanpools`: removes the empty water volumes that are NOT pump pools. `dtp spawn DTP_WaterPool2` makes such a volume (no walls, never flagged), and
-        /// the stroke picked the nearest grid centre, so a stack of them hijacked the pour and cost a height pass (one ray per cell) per second each. Pools the pump made
-        /// (flagged) and anything that holds water are never touched. Returns how many were removed.
-        internal static int RemoveJunkPools()
+        /// Console `dtp cleanpools`: remove only empty, valid, unflagged water pools. Pump pools are always retained;
+        /// populated or unverifiable non-pump water volumes are retained as a safety measure. Each water candidate gets
+        /// an explicit KEEP / REMOVE_REQUESTED decision in the console and log.
+        internal static List<string> RemoveJunkPools()
         {
-            int removed = 0;
+            var report = new List<string>();
+            int deadRefs = 0, waterCandidates = 0, requested = 0, retainedPump = 0, retainedPopulated = 0, retainedUnsafe = 0;
+
+            // An OnDestroy hook normally removes these; prune any destroyed Unity objects that remain in the registry.
+            for (int i = All.Count - 1; i >= 0; i--)
+            {
+                if (All[i] == null)
+                {
+                    All.RemoveAt(i);
+                    deadRefs++;
+                }
+            }
+            if (deadRefs > 0) report.Add("dtp cleanpools: pruned " + deadRefs + " destroyed/null registry reference(s)");
+            if (ZNetScene.instance == null)
+            {
+                report.Add("dtp cleanpools: ABORTED — no ZNetScene; no pool instances were destroyed");
+                return report;
+            }
+
             foreach (var v in new List<LiquidVolume>(All))
             {
+                if (v == null || v.m_liquidType != LiquidType.Water) continue;
+                waterCandidates++;
+                string id = "poolId=" + v.GetInstanceID() + " name=\"" + v.name + "\" pos=" + v.transform.position.ToString("0.0");
                 try
                 {
-                    if (v == null || v.m_liquidType != LiquidType.Water || IsPumpPool(v)) continue;
+                    if (IsPumpPool(v))
+                    {
+                        retainedPump++;
+                        report.Add("dtp cleanpools: KEEP " + id + " reason=valid pump-pool flag; cleanup never removes pump pools");
+                        continue;
+                    }
+
                     var nv = Nview(v);
-                    if (nv == null || !nv.IsValid() || ZNetScene.instance == null) continue;
-                    var d = Depths(v);
-                    if (d == null || d.Count < (v.m_width + 1) * (v.m_width + 1) || TotalVolume(v) > 0.05f) continue;
+                    if (nv == null || !nv.IsValid() || nv.GetZDO() == null)
+                    {
+                        retainedUnsafe++;
+                        report.Add("dtp cleanpools: KEEP " + id + " reason=missing/invalid ZNetView or ZDO; cannot destroy safely");
+                        continue;
+                    }
+                    if (!TarPool.GridIsValid(v))
+                    {
+                        retainedUnsafe++;
+                        report.Add("dtp cleanpools: KEEP " + id + " reason=grid is invalid/uninitialized; emptiness cannot be verified");
+                        continue;
+                    }
+
+                    float volume = 0f;
+                    bool volumeValid = true;
+                    using (Hold(v))
+                    {
+                        var d = Depths(v);
+                        long expected = ((long)v.m_width + 1L) * ((long)v.m_width + 1L);
+                        if (d == null || expected <= 0 || expected > int.MaxValue || d.Count < expected)
+                            volumeValid = false;
+                        else
+                        {
+                            double sum = 0d;
+                            for (int i = 0; i < expected; i++) sum += d[i];
+                            double total = sum * v.m_scale * v.m_scale;
+                            if (double.IsNaN(total) || double.IsInfinity(total) || total < -0.001d || total > float.MaxValue)
+                                volumeValid = false;
+                            else volume = (float)total;
+                        }
+                    }
+                    if (!volumeValid)
+                    {
+                        retainedUnsafe++;
+                        report.Add("dtp cleanpools: KEEP " + id + " reason=volume could not be safely measured");
+                        continue;
+                    }
+                    if (volume > 0.05f)
+                    {
+                        retainedPopulated++;
+                        report.Add("dtp cleanpools: KEEP " + id + " reason=contains " + volume.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + " m3 (threshold 0.050 m3)");
+                        continue;
+                    }
+
                     nv.ClaimOwnership();
                     ZNetScene.instance.Destroy(v.gameObject);
-                    removed++;
+                    requested++;
+                    report.Add("dtp cleanpools: REMOVE_REQUESTED " + id + " reason=unflagged water pool, valid grid, measured " + volume.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + " m3");
                 }
-                catch (System.Exception e) { ModLog.VerboseWarn("RemoveJunkPools: " + e.Message); }
+                catch (System.Exception e)
+                {
+                    retainedUnsafe++;
+                    report.Add("dtp cleanpools: KEEP " + id + " reason=exception before safe removal: " + e.GetType().Name + ": " + e.Message);
+                    ModLog.VerboseWarn("RemoveJunkPools: " + e);
+                }
             }
-            return removed;
+
+            report.Add("dtp cleanpools summary: waterCandidates=" + waterCandidates + " removeRequests=" + requested + " retainedPumpPools=" + retainedPump +
+                " retainedPopulated=" + retainedPopulated + " retainedUnsafe=" + retainedUnsafe + " prunedDeadRegistryRefs=" + deadRefs +
+                ". REMOVE_REQUESTED means destruction was submitted to ZNetScene; confirm disappearance with dtp pits.");
+            return report;
         }
 
         /// Test button: removes all the liquid from a pool (owner only).

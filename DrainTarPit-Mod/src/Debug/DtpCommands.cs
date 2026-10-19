@@ -16,7 +16,7 @@ namespace DrainTarPit.Debug
     {
         public override string Name { get { return "dtp"; } }
         public override bool IsCheat { get { return true; } }       // only with devcommands enabled
-        public override string Help { get { return "TarPitDrain test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp ptest <watch|pour|tank|matrix|rim|fields|out|stop> (water pool tests, see _agent/TESTLOG.md)"; } }
+        public override string Help { get { return "TarPitDrain test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp cleanpools | dtp ptest <watch|pour|tank|matrix|rim|fields|out|stop> (water pool tests, see _agent/TESTLOG.md)"; } }
 
         public override void Run(string[] args)
         {
@@ -27,6 +27,7 @@ namespace DrainTarPit.Debug
                 case "spawn": Spawn(args.Length > 1 ? args[1] : "DTP_Pump_Manual"); break;
                 case "anim": Anim(args.Length > 1 ? args[1].ToLowerInvariant() : ""); break;
                 case "pits": Pits(); break;
+                case "cleanpools": CleanPools(); break;
                 case "state": State(); break;
                 case "ptest": PoolTests.Run(args.Skip(1).ToArray()); break;
                 case "clips": Print(PlayerPumpAnimations.Describe(Player.m_localPlayer)); break;
@@ -57,6 +58,12 @@ namespace DrainTarPit.Debug
             var pos = p.transform.position + p.transform.forward * 3f + Vector3.up * 0.5f;
             Object.Instantiate(prefab, pos, Quaternion.Euler(0f, p.transform.eulerAngles.y + 180f, 0f));
             Print("Spawned " + name);
+        }
+
+        static void CleanPools()
+        {
+            var report = TarPitDebug.RemoveJunkPools();
+            foreach (var line in report) Print(line);
         }
 
         static void Pits()

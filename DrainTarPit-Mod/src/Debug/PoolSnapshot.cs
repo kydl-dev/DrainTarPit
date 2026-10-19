@@ -21,9 +21,10 @@ namespace DrainTarPit.Debug
         internal sealed class Snap
         {
             public float Total, Level, Border, Spread, Spill4 = float.NaN, Spill8 = float.NaN;
-            public float Inside, Outside, TankIn, Ring, CentreH, RingH;
-            public int Wet, Region, Walls;
-            public string Pass = "-";
+            public float Inside, Outside, TankIn, Ring, CentreH, RingH, CellScale;
+            public int Wet, Region, Walls, Width, DepthCount = -1, HeightCount = -1;
+            public bool Valid;
+            public string InvalidReason = "not sampled", Pass = "-";
         }
 
         internal static float[] _d = new float[0], _h = new float[0];
@@ -34,14 +35,45 @@ namespace DrainTarPit.Debug
         internal static Snap Take(LiquidVolume v, Tank tank)
         {
             var s = new Snap();
-            int w = v.m_width, stride = w + 1, n = stride * stride;
-            if (_d.Length < n) { _d = new float[n]; _h = new float[n]; _seen = new bool[n]; _q = new int[n]; }
-            using (TarPitDebug.Lock(v))
+            if (v == null) { s.InvalidReason = "pool object is null or destroyed"; return s; }
+            int w = v.m_width;
+            s.Width = w; s.CellScale = v.m_scale;
+            try
             {
-                var dl = TarPitDebug.DepthList(v); var hl = TarPitDebug.HeightList(v);
-                if (dl == null || hl == null || dl.Count < n || hl.Count < n) return s;
-                dl.CopyTo(0, _d, 0, n); hl.CopyTo(0, _h, 0, n);
+                if (!TarPitDebug.Ready(v)) { s.InvalidReason = "game reports height grid not ready"; return s; }
             }
+            catch (System.Exception e) { s.InvalidReason = "could not read height-ready flag: " + e.GetType().Name; return s; }
+            if (w <= 0 || w > 512 || v.m_scale <= 0f || float.IsNaN(v.m_scale) || float.IsInfinity(v.m_scale))
+            {
+                s.InvalidReason = "invalid dimensions or cell scale (width=" + w + ", scale=" + v.m_scale + "; allowed width 1..512)";
+                return s;
+            }
+            long nLong = ((long)w + 1L) * ((long)w + 1L);
+            if (nLong > int.MaxValue) { s.InvalidReason = "grid is too large"; return s; }
+            int stride = w + 1, n = (int)nLong;
+            if (_d.Length < n) { _d = new float[n]; _h = new float[n]; _seen = new bool[n]; _q = new int[n]; }
+            try
+            {
+                using (TarPitDebug.Lock(v))
+                {
+                    var dl = TarPitDebug.DepthList(v); var hl = TarPitDebug.HeightList(v);
+                    s.DepthCount = dl != null ? dl.Count : -1;
+                    s.HeightCount = hl != null ? hl.Count : -1;
+                    if (dl == null || hl == null || dl.Count < n || hl.Count < n)
+                    {
+                        s.InvalidReason = "depth/height grids are null or shorter than expected " + n + " cells (depths=" + s.DepthCount + ", heights=" + s.HeightCount + ")";
+                        return s;
+                    }
+                    dl.CopyTo(0, _d, 0, n); hl.CopyTo(0, _h, 0, n);
+                }
+            }
+            catch (System.Exception e)
+            {
+                s.InvalidReason = "failed to read grid: " + e.GetType().Name + ": " + e.Message;
+                return s;
+            }
+            s.Valid = true;
+            s.InvalidReason = "";
             float c2 = v.m_scale * v.m_scale; var o = v.transform.position; int cc = w / 2;
             int deep = -1; float dm = 0.002f; double sum = 0, bor = 0, tin = 0, ring = 0;
             for (int i = 0; i < n; i++)

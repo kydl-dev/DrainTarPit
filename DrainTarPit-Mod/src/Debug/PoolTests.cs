@@ -20,15 +20,16 @@ namespace DrainTarPit.Debug
     /// [General] TestOutDir, default the BepInEx config folder) so that the next agent can read the result without the user copying anything.
     ///
     /// Tests (see _agent/TESTLOG.md for what has been run and what each result means):
-    ///   watch [sec]                  samples the nearest water pool 4x a second: volume, level, where the water is (basin / elsewhere), the level at which the
+    ///   watch [sec]                  samples the nearest valid pump water pool 4x a second: volume, level, where the water is (basin / elsewhere), the level at which the
     ///                                basin would overflow (spill4 / spill8), save + reload events of the pool's ZDO.
-    ///   pour [n] [interval]          pours n strokes at the crosshair into the nearest pool (the real deposit path) while watching, then watches 60 s more.
+    ///   pour [n] [interval]          pours n strokes at the crosshair into an existing flagged pump pool if its grid safely covers the point, otherwise makes a new pool (unless in sea/lake water); then watches 60 s more.
     ///   tank [R] [wallH] [n] [mode]  a synthetic closed tank (square of 2R+1 cells, walls wallH m high) in a fresh pool: geometry is known exactly, no built pieces
     ///                                and no terrain involved. mode = flood (the real FloodPass) or inject (water spread evenly over the tank, no FloodPass).
     ///   matrix                       the tank test under several settings (flood / inject / no film shedding / no flow boost / slow flow): where the loss comes from.
     ///   rim                          the level at which the basin around the crosshair overflows its walls (and where the lowest gap is).
     ///   fields                       every field and method name of LiquidVolume / LiquidSurface with the values of the nearest pool.
     ///   out [folder] | stop | help
+    /// Target selection skips unflagged/non-pump water volumes; use `dtp cleanpools` to request removal of empty stale ones before a test.
     ///
     /// Split by responsibility (T-016): this class = command entry; PoolTestOut = report + environment helpers; PoolSnapshot = pool snapshot + spill
     /// level; PoolObserver = one observed pool; PoolRunTests = watch / pour; PoolTankTests = tank / matrix; PoolProbe = rim / fields.
@@ -67,7 +68,7 @@ namespace DrainTarPit.Debug
             }
         }
 
-        const string Help = "dtp ptest watch [sec] | pour [n] [interval] | tank [R] [wallH] [n] [flood|inject] | matrix | rim | fields | out [folder] | stop   (report: DrainTarPit.PoolTests.txt)";
+        const string Help = "dtp ptest watch [sec] | pour [n] [interval] | tank [R] [wallH] [n] [flood|inject] | matrix | rim | fields | out [folder] | stop   (report: DrainTarPit.PoolTests.txt; use dtp cleanpools for empty stale water pools)";
 
         // The game console turns a typed backslash sequence into a control character ("\testruns" arrives with a TAB in it). Put the backslash back,
         // so a Windows path can be typed either way; forward slashes work too.

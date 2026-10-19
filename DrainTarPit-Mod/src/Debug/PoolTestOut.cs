@@ -60,8 +60,28 @@ namespace DrainTarPit.Debug
             var f = HarmonyLib.AccessTools.Field(typeof(ZoneSystem), "m_waterLevel");
             if (f != null && ZoneSystem.instance != null) sea = (float)f.GetValue(ZoneSystem.instance);
             float ground = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(at) : at.y;
-            return "env: at " + at.ToString("0.0") + " terrain y " + F2(ground) + " sea level " + F2(sea) + " (terrain " + F2(ground - sea) + " m above the sea) dll built " +
-                   File.GetLastWriteTime(Assembly.GetExecutingAssembly().Location).ToString("yyyy-MM-dd HH:mm:ss", Inv);
+            return "env: at " + at.ToString("0.0") + " terrain y " + F2(ground) + " sea level " + F2(sea) + " (terrain " + F2(ground - sea) + " m above the sea); " + RuntimeDllLine();
+        }
+
+        /// Fingerprint of the assembly actually loaded by this game process, not the DLL merely present in the source tree.
+        internal static string RuntimeDllLine()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            string path = assembly.Location;
+            string version = assembly.GetName().Version != null ? assembly.GetName().Version.ToString() : "unknown";
+            try
+            {
+                var info = new FileInfo(path);
+                string hash;
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var stream = File.OpenRead(path))
+                    hash = System.BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+                return "runtimeDll path=\"" + path + "\" version=" + version + " bytes=" + info.Length + " modified=" + info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss", Inv) + " sha256=" + hash;
+            }
+            catch (System.Exception e)
+            {
+                return "runtimeDll path=\"" + path + "\" version=" + version + " fingerprintError=" + e.GetType().Name + ": " + e.Message;
+            }
         }
 
         internal static bool Crosshair(out Vector3 point)
@@ -77,7 +97,17 @@ namespace DrainTarPit.Debug
 
         internal static LiquidVolume NearestPool(Vector3 p)
         {
-            return TarPitStats.Nearest(p, LiquidType.Water);
+            // Watch / fields may inspect the nearest pump pool even when the player stands outside its grid, but never an unflagged water volume.
+            LiquidVolume best = null;
+            float bestDistance = float.MaxValue;
+            foreach (var v in TarPits.All)
+            {
+                if (v == null || v.m_liquidType != LiquidType.Water || !TarPits.IsPumpPool(v)) continue;
+                if (v.m_width <= 0 || v.m_width > 512 || v.m_scale <= 0f || float.IsNaN(v.m_scale) || float.IsInfinity(v.m_scale)) continue;
+                float distance = (v.transform.position - p).sqrMagnitude;
+                if (distance < bestDistance) { bestDistance = distance; best = v; }
+            }
+            return best;
         }
     }
 }

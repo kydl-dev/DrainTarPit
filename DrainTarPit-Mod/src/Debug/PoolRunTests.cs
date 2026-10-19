@@ -25,7 +25,7 @@ namespace DrainTarPit.Debug
             var p = Player.m_localPlayer.transform.position;
             var v = NearestPool(p);
             if (v == null) { Say("ptest watch: no water pool is loaded."); yield break; }
-            Out("=== WATCH " + F2(seconds) + " s of the nearest water pool " + v.transform.position.ToString("0.0") + " (" + F2(Vector3.Distance(v.transform.position, p)) + " m away)");
+            Out("=== WATCH " + F2(seconds) + " s of the selected water pool (" + F2(Vector3.Distance(v.transform.position, p)) + " m from player): " + TarPool.DescribeVolume(v));
             Out(EnvLine(p)); Out(ConfigLine());
             var r = new Obs { Label = "W", V = v, T0 = Time.time };
             float end = Time.time + seconds;
@@ -33,13 +33,16 @@ namespace DrainTarPit.Debug
             while (Time.time < end && !Cancel && v != null)
             {
                 var s = Sample(r);
-                if (first == null) first = s;
+                if (first == null && s.Valid) first = s;
                 yield return new WaitForSeconds(SampleSeconds);
             }
             if (v == null) yield break;
             var last = r.Last;
-            Say("WATCH done: total " + F2(first.Total) + " -> " + F2(last.Total) + " m3, level " + F(first.Level) + " -> " + F(last.Level) + ", " + r.Reloads + " reload(s) of the game revision, " +
-                r.Saves + " save(s), " + r.Drops + " drop(s) without a pour. Details: " + Path.Combine(OutDir(), ReportFile));
+            if (first == null || last == null || !last.Valid)
+                Say("WATCH INVALID: no valid baseline or the final snapshot has an invalid grid; first=" + (first != null ? "valid" : "no valid sample") + ", last=" + (last != null ? last.InvalidReason : "missing") + "; invalid samples=" + r.InvalidSnapshots + ". See " + Path.Combine(OutDir(), ReportFile));
+            else
+                Say("WATCH done: pool " + TarPool.DescribeVolume(v) + "; total " + F2(first.Total) + " -> " + F2(last.Total) + " m3, level " + F(first.Level) + " -> " + F(last.Level) + ", " + r.Reloads + " reload(s) of the game revision, " +
+                    r.Saves + " save(s), " + r.Drops + " drop(s) without a pour, " + r.InvalidSnapshots + " invalid snapshot(s). Details: " + Path.Combine(OutDir(), ReportFile));
         }
 
         // --- pour into a real pool --------------------------------------------------------------------------------------
@@ -51,32 +54,89 @@ namespace DrainTarPit.Debug
             float vol = ModSettings.VolumePerStroke.Value;
             Out("=== POUR " + strokes + " strokes of " + F2(vol) + " m3 every " + F2(interval) + " s at the crosshair " + land.ToString("0.00") + " (the real deposit path), then " + F2(PoolHoldAfterPour) + " s of watching");
             Out(EnvLine(land)); Out(ConfigLine());
-            var v = TarPitStats.Nearest(land, LiquidType.Water);
-            float before = v != null ? TarPits.TotalVolume(v) : 0f;
-            string first = TarPool.DebugPour(land, vol, PumpLiquid.Water);
-            Out("first stroke: " + first);
+            // Record all overlapping pools, then observe the exact instance returned by DebugPour. Do not re-select a nearby pool after the pour.
+            Out("pools whose grid covers the landing point / target-selection decisions (before): " + PoolsAt(land));
+            var expectedTarget = TarPool.FindVolume(land, PumpLiquid.Water);
+            float before = expectedTarget == null ? 0f : TarPool.GridIsValid(expectedTarget) ? TarPits.TotalVolume(expectedTarget) : float.NaN;
+            LiquidVolume v;
+            string first = TarPool.DebugPour(land, vol, PumpLiquid.Water, out v);
+            Out("first stroke result: " + first);
+            Out("first stroke receiver: " + TarPool.DescribeVolume(v));
+            bool initialTargetMismatch = expectedTarget != null && expectedTarget != v;
+            if (initialTargetMismatch)
+            {
+                before = float.NaN;
+                Out("ERROR: pre-selection was " + TarPool.DescribeVolume(expectedTarget) + "; actual first-stroke receiver was " + TarPool.DescribeVolume(v) + "; baseline invalidated");
+            }
             yield return null;
-            v = TarPitStats.Nearest(land, LiquidType.Water);
-            if (v == null) { Say("ptest pour: no pool exists after the first stroke: " + first); yield break; }
+            if (v == null) { Say("ptest pour: no valid receiving pool after the first stroke; result=" + first); yield break; }
             var r = new Obs { Label = "P", V = v, T0 = Time.time, Poured = vol };
-            Out("pool: " + v.transform.position.ToString("0.0") + " pump pool=" + TarPits.IsPumpPool(v) + " volume before=" + F2(before) + " m3");
-            float next = Time.time + interval; int done = 1;
+            Out("observer pinned to receiver: " + TarPool.DescribeVolume(v) + "; volume before=" + (float.IsNaN(before) ? "INVALID (grid not ready)" : F2(before)) + " m3");
+            float next = Time.time + interval; int done = 1; float requestedTotal = vol; bool targetChanged = initialTargetMismatch;
             float levelStart = float.NaN;
             while (done < strokes && !Cancel)
             {
                 var s = Sample(r);
-                if (float.IsNaN(levelStart) && s.Wet > 0) levelStart = s.Level;
-                if (Time.time >= next) { TarPool.DebugPour(land, vol, PumpLiquid.Water); r.Poured += vol; done++; next = Time.time + interval; }
+                if (s.Valid && float.IsNaN(levelStart) && s.Wet > 0) levelStart = s.Level;
+                if (Time.time >= next)
+                {
+                    LiquidVolume strokeTarget;
+                    string strokeResult = TarPool.DebugPour(land, vol, PumpLiquid.Water, out strokeTarget);
+                    requestedTotal += vol;
+                    Out("stroke " + (done + 1) + " result: " + strokeResult + "; receiver=" + TarPool.DescribeVolume(strokeTarget));
+                    if (strokeTarget != v)
+                    {
+                        targetChanged = true;
+                        Out("ERROR: pour receiver changed from observed " + TarPool.DescribeVolume(v) + " to " + TarPool.DescribeVolume(strokeTarget) + "; stopping additional strokes so volumes cannot be misattributed");
+                        break;
+                    }
+                    r.Poured += vol; done++; next = Time.time + interval;
+                }
                 yield return new WaitForSeconds(SampleSeconds);
             }
             var endPour = Sample(r);
             float tPourEnd = Time.time;
             while (Time.time < tPourEnd + PoolHoldAfterPour && !Cancel) { Sample(r); yield return new WaitForSeconds(SampleSeconds); }
             var fin = r.Last;
-            float area = endPour.Region * v.m_scale * v.m_scale;
-            Say("POUR done: poured " + F2(r.Poured) + " m3, pool total " + F2(before) + " -> " + F2(endPour.Total) + " right after the last stroke (kept " + F2(endPour.Total - before) + " = " +
-                F2((endPour.Total - before) / Mathf.Max(0.01f, r.Poured) * 100f) + " %), " + F2(fin.Total) + " after " + F2(PoolHoldAfterPour) + " s more; level " + F(levelStart) + " -> " + F(endPour.Level) +
-                " -> " + F(fin.Level) + " (max " + F(r.MaxLevel) + "), basin " + endPour.Region + " cells = " + F2(area) + " m2, spill level " + F(endPour.Spill4) + "; " + r.Reloads + " reload(s), " + r.Saves + " save(s), " + r.Drops + " drop(s)");
+            float area = endPour.Valid ? endPour.Region * v.m_scale * v.m_scale : 0f;
+            string endVolume = endPour.Valid ? F2(endPour.Total) : "INVALID(" + endPour.InvalidReason + ")";
+            string finalVolume = fin != null && fin.Valid ? F2(fin.Total) : "INVALID(" + (fin != null ? fin.InvalidReason : "missing snapshot") + ")";
+            string beforeText = float.IsNaN(before) ? "INVALID" : F2(before);
+            string kept = endPour.Valid && !float.IsNaN(before) ? F2((endPour.Total - before)) + " m3 / " + F2((endPour.Total - before) / Mathf.Max(0.01f, r.Poured) * 100f) + " %" : "not calculable";
+            Say("POUR " + (targetChanged ? "INVALID (receiver changed)" : "done") + ": requested overall " + F2(requestedTotal) + " m3; " + F2(r.Poured) + " m3 requested in " + done + " stroke(s) whose receiver matched the observed pool; receiver " + TarPool.DescribeVolume(v) +
+                "; pool total " + beforeText + " -> " + endVolume + " right after the last observed stroke (retained " + kept + "), " + finalVolume + " after " + F2(PoolHoldAfterPour) + " s more; level " +
+                (float.IsNaN(levelStart) ? "n/a" : F(levelStart)) + " -> " + (endPour.Valid ? F(endPour.Level) : "n/a") + " -> " + (fin != null && fin.Valid ? F(fin.Level) : "n/a") +
+                " (max " + (r.MaxLevel == float.MinValue ? "n/a" : F(r.MaxLevel)) + "), basin " + (endPour.Valid ? endPour.Region.ToString(Inv) : "n/a") + " cells = " + (endPour.Valid ? F2(area) : "n/a") + " m2, spill level " + (endPour.Valid ? F(endPour.Spill4) : "n/a") +
+                "; " + r.Reloads + " reload(s), " + r.Saves + " save(s), " + r.Drops + " drop(s), " + r.InvalidSnapshots + " invalid snapshot(s)");
+            Out("pools whose grid covers the landing point / target-selection decisions (after " + F2(PoolHoldAfterPour) + " s): " + PoolsAt(land));
+            if (v == null) { Out("mod budget unavailable: observed pool was destroyed during the test"); yield break; }
+            var bud = TarPitStats.BudgetOf(v);
+            Out("mod budget of the measured pool: poured " + F2(bud.Poured) + " stayed " + F2(bud.Stayed) + " edge " + F2(bud.Edge) + " thin " + F2(bud.Thin) + " lost " + F2(bud.Lost) + " shedEdge " + F2(bud.ShedEdge) +
+                " wallPushed " + F2(bud.WallPushed) + " wallStayed(no room) " + F2(bud.WallLost) + " wallKeptOnPieces(last pass) " + F2(bud.WallKept) + " wallPasses " + bud.WallPasses);
+        }
+
+        /// Reports each loaded water-volume candidate, whether its grid actually covers the landing point, whether it passes the 1.5 m selection margin,
+        /// whether it is a flagged pump pool, and why it was selected or rejected. This makes stale unflagged pools visible in the raw test report.
+        static string PoolsAt(Vector3 p)
+        {
+            var target = TarPool.FindVolume(p, PumpLiquid.Water);
+            foreach (var line in TarPoolDiagnostics.DescribeWaterSelection(p, target)) Out(line);
+            var sb = new StringBuilder();
+            int n = 0;
+            foreach (var pv in TarPits.All)
+            {
+                if (pv == null || TarPits.LiquidOf(pv) != PumpLiquid.Water || !TarPool.GridCoversPoint(pv, p)) continue;
+                n++;
+                sb.Append("[").Append(TarPool.DescribeVolume(pv)).Append(" vol=").Append(TarPool.GridIsValid(pv) ? F2(TarPits.TotalVolume(pv)) : "INVALID")
+                  .Append(" walls=").Append(TarPitWalls.WallCellCount(pv)).Append("] ");
+            }
+            return "actual-grid overlaps=" + n + "; overlapping-pool details=" + sb + "; deposit target = " + DescribeTarget(p);
+        }
+
+        static string DescribeTarget(Vector3 p)
+        {
+            var t = TarPool.FindVolume(p, PumpLiquid.Water);
+            return t == null ? "none (a new pool would be spawned)" : TarPool.DescribeVolume(t);
         }
     }
 }
