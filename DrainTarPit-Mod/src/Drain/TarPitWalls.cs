@@ -205,6 +205,40 @@ namespace DrainTarPit.Drain
             }
         }
 
+        /// For every wall cell the nearest open (non-wall) cell, walking over the wall cells in 4-neighbour steps (multi-source breadth-first search
+        /// from the wall cells that touch an open cell); -1 when the grid has no open cell. Used by ApplyWallHeights so no liquid is ever deleted.
+        static int[] NearestOpenCells(bool[] isWall, List<int> walls, int w, int stride, int n)
+        {
+            var target = new int[n];
+            for (int i = 0; i < n; i++) target[i] = -1;
+            var queue = new List<int>();                                        // a list with a read position: Queue<T> lives in System.dll, which this project does not reference
+            int head = 0;
+            int[] ox = { 1, -1, 0, 0 }, oy = { 0, 0, 1, -1 };
+            foreach (int i in walls)
+            {
+                int cx = i % stride, cy = i / stride;
+                for (int k = 0; k < 4; k++)
+                {
+                    int x = cx + ox[k], y = cy + oy[k];
+                    if (x < 0 || y < 0 || x > w || y > w || isWall[y * stride + x]) continue;
+                    target[i] = y * stride + x; queue.Add(i); break;
+                }
+            }
+            while (head < queue.Count)
+            {
+                int i = queue[head++], cx = i % stride, cy = i / stride;
+                for (int k = 0; k < 4; k++)
+                {
+                    int x = cx + ox[k], y = cy + oy[k];
+                    if (x < 0 || y < 0 || x > w || y > w) continue;
+                    int j = y * stride + x;
+                    if (!isWall[j] || target[j] >= 0) continue;
+                    target[j] = target[i]; queue.Add(j);
+                }
+            }
+            return target;
+        }
+
         // Raises the cells of the walls (found now + remembered ones while the grace time runs) in the ground heights and saves the set.
         static void ApplyWallHeights(LiquidVolume v, List<float> h, List<float> d, int w, int stride, int n, Dictionary<int, float> live)
         {
@@ -229,10 +263,13 @@ namespace DrainTarPit.Drain
                 }
                 if (walls == null) return;
 
-                // tar that stood where a wall is now is pushed to the open cells next to it
-                bool moved = false; float wPushed = 0f, wLost = 0f, wc2 = v.m_scale * v.m_scale; int wWet = 0, wNoFree = 0;
+                // Liquid that stood where a wall is now is pushed to the open cells next to it. A wall cell with no open neighbour (inside a thick
+                // wall, a floor, a piece standing in the water) hands its liquid to the NEAREST open cell, searched outwards over the wall cells
+                // (user spec W-5, D-023: this pass never destroys liquid). Only when the grid has no open cell at all does the liquid stay on the cell.
+                bool moved = false; float wPushed = 0f, wFar = 0f, wLost = 0f, wc2 = v.m_scale * v.m_scale; int wWet = 0, wNoFree = 0;
                 var isWall = new bool[n];
                 foreach (int i in walls) isWall[i] = true;
+                int[] target = null;                                              // nearest open cell of every wall cell, made on demand
                 int[] ox = { 1, -1, 0, 0 }, oy = { 0, 0, 1, -1 };
                 foreach (int i in walls)
                 {
@@ -252,7 +289,15 @@ namespace DrainTarPit.Drain
                             if (x >= 0 && y >= 0 && x <= w && y <= w && !isWall[y * stride + x]) d[y * stride + x] += share;
                         }
                     }
-                    wWet++; if (free == 0) { wLost += d[i] * wc2; wNoFree++; }     // a wall cell with no open neighbour (inside a thick wall / piece): its liquid is destroyed here
+                    else
+                    {
+                        wNoFree++;
+                        if (target == null) target = NearestOpenCells(isWall, walls, w, stride, n);
+                        int t = target[i];
+                        if (t < 0) { wLost += d[i] * wc2; wWet++; continue; }      // no open cell anywhere in the grid: the liquid stays where it is, it is NOT deleted
+                        d[t] += d[i]; wPushed += d[i] * wc2; wFar += d[i] * wc2;
+                    }
+                    wWet++;
                     d[i] = 0f; moved = true;
                 }
                 FDirty.SetValue(v, true);
@@ -260,7 +305,7 @@ namespace DrainTarPit.Drain
                 if (wWet > 0)
                 {
                     var wb = BudgetOf(v); wb.WallPasses++; wb.WallPushed += wPushed; wb.WallLost += wLost;
-                    ModLog.Verbose("Pit " + v.name + ": wall pass: " + wWet + " of " + walls.Count + " wall cells held liquid; pushed to open neighbours " + wPushed.ToString("0.000") + " m3, DESTROYED (" + wNoFree + " cells with no open neighbour) " + wLost.ToString("0.000") + " m3");
+                    ModLog.Verbose("Pit " + v.name + ": wall pass: " + wWet + " of " + walls.Count + " wall cells held liquid; moved to open cells " + wPushed.ToString("0.000") + " m3 (of it " + wFar.ToString("0.000") + " m3 from " + wNoFree + " cells with no open neighbour, moved outwards), could not be placed and stayed " + wLost.ToString("0.000") + " m3 (DESTROYED: 0, nothing is deleted)");
                 }
             }
             if (memo.Logged != walls.Count) { memo.Logged = walls.Count; ModLog.Verbose("Pit " + v.name + ": " + walls.Count + " cells raised by built pieces"); }       // only when the number changes (it was one line per pool per second)
