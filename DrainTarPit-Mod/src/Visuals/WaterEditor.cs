@@ -60,6 +60,7 @@ namespace DrainTarPit.Visuals
                 if (key != KeyCode.None && Player.m_localPlayer != null && BepInEx.UnityInput.Current.GetKeyDown(key)) SetOpen(!_open);
                 if (!_open) return;
                 if (Player.m_localPlayer == null) { SetOpen(false); return; }
+                WaterEditorLog.Tick();
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
                 if (Time.unscaledTime >= _nextInfo) { _nextInfo = Time.unscaledTime + 0.5f; RefreshPool(); }
@@ -69,7 +70,13 @@ namespace DrainTarPit.Visuals
 
         static void SetOpen(bool open)
         {
+            bool was = _open;
             _open = open;
+            if (was != open)
+            {
+                if (!open) WaterEditorLog.Flush();
+                WaterEditorLog.Event(open ? "window opened" : "window closed");
+            }
             var cfg = Plugin.Instance != null ? Plugin.Instance.Config : null;
             if (cfg != null)
             {
@@ -126,6 +133,7 @@ namespace DrainTarPit.Visuals
             if (!_open) return;
             try
             {
+                if (Event.current.rawType == EventType.MouseUp) WaterEditorLog.Flush();       // a drag ended: log the final values
                 _win.height = Mathf.Min(720f, Screen.height - 40f);
                 var style = WindowStyle();
                 if (Event.current.type == EventType.Repaint)
@@ -163,10 +171,10 @@ namespace DrainTarPit.Visuals
             Header("Look");
             GUILayout.Label(m == null ? "material: none" : "material '" + m.name + "'  shader '" + (m.shader != null ? m.shader.name : "?") + "'  " + (PoolWater.IsOceanCopy ? "(copy of the ocean)" : "(FALLBACK tint: the ocean material was not found yet)"));
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Save look")) _status = WaterLook.Save(m) ? "saved to " + WaterLook.Path : "saving failed (see the log)";
-            if (GUILayout.Button("Reload saved look")) { PoolWater.ResetLook(true); _status = "ocean material copied again + saved look applied"; }
-            if (GUILayout.Button("Reset to ocean")) { PoolWater.ResetLook(false); _status = "ocean material copied again, no saved look"; }
-            if (GUILayout.Button("Dump to log")) { ModLog.Info(WaterLook.Dump(m)); _status = "written to the BepInEx log"; }
+            if (GUILayout.Button("Save look")) Result("Save look", WaterLook.Save(m) ? "saved to " + WaterLook.Path : "saving failed (see the log)");
+            if (GUILayout.Button("Reload saved look")) { PoolWater.ResetLook(true); Result("Reload saved look", "ocean material copied again + saved look applied"); }
+            if (GUILayout.Button("Reset to ocean")) { PoolWater.ResetLook(false); Result("Reset to ocean", "ocean material copied again, no saved look"); }
+            if (GUILayout.Button("Dump to log")) { ModLog.Info(WaterLook.Dump(m)); Result("Dump to log", "written to the BepInEx log"); }
             GUILayout.EndHorizontal();
         }
 
@@ -203,8 +211,8 @@ namespace DrainTarPit.Visuals
             GUILayout.Label("last deposit: " + TarPitStats.LastDeposit);
             GUILayout.Label("where the water went (this pool, since the world was loaded): " + TarPitStats.BudgetText(_pool));
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Pour one stroke at crosshair")) _status = PourAtCrosshair();
-            if (GUILayout.Button("Empty this pool")) _status = _pool != null && TarPitDebug.DebugEmpty(_pool) ? "pool emptied" : "not emptied (no pool, or you are not its owner)";
+            if (GUILayout.Button("Pour one stroke at crosshair")) Result("Pour one stroke at crosshair", PourAtCrosshair());
+            if (GUILayout.Button("Empty this pool")) Result("Empty this pool", _pool != null && TarPitDebug.DebugEmpty(_pool) ? "pool emptied" : "not emptied (no pool, or you are not its owner)");
             GUILayout.EndHorizontal();
         }
 
@@ -228,7 +236,7 @@ namespace DrainTarPit.Visuals
             GUILayout.EndHorizontal();
 
             int q = Mathf.RoundToInt(Number("queue", "render queue", m.renderQueue, 1000f, 4000f));
-            if (q != m.renderQueue) m.renderQueue = q;
+            if (q != m.renderQueue) { WaterEditorLog.Change("material render queue", m.renderQueue.ToString(Inv), q.ToString(Inv)); m.renderQueue = q; }
 
             var sh = m.shader;
             if (sh == null) return;
@@ -246,7 +254,7 @@ namespace DrainTarPit.Visuals
                     if (t == ShaderPropertyType.Range) { var r = sh.GetPropertyRangeLimits(i); lo = r.x; hi = r.y; }
                     else { var r = RangeFor(name, v); lo = r.x; hi = r.y; }
                     float nv = Number(name, name, v, lo, hi);
-                    if (!Mathf.Approximately(nv, v)) m.SetFloat(name, nv);
+                    if (!Mathf.Approximately(nv, v)) { WaterEditorLog.Change("material " + name, WaterEditorLog.F(v), WaterEditorLog.F(nv)); m.SetFloat(name, nv); }
                 }
 
             if (Open("colors", true))
@@ -266,7 +274,7 @@ namespace DrainTarPit.Visuals
                         Number(name + ".g", "   g", c.g, 0f, RangeFor(name + ".g", c.g).y),
                         Number(name + ".b", "   b", c.b, 0f, RangeFor(name + ".b", c.b).y),
                         Number(name + ".a", "   a", c.a, 0f, RangeFor(name + ".a", c.a).y));
-                    if (n != c) m.SetColor(name, n);
+                    if (n != c) { WaterEditorLog.Change("material " + name, WaterEditorLog.F(c), WaterEditorLog.F(n)); m.SetColor(name, n); }
                 }
 
             if (Open("vectors", true))
@@ -282,7 +290,7 @@ namespace DrainTarPit.Visuals
                         Number(name + ".y", "   y", v.y, RangeFor(name + ".y", v.y).x, RangeFor(name + ".y", v.y).y),
                         Number(name + ".z", "   z", v.z, RangeFor(name + ".z", v.z).x, RangeFor(name + ".z", v.z).y),
                         Number(name + ".w", "   w", v.w, RangeFor(name + ".w", v.w).x, RangeFor(name + ".w", v.w).y));
-                    if (n != v) m.SetVector(name, n);
+                    if (n != v) { WaterEditorLog.Change("material " + name, WaterEditorLog.F(v), WaterEditorLog.F(n)); m.SetVector(name, n); }
                 }
 
             if (Open("textures", false))
@@ -296,8 +304,8 @@ namespace DrainTarPit.Visuals
                     var s = m.GetTextureScale(name); var o = m.GetTextureOffset(name);
                     var ns = new Vector2(Number(name + ".sx", "   tiling x", s.x, 0f, RangeFor(name + ".sx", s.x).y), Number(name + ".sy", "   tiling y", s.y, 0f, RangeFor(name + ".sy", s.y).y));
                     var no = new Vector2(Number(name + ".ox", "   offset x", o.x, -1f, 1f), Number(name + ".oy", "   offset y", o.y, -1f, 1f));
-                    if (ns != s) m.SetTextureScale(name, ns);
-                    if (no != o) m.SetTextureOffset(name, no);
+                    if (ns != s) { WaterEditorLog.Change("material " + name + " tiling", WaterEditorLog.F(s), WaterEditorLog.F(ns)); m.SetTextureScale(name, ns); }
+                    if (no != o) { WaterEditorLog.Change("material " + name + " offset", WaterEditorLog.F(o), WaterEditorLog.F(no)); m.SetTextureOffset(name, no); }
                 }
 
             if (Open("keywords", false))
@@ -305,11 +313,11 @@ namespace DrainTarPit.Visuals
                 foreach (var k in m.shaderKeywords)
                 {
                     if (!Match(k, f)) continue;
-                    if (!GUILayout.Toggle(true, k)) { m.DisableKeyword(k); break; }       // collection changed: draw again next frame
+                    if (!GUILayout.Toggle(true, k)) { WaterEditorLog.Event("material keyword '" + k + "' enabled -> disabled"); m.DisableKeyword(k); break; }       // collection changed: draw again next frame
                 }
                 GUILayout.BeginHorizontal();
                 _newKeyword = GUILayout.TextField(_newKeyword);
-                if (GUILayout.Button("enable keyword", GUILayout.Width(120f)) && _newKeyword.Trim().Length > 0) { m.EnableKeyword(_newKeyword.Trim()); _newKeyword = ""; }
+                if (GUILayout.Button("enable keyword", GUILayout.Width(120f)) && _newKeyword.Trim().Length > 0) { WaterEditorLog.Event("material keyword '" + _newKeyword.Trim() + "' disabled -> enabled"); m.EnableKeyword(_newKeyword.Trim()); _newKeyword = ""; }
                 GUILayout.EndHorizontal();
             }
         }
@@ -326,6 +334,13 @@ namespace DrainTarPit.Visuals
         {
             if (_rich == null) { _rich = new GUIStyle(GUI.skin.label) { richText = true }; }
             return _rich;
+        }
+
+        /// A button was pressed: show the result in the window and write it to the log.
+        static void Result(string button, string text)
+        {
+            _status = text;
+            WaterEditorLog.Event("button '" + button + "' -> " + text);
         }
 
         static bool Open(string key, bool defaultOpen)
@@ -385,21 +400,26 @@ namespace DrainTarPit.Visuals
             if (e == null) return;
             float nv = Number("cfg." + e.Definition.Key, label, e.Value, lo, hi);
             nv = Mathf.Clamp(nv, lo, hi);
-            if (!Mathf.Approximately(nv, e.Value)) e.Value = nv;
+            if (!Mathf.Approximately(nv, e.Value)) { WaterEditorLog.Change(CfgName(e), WaterEditorLog.F(e.Value), WaterEditorLog.F(nv)); e.Value = nv; }
         }
 
         static void Entry(BepInEx.Configuration.ConfigEntry<int> e, string label, int lo, int hi)
         {
             if (e == null) return;
             int nv = Mathf.Clamp(Mathf.RoundToInt(Number("cfg." + e.Definition.Key, label, e.Value, lo, hi)), lo, hi);
-            if (nv != e.Value) e.Value = nv;
+            if (nv != e.Value) { WaterEditorLog.Change(CfgName(e), e.Value.ToString(Inv), nv.ToString(Inv)); e.Value = nv; }
         }
 
         static void Entry(BepInEx.Configuration.ConfigEntry<bool> e, string label)
         {
             if (e == null) return;
             bool nv = GUILayout.Toggle(e.Value, label);
-            if (nv != e.Value) e.Value = nv;
+            if (nv != e.Value) { WaterEditorLog.Change(CfgName(e), e.Value ? "on" : "off", nv ? "on" : "off"); e.Value = nv; }
+        }
+
+        static string CfgName(BepInEx.Configuration.ConfigEntryBase e)
+        {
+            return "config [" + e.Definition.Section + "] " + e.Definition.Key;
         }
     }
 }
