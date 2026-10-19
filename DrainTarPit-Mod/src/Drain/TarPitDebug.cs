@@ -70,7 +70,7 @@ namespace DrainTarPit.Drain
                         report.Add("dtp cleanpools: KEEP " + id + " reason=missing/invalid ZNetView or ZDO; cannot destroy safely");
                         continue;
                     }
-                    if (!TarPool.GridIsValid(v))
+                    if (!TarPoolDiagnostics.GridIsValid(v))
                     {
                         retainedUnsafe++;
                         report.Add("dtp cleanpools: KEEP " + id + " reason=grid is invalid/uninitialized; emptiness cannot be verified");

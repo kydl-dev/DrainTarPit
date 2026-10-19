@@ -20,7 +20,21 @@ namespace DrainTarPit.Debug
         const float HoldAfterPour = 25f;            // tank test: watch time after the last stroke
 
         // --- synthetic tanks ---------------------------------------------------------------------------------------------
-        internal sealed class Tank { public int R; public int Ring = 3; public float Floor = -1f; public float Top; }
+        /// A synthetic pool: Shape picks the heights (PoolShapes), RealWalls = also raise the cells under real colliders (wall-correction test against a
+        /// building / bush, step 8), Block = synthetic piece cells (cell -> top) run through the real wall pass every second (TarPitWalls.ApplyWallCells).
+        internal sealed class Tank
+        {
+            public int R; public int Ring = 3; public float Floor = -1f; public float Top;
+            public string Shape = "closed"; public bool RealWalls; public Dictionary<int, float> Block;
+        }
+
+        internal static bool IsSynthetic(LiquidVolume v, out bool realWalls)
+        {
+            Tank t; realWalls = false;
+            if (Synth.Count == 0 || v == null || !Synth.TryGetValue(v, out t)) return false;
+            realWalls = t.RealWalls;
+            return true;
+        }
         internal static readonly Dictionary<LiquidVolume, Tank> Synth = new Dictionary<LiquidVolume, Tank>();
 
         /// Called from the UpdateHeights postfix (TarPitHooks.Patch_UpdateHeights) with the pool's lock held: forces the heights of a test pool to the tank.
@@ -33,12 +47,9 @@ namespace DrainTarPit.Debug
             if (h == null || h.Count < n) return;
             using (TarPitDebug.Lock(v))
             {
-                for (int i = 0; i < n; i++)
-                {
-                    int cheb = Mathf.Max(Mathf.Abs(i % stride - c), Mathf.Abs(i / stride - c));
-                    h[i] = cheb <= t.R ? t.Floor : cheb <= t.R + t.Ring ? t.Top : t.Floor - 0.5f;
-                }
+                for (int i = 0; i < n; i++) h[i] = PoolShapes.Height(t, i % stride - c, i / stride - c);
                 TarPitDebug.MarkChanged(v);
+                if (t.Block != null && t.Block.Count > 0) TarPitWalls.ApplyWallCells(v, t.Block);
             }
         }
 
@@ -113,7 +124,7 @@ namespace DrainTarPit.Debug
             if (v == null) { res.Summary = label + ": FAILED - no pool prefab (see the log)"; yield break; }
             Synth[v] = tank;
             Out("=== TANK " + label + ": R " + radius + " cells (" + F2((2 * radius + 1) * v.m_scale) + " m square), walls " + F2(tank.Top - tank.Floor) + " m high, " + strokes + " strokes of " + F2(ModSettings.VolumePerStroke.Value) +
-                " m3, mode " + (inject ? "inject (even spread, no FloodPass)" : "flood (the real FloodPass)") + "; synthetic tank observer=" + TarPool.DescribeVolume(v));
+                " m3, mode " + (inject ? "inject (even spread, no FloodPass)" : "flood (the real FloodPass)") + "; synthetic tank observer=" + TarPoolDiagnostics.DescribeVolume(v));
             Out(EnvLine(land)); Out(ConfigLine());
             float t0 = Time.time;
             while (!TarPitDebug.Ready(v) && Time.time < t0 + 15f && !Cancel) yield return null;
@@ -126,10 +137,10 @@ namespace DrainTarPit.Debug
                 st = Take(v, tank);
                 if (st.Valid && Mathf.Abs(st.CentreH - tank.Floor) < 0.01f && Mathf.Abs(st.RingH - tank.Top) < 0.01f) break;
             }
-            Out("tank heights in the pool: centre " + F(st != null && st.Valid ? st.CentreH : float.NaN) + " (want " + F(tank.Floor) + "), wall " + F(st != null && st.Valid ? st.RingH : float.NaN) + " (want " + F(tank.Top) + "); snapshot " + (st != null && st.Valid ? "valid" : "INVALID " + (st != null ? st.InvalidReason : "missing")) + "; observer=" + TarPool.DescribeVolume(v));
+            Out("tank heights in the pool: centre " + F(st != null && st.Valid ? st.CentreH : float.NaN) + " (want " + F(tank.Floor) + "), wall " + F(st != null && st.Valid ? st.RingH : float.NaN) + " (want " + F(tank.Top) + "); snapshot " + (st != null && st.Valid ? "valid" : "INVALID " + (st != null ? st.InvalidReason : "missing")) + "; observer=" + TarPoolDiagnostics.DescribeVolume(v));
             if (st == null || !st.Valid || Mathf.Abs(st.CentreH - tank.Floor) >= 0.01f || Mathf.Abs(st.RingH - tank.Top) >= 0.01f)
             {
-                res.Summary = label + ": FAILED - synthetic tank grid/heights were not valid and applied; " + TarPool.DescribeVolume(v);
+                res.Summary = label + ": FAILED - synthetic tank grid/heights were not valid and applied; " + TarPoolDiagnostics.DescribeVolume(v);
                 Out("TANK RESULT " + res.Summary);
                 TarPool.DestroyForTest(v); Synth.Remove(v);
                 yield break;
@@ -159,7 +170,7 @@ namespace DrainTarPit.Debug
             var fin = r.Last;
             if (!endPour.Valid || fin == null || !fin.Valid)
             {
-                res.Summary = label + ": FAILED - invalid grid snapshot (after-pour=" + (endPour.Valid ? "valid" : endPour.InvalidReason) + ", final=" + (fin != null && fin.Valid ? "valid" : fin != null ? fin.InvalidReason : "missing") + "); observer=" + TarPool.DescribeVolume(v);
+                res.Summary = label + ": FAILED - invalid grid snapshot (after-pour=" + (endPour.Valid ? "valid" : endPour.InvalidReason) + ", final=" + (fin != null && fin.Valid ? "valid" : fin != null ? fin.InvalidReason : "missing") + "); observer=" + TarPoolDiagnostics.DescribeVolume(v);
                 Out("TANK RESULT " + res.Summary);
                 TarPool.DestroyForTest(v); Synth.Remove(v);
                 yield break;

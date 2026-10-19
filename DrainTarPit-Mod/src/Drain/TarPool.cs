@@ -316,7 +316,7 @@ namespace DrainTarPit.Drain
                 if (made) target = Spawn(land, liquid);
                 if (target == null) yield break;
                 ModLog.Verbose("TarPool: deposit " + volume.ToString("0.000", CultureInfo.InvariantCulture) + " m3 at " + land.ToString("0.00") +
-                    " into " + DescribeVolume(target) + (made ? " (new pool)" : " (existing pool)"));
+                    " into " + TarPoolDiagnostics.DescribeVolume(target) + (made ? " (new pool)" : " (existing pool)"));
                 TarPitDeposit.RequestDeposit(target, land, volume, 0);
             }
             catch (System.Exception e) { ModLog.Warn("TarPool deposit failed: " + e.Message); }
@@ -332,7 +332,7 @@ namespace DrainTarPit.Drain
             foreach (var v in TarPits.All)
             {
                 if (v == null || TarPits.LiquidOf(v) != liquid) continue;
-                if (!HasUsableGridGeometry(v)) continue;
+                if (!TarPoolDiagnostics.HasUsableGridGeometry(v)) continue;
                 var g = TarPits.ToGrid(v, p);
                 if (!TarPits.InGrid(v, g) || !TarPits.Contains(v, p, 1.5f)) continue;
                 if (liquid == PumpLiquid.Water && !TarPits.IsPumpPool(v)) continue;
@@ -340,18 +340,6 @@ namespace DrainTarPit.Drain
                 if (d < bd) { bd = d; best = v; }
             }
             return best;
-        }
-
-        static bool HasUsableGridGeometry(LiquidVolume v)
-        {
-            return v != null && v.m_width > 0 && v.m_width <= 512 &&
-                   v.m_scale > 0f && !float.IsNaN(v.m_scale) && !float.IsInfinity(v.m_scale);
-        }
-
-        internal static bool GridCoversPoint(LiquidVolume v, Vector3 p)
-        {
-            if (!HasUsableGridGeometry(v)) return false;
-            return TarPits.InGrid(v, TarPits.ToGrid(v, p));
         }
 
         /// Test button of the live editor: pours `volume` m3 of `liquid` at a world point exactly like a stroke would (into the pool around it, or a new pool).
@@ -376,53 +364,7 @@ namespace DrainTarPit.Drain
             if (made) target = Spawn(land, liquid);
             if (target == null) return "no pool prefab (see the log: TarPool ...)";
             TarPitDeposit.RequestDeposit(target, land, volume, 0);
-            return (made ? "new pool spawned, " : "existing pool, ") + volume.ToString("0.0", CultureInfo.InvariantCulture) + " m3 requested; receiver " + DescribeVolume(target);
-        }
-
-        /// Diagnostic identity for test and verbose deposit logs. Instance ID is stable for the lifetime of this Unity object (not across game sessions).
-        internal static string DescribeVolume(LiquidVolume v)
-        {
-            if (v == null) return "pool=<none/destroyed>";
-            int w = v.m_width;
-            long expected = w >= 0 ? ((long)w + 1L) * ((long)w + 1L) : -1L;
-            int depths = -1, heights = -1;
-            bool ready = false;
-            string gridError = null;
-            try
-            {
-                ready = TarPitDebug.Ready(v);
-                using (TarPitDebug.Lock(v))
-                {
-                    var d = TarPitDebug.DepthList(v);
-                    var h = TarPitDebug.HeightList(v);
-                    depths = d != null ? d.Count : -1;
-                    heights = h != null ? h.Count : -1;
-                }
-            }
-            catch (System.Exception e) { gridError = e.GetType().Name; }
-            bool scaleValid = v.m_scale > 0f && !float.IsNaN(v.m_scale) && !float.IsInfinity(v.m_scale);
-            bool valid = ready && w > 0 && scaleValid && expected > 0 && depths >= expected && heights >= expected && gridError == null;
-            return "poolId=" + v.GetInstanceID() + " name=\"" + v.name + "\" pos=" + v.transform.position.ToString("0.00") +
-                " liquid=" + TarPits.LiquidOf(v) + " pumpPool=" + TarPits.IsPumpPool(v) + " grid=" + w + "x" + w + " cell=" + v.m_scale.ToString("0.000", CultureInfo.InvariantCulture) +
-                "m heightsReady=" + ready + " depthCells=" + (depths < 0 ? "null" : depths.ToString(CultureInfo.InvariantCulture)) + " heightCells=" + (heights < 0 ? "null" : heights.ToString(CultureInfo.InvariantCulture)) +
-                " expectedCells=" + expected.ToString(CultureInfo.InvariantCulture) + " gridValid=" + valid + (gridError != null ? " gridError=" + gridError : "");
-        }
-
-        internal static bool GridIsValid(LiquidVolume v)
-        {
-            if (v == null || v.m_width <= 0 || v.m_width > 512 || v.m_scale <= 0f || float.IsNaN(v.m_scale) || float.IsInfinity(v.m_scale)) return false;
-            long expected = ((long)v.m_width + 1L) * ((long)v.m_width + 1L);
-            if (expected <= 0 || expected > int.MaxValue) return false;
-            try
-            {
-                if (!TarPitDebug.Ready(v)) return false;
-                using (TarPitDebug.Lock(v))
-                {
-                    var d = TarPitDebug.DepthList(v); var h = TarPitDebug.HeightList(v);
-                    return d != null && h != null && d.Count >= expected && h.Count >= expected;
-                }
-            }
-            catch { return false; }
+            return (made ? "new pool spawned, " : "existing pool, ") + volume.ToString("0.0", CultureInfo.InvariantCulture) + " m3 requested; receiver " + TarPoolDiagnostics.DescribeVolume(target);
         }
 
         static LiquidVolume Spawn(Vector3 land, PumpLiquid liquid)
@@ -441,6 +383,9 @@ namespace DrainTarPit.Drain
         /// Test harness (Debug/PoolTests.cs): a fresh, flagged, empty water pool with its origin at the rim height of `land`.
         internal static LiquidVolume SpawnForTest(Vector3 land) { return Spawn(land, PumpLiquid.Water); }
 
+        /// Test harness: the same for tar (water / tar parity tests, step 14).
+        internal static LiquidVolume SpawnForTest(Vector3 land, PumpLiquid liquid) { return Spawn(land, liquid); }
+
         /// Test harness: removes a pool made by SpawnForTest.
         internal static void DestroyForTest(LiquidVolume v)
         {
@@ -454,15 +399,16 @@ namespace DrainTarPit.Drain
         /// Runs on the owner of `from`. The liquid reached the edge of from's grid and the ground goes on downhill there (a long moat, a ditch, a slope):
         /// the rest `volume` (m3) is poured into the pool beyond the edge, which is made if it does not exist yet. `hop` counts the pools in a row,
         /// so a stroke can never spread over the whole map.
-        public static void Continue(LiquidVolume from, Vector3 edge, float volume, int hop)
+        /// Returns true when the liquid was handed to the next pool (counted as 'nextPool' in the stroke accounting), false when it was discarded.
+        public static bool Continue(LiquidVolume from, Vector3 edge, float volume, int hop)
         {
-            if (from == null || volume < 0.05f || hop > MaxRunoffHops || ZNetScene.instance == null || !ModSettings.PoolRunoff.Value) return;
+            if (from == null || volume < 0.05f || hop > MaxRunoffHops || ZNetScene.instance == null || !ModSettings.PoolRunoff.Value) return false;
             try
             {
                 var liquid = TarPits.LiquidOf(from);
                 var o = from.transform.position;
                 var dir = new Vector3(edge.x - o.x, 0f, edge.z - o.z);
-                if (dir.sqrMagnitude < 0.01f) return;
+                if (dir.sqrMagnitude < 0.01f) return false;
                 dir.Normalize();
                 var into = edge + dir * 1.5f;                              // lands just beyond the edge
                 var target = FindVolume(into, liquid);
@@ -470,16 +416,17 @@ namespace DrainTarPit.Drain
                 {
                     var prefab = Get(liquid);
                     var plv = prefab != null ? prefab.GetComponentInChildren<LiquidVolume>(true) : null;
-                    if (plv == null) return;
+                    if (plv == null) return false;
                     float half = plv.m_width * plv.m_scale * 0.5f;
                     target = Spawn(edge + dir * Mathf.Max(3f, half - 4f), liquid);    // the new grid covers the edge point with 4 m to spare
                 }
-                if (target == null || target == from) return;
-                ModLog.Verbose("TarPool: " + volume.ToString("0.00", CultureInfo.InvariantCulture) + " m3 continues from " + DescribeVolume(from) +
-                    " into next pool " + DescribeVolume(target) + " (hop " + hop + ")");
+                if (target == null || target == from) return false;
+                ModLog.Verbose("TarPool: " + volume.ToString("0.00", CultureInfo.InvariantCulture) + " m3 continues from " + TarPoolDiagnostics.DescribeVolume(from) +
+                    " into next pool " + TarPoolDiagnostics.DescribeVolume(target) + " (hop " + hop + ")");
                 TarPitDeposit.RequestDeposit(target, into, volume, hop);
+                return true;
             }
-            catch (System.Exception e) { ModLog.Warn("TarPool runoff failed: " + e.Message); }
+            catch (System.Exception e) { ModLog.Warn("TarPool runoff failed: " + e.Message); return false; }
         }
     }
 }

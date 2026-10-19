@@ -25,15 +25,17 @@ namespace DrainTarPit.Debug
             public Snap Last; public float PouredAtLast;
             public long PrevOwn = long.MinValue, PrevZdo = long.MinValue; public int PrevBytes = int.MinValue, PrevHash;
             public float MaxLevel = float.MinValue; public int Drops, Reloads, Saves, InvalidSnapshots;
+            public bool HasLand; public Vector3 Land;          // pour test: the landing point must stay inside the observed grid (step 4)
         }
 
         internal static Snap Sample(Obs r)
         {
             var s = Take(r.V, r.Tank);
+            if (s.Valid && r.HasLand && !TarPoolDiagnostics.GridCoversPoint(r.V, r.Land)) { s.Valid = false; s.InvalidReason = "the landing point is outside the observed pool's grid"; }
             float t = Time.time - r.T0;
             var sb = new StringBuilder();
             sb.Append(r.Label).Append(" t=").Append(F2(t)).Append(" poured=").Append(F2(r.Poured))
-              .Append(" observer{").Append(TarPool.DescribeVolume(r.V)).Append("}");
+              .Append(" observer{").Append(TarPoolDiagnostics.DescribeVolume(r.V)).Append("}");
             if (!s.Valid)
             {
                 r.InvalidSnapshots++;
@@ -57,16 +59,27 @@ namespace DrainTarPit.Debug
                 r.Drops++; ev.Append(" EVT DROP ").Append(F2(s.Total - r.Last.Total)).Append(" m3 without a pour");
             }
             if (s.Level > r.MaxLevel) r.MaxLevel = s.Level;
-            sb.Append(" snapshot=valid total=").Append(F2(s.Total)).Append(" level=").Append(F(s.Level));
+            sb.Append(" snapshot=").Append(s.State).Append(" total=").Append(F2(s.Total)).Append(" level=").Append(F(s.Level));
             if (!float.IsNaN(r.Expected)) sb.Append(" exp=").Append(F(r.Expected));
             sb.Append(" basin=").Append(F2(s.Inside)).Append(" elsewhere=").Append(F2(s.Outside)).Append(" gridedge=").Append(F2(s.Border));
             if (r.Tank != null) sb.Append(" tankIn=").Append(F2(s.TankIn)).Append(" onWalls=").Append(F2(s.Ring));
             sb.Append(" cells=").Append(s.Region).Append(" spread=").Append(F(s.Spread)).Append(" spill4=").Append(F(s.Spill4)).Append(" spill8=").Append(F(s.Spill8))
               .Append(" wet=").Append(s.Wet).Append(" walls=").Append(s.Walls).Append(" grid=").Append(s.Width).Append("x").Append(s.Width)
-              .Append(" cell=").Append(F(s.CellScale)).Append(" depthCells=").Append(s.DepthCount).Append(" heightCells=").Append(s.HeightCount).Append(ev);
+              .Append(" cell=").Append(F(s.CellScale)).Append(" depthCells=").Append(s.DepthCount).Append(" heightCells=").Append(s.HeightCount);
+            if (r.Tank == null) sb.Append(" allWaterPools=").Append(F2(AllWater()));           // step 10: the observed pool against the sum over every loaded water pool
+            sb.Append(ev);
             Out(sb.ToString());
             r.Last = s; r.PouredAtLast = r.Poured;
             return s;
+        }
+
+        /// Sum of the volumes of every loaded water pool with a valid grid (m3): liquid that moved into another pool still shows up here.
+        internal static float AllWater()
+        {
+            double sum = 0d;
+            foreach (var v in TarPits.All)
+                if (v != null && v.m_liquidType == LiquidType.Water && TarPoolDiagnostics.GridIsValid(v)) sum += TarPits.TotalVolume(v);
+            return (float)sum;
         }
     }
 }

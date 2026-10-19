@@ -24,6 +24,8 @@ namespace DrainTarPit.Debug
             public float Inside, Outside, TankIn, Ring, CentreH, RingH, CellScale;
             public int Wet, Region, Walls, Width, DepthCount = -1, HeightCount = -1;
             public bool Valid;
+            /// Step 4: the measurement state - VALID-WET, VALID-EMPTY (a real zero), or INVALID (never a volume result).
+            public string State { get { return !Valid ? "INVALID" : Wet > 0 ? "VALID-WET" : "VALID-EMPTY"; } }
             public string InvalidReason = "not sampled", Pass = "-";
         }
 
@@ -36,6 +38,7 @@ namespace DrainTarPit.Debug
         {
             var s = new Snap();
             if (v == null) { s.InvalidReason = "pool object is null or destroyed"; return s; }
+            if (!TarPits.All.Contains(v)) { s.InvalidReason = "pool is not in the registry any more (stale / unloaded / replaced)"; return s; }
             int w = v.m_width;
             s.Width = w; s.CellScale = v.m_scale;
             try

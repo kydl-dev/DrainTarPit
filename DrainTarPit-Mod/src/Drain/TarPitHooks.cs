@@ -70,8 +70,14 @@ namespace DrainTarPit.Drain
             {
                 try { FixMissedHeights(__instance); }
                 catch (System.Exception e) { ModLog.VerboseWarn("FixMissedHeights: " + e.Message); }
-                try { ApplyWalls(__instance); }
-                catch (System.Exception e) { ModLog.VerboseWarn("ApplyWalls: " + e.Message); }
+                // A synthetic test tank (dtp ptest tank / shape / walls) owns its heights: real colliders under it are not walls unless the test asks
+                // for them (INVESTIGATION fix queue 7; a base or a bush under the tank made the old tank results depend on where it was run).
+                bool synthetic = DrainTarPit.Debug.PoolTankTests.IsSynthetic(__instance, out bool realWalls);
+                if (!synthetic || realWalls)
+                {
+                    try { ApplyWalls(__instance); }
+                    catch (System.Exception e) { ModLog.VerboseWarn("ApplyWalls: " + e.Message); }
+                }
                 try { DrainTarPit.Debug.PoolTankTests.ApplySynthetic(__instance); }
                 catch (System.Exception e) { ModLog.VerboseWarn("PoolTankTests.ApplySynthetic: " + e.Message); }
             }
@@ -91,7 +97,7 @@ namespace DrainTarPit.Drain
         [HarmonyPatch(typeof(LiquidVolume), "OnDestroy")]
         static class Patch_OnDestroy
         {
-            static void Prefix(LiquidVolume __instance) { All.Remove(__instance); Registered.Remove(__instance); RefillTimers.Remove(__instance); Memos.Remove(__instance); PendingDeposits.Remove(__instance); SettleTimers.Remove(__instance); ShedTimers.Remove(__instance); Budgets.Remove(__instance); UnboostIfDone(__instance, true); }
+            static void Prefix(LiquidVolume __instance) { All.Remove(__instance); Registered.Remove(__instance); RefillTimers.Remove(__instance); Memos.Remove(__instance); PendingDeposits.Remove(__instance); SettleTimers.Remove(__instance); ShedTimers.Remove(__instance); Budgets.Remove(__instance); UnboostIfDone(__instance, true); TarPitLedger.Destroyed(__instance); }
         }
 
         [HarmonyPatch(typeof(LiquidVolume), "Update")]
@@ -104,6 +110,7 @@ namespace DrainTarPit.Drain
                 if (Boosted.Count > 0) UnboostIfDone(__instance, false);
                 if (PendingDeposits.Count > 0) FlushDeposits(__instance);
                 RefillTick(__instance, Time.deltaTime);
+                if (TarPitLedger.Books.Count > 0) TarPitLedger.Tick(__instance);
                 float next; SettleTimers.TryGetValue(__instance, out next);
                 if (Time.time >= next) { SettleTimers[__instance] = Time.time + 1f; SettleFloaters(__instance); }
                 float shedAt; ShedTimers.TryGetValue(__instance, out shedAt);

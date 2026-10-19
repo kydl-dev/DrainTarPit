@@ -84,7 +84,7 @@ namespace DrainTarPit.Drain
         // runs out over it and spreads thin across the grid ("the level is back at ground height"). So the raised wall cells (cell -> height above the pool
         // origin) are saved in the pool's ZDO and put back at once on load. For WallGraceSeconds after the load they are kept even if no wall collider has
         // been found there yet; after that only what is really there counts (a wall removed while you were away frees its cells again).
-        internal sealed class WallMemo { public Dictionary<int, float> Cells = new(); public float GraceUntil; public int Logged = -1; }
+        internal sealed class WallMemo { public Dictionary<int, float> Cells = new(); public float GraceUntil; public int Logged = -1; public HashSet<int> LastMoved = new(); }
         internal static readonly Dictionary<LiquidVolume, WallMemo> Memos = new();
         const string ZWalls = "DTP_walls";
         const float WallGraceSeconds = 30f;
@@ -205,41 +205,19 @@ namespace DrainTarPit.Drain
             }
         }
 
-        /// For every wall cell the nearest open (non-wall) cell, walking over the wall cells in 4-neighbour steps (multi-source breadth-first search
-        /// from the wall cells that touch an open cell); -1 when the grid has no open cell. Used by ApplyWallHeights so no liquid is ever deleted.
-        static int[] NearestOpenCells(bool[] isWall, List<int> walls, int w, int stride, int n)
+        /// Test harness (synthetic wall-correction tests, Debug/PoolTankTests): one wall pass with a given set of raised cells
+        /// (cell -> top above the pool origin) instead of the colliders found around the pool. Called with the pool's lock held.
+        internal static void ApplyWallCells(LiquidVolume v, Dictionary<int, float> live)
         {
-            var target = new int[n];
-            for (int i = 0; i < n; i++) target[i] = -1;
-            var queue = new List<int>();                                        // a list with a read position: Queue<T> lives in System.dll, which this project does not reference
-            int head = 0;
-            int[] ox = { 1, -1, 0, 0 }, oy = { 0, 0, 1, -1 };
-            foreach (int i in walls)
-            {
-                int cx = i % stride, cy = i / stride;
-                for (int k = 0; k < 4; k++)
-                {
-                    int x = cx + ox[k], y = cy + oy[k];
-                    if (x < 0 || y < 0 || x > w || y > w || isWall[y * stride + x]) continue;
-                    target[i] = y * stride + x; queue.Add(i); break;
-                }
-            }
-            while (head < queue.Count)
-            {
-                int i = queue[head++], cx = i % stride, cy = i / stride;
-                for (int k = 0; k < 4; k++)
-                {
-                    int x = cx + ox[k], y = cy + oy[k];
-                    if (x < 0 || y < 0 || x > w || y > w) continue;
-                    int j = y * stride + x;
-                    if (!isWall[j] || target[j] >= 0) continue;
-                    target[j] = target[i]; queue.Add(j);
-                }
-            }
-            return target;
+            var h = Heights(v); var d = Depths(v);
+            int w = v.m_width, stride = w + 1, n = stride * stride;
+            if (h == null || d == null || h.Count < n || d.Count < n) return;
+            ApplyWallHeights(v, h, d, w, stride, n, new Dictionary<int, float>(live));
         }
 
         // Raises the cells of the walls (found now + remembered ones while the grace time runs) in the ground heights and saves the set.
+        // The liquid rules are HeightField.RaiseCells (unit tested): only the liquid a piece really displaces moves, a submerged piece keeps the
+        // liquid above it, a cell that was already raised to the same top at the last pass moves nothing again (step 9), and nothing is deleted (W-5).
         static void ApplyWallHeights(LiquidVolume v, List<float> h, List<float> d, int w, int stride, int n, Dictionary<int, float> live)
         {
             var memo = MemoOf(v);
@@ -253,70 +231,28 @@ namespace DrainTarPit.Drain
                 }
             UpdateMemo(v, memo, eff);
             if (memo.Logged != eff.Count) { memo.Logged = eff.Count; ModLog.Verbose("Pit " + v.name + ": " + eff.Count + " cells raised by built pieces"); }       // only when the number changes (it was one line per pool per second)
-            List<int> walls = null;
-            int kept = 0; float keptDepth = 0f;
+            if (eff.Count == 0) { memo.LastMoved.Clear(); return; }
+            bool book = TarPitLedger.Active(v);
             using (Hold(v))
             {
-                bool raised = false;
-                foreach (var kv in eff)
+                float c2 = v.m_scale * v.m_scale;
+                double before = book ? HeightField.Sum(d, n) : 0d;
+                var r = HeightField.RaiseCells(h, d, w, eff, prev, memo.LastMoved);
+                memo.LastMoved = new HashSet<int>(r.Moved);
+                if (r.Raised > 0) FDirty.SetValue(v, true);
+                if (r.KeptCells > 0 || BudgetOf(v).WallKept > 0f) BudgetOf(v).WallKept = r.KeptDepth * c2;       // m3 standing on pieces (not moved), of the last pass
+                if (r.DisplacedCells == 0) return;
+                FNeedsSaving.SetValue(v, true);
+                var wb = BudgetOf(v); wb.WallPasses++; wb.WallPushed += r.Displaced * c2; wb.WallLost += r.Unplaced * c2; wb.WallRepeat += r.RepeatDepth * c2;
+                string line = "wall pass: " + r.DisplacedCells + " of " + r.Raised + " raised cells displaced liquid, moved " + (r.Displaced * c2).ToString("0.000") + " m3 to open cells (of it " +
+                    (r.Far * c2).ToString("0.000") + " m3 from " + r.NoOpenNeighbour + " cells with no open neighbour, moved outwards), no open cell anywhere (stayed) " + (r.Unplaced * c2).ToString("0.000") +
+                    " m3, liquid left standing on submerged pieces " + (r.KeptDepth * c2).ToString("0.000") + " m3 on " + r.KeptCells + " cells, cells that also moved liquid at the last pass " + r.RepeatCells +
+                    " (" + (r.RepeatDepth * c2).ToString("0.000") + " m3) (DESTROYED: 0, nothing is deleted)";
+                ModLog.Verbose("Pit " + v.name + ": " + line);
+                if (book)
                 {
-                    int i = kv.Key;
-                    if (i < 0 || i >= n || kv.Value <= h[i] + 0.02f) continue;
-                    h[i] = kv.Value; raised = true;
-                    // A cell that was already a wall at the last pass at this height: the game only rewrote the HEIGHTS, the depths are still the ones the
-                    // simulation stepped with over the raised cell, i.e. water that stands ABOVE the piece (a floor, steps, a low wall in the pool). Leave it:
-                    // pushing it off every second (before) carried the water of a submerged piece out of the basin and it flowed back in the next second.
-                    float oldTop;
-                    if (prev.TryGetValue(i, out oldTop) && kv.Value <= oldTop + 0.02f) { if (d[i] > 0f) { kept++; keptDepth += d[i]; } continue; }
-                    (walls ??= new List<int>()).Add(i);
-                }
-                if (raised) FDirty.SetValue(v, true);
-                if (kept > 0 || BudgetOf(v).WallKept > 0f) BudgetOf(v).WallKept = keptDepth * v.m_scale * v.m_scale;       // m3 standing on pieces that were already walls (not moved), of the last pass
-                if (walls == null) return;
-
-                // Liquid that stood where a wall is now is pushed to the open cells next to it. A wall cell with no open neighbour (inside a thick
-                // wall, a floor, a piece standing in the water) hands its liquid to the NEAREST open cell, searched outwards over the wall cells
-                // (user spec W-5, D-023: this pass never destroys liquid). Only when the grid has no open cell at all does the liquid stay on the cell.
-                bool moved = false; float wPushed = 0f, wFar = 0f, wLost = 0f, wc2 = v.m_scale * v.m_scale; int wWet = 0, wNoFree = 0;
-                var isWall = new bool[n];
-                foreach (int i in walls) isWall[i] = true;
-                int[] target = null;                                              // nearest open cell of every wall cell, made on demand
-                int[] ox = { 1, -1, 0, 0 }, oy = { 0, 0, 1, -1 };
-                foreach (int i in walls)
-                {
-                    if (d[i] <= 0f) continue;
-                    int cx = i % stride, cy = i / stride, free = 0;
-                    for (int k = 0; k < 4; k++)
-                    {
-                        int x = cx + ox[k], y = cy + oy[k];
-                        if (x >= 0 && y >= 0 && x <= w && y <= w && !isWall[y * stride + x]) free++;
-                    }
-                    if (free > 0)
-                    {
-                        float share = d[i] / free; wPushed += d[i] * wc2;
-                        for (int k = 0; k < 4; k++)
-                        {
-                            int x = cx + ox[k], y = cy + oy[k];
-                            if (x >= 0 && y >= 0 && x <= w && y <= w && !isWall[y * stride + x]) d[y * stride + x] += share;
-                        }
-                    }
-                    else
-                    {
-                        wNoFree++;
-                        if (target == null) target = NearestOpenCells(isWall, walls, w, stride, n);
-                        int t = target[i];
-                        if (t < 0) { wLost += d[i] * wc2; wWet++; continue; }      // no open cell anywhere in the grid: the liquid stays where it is, it is NOT deleted
-                        d[t] += d[i]; wPushed += d[i] * wc2; wFar += d[i] * wc2;
-                    }
-                    wWet++;
-                    d[i] = 0f; moved = true;
-                }
-                FDirty.SetValue(v, true);
-                if (moved) FNeedsSaving.SetValue(v, true);
-                if (wWet > 0)
-                {
-                    var wb = BudgetOf(v); wb.WallPasses++; wb.WallPushed += wPushed; wb.WallLost += wLost;
-                    ModLog.Verbose("Pit " + v.name + ": wall pass: " + wWet + " of " + walls.Count + " wall cells held liquid; moved to open cells " + wPushed.ToString("0.000") + " m3 (of it " + wFar.ToString("0.000") + " m3 from " + wNoFree + " cells with no open neighbour, moved outwards), could not be placed and stayed " + wLost.ToString("0.000") + " m3 (DESTROYED: 0, nothing is deleted)");
+                    double after = HeightField.Sum(d, n);
+                    TarPitLedger.Checkpoint(v, "wall", (float)(before * c2), (float)(after * c2), line);
                 }
             }
         }

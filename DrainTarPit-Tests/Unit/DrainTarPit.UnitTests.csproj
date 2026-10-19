@@ -8,4 +8,8 @@
     <Reference Include="BepInEx"><HintPath>$(ValheimRefs)\BepInEx.dll</HintPath><Private>true</Private></Reference>
     <Reference Include="System.Web.Extensions" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- the liquid rules: a pure file (no Unity / game types) compiled into the tests as well as into the mod -->
+    <Compile Include="..\..\DrainTarPit-Mod\src\Drain\HeightField.cs" Link="Mod\HeightField.cs" />
+  </ItemGroup>
 </Project>

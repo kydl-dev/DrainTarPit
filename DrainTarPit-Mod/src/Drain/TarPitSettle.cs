@@ -115,6 +115,11 @@ namespace DrainTarPit.Drain
             {
                 var bg = BudgetOf(v); float c2 = v.m_scale * v.m_scale;
                 bg.ShedEdge += edgeSum * c2; bg.Evap += evapSum * c2;
+                if (TarPitLedger.Active(v) && (edgeSum + evapSum) * c2 > 0.0005f)
+                {
+                    float after = TotalVolume(v);
+                    TarPitLedger.Checkpoint(v, "shed", after + (edgeSum + evapSum) * c2, after, "(films off the grid border " + (edgeSum * c2).ToString("0.000") + " m3, evaporated " + (evapSum * c2).ToString("0.000") + " m3)");
+                }
             }
             if (changed) FNeedsSaving.SetValue(v, true);
         }

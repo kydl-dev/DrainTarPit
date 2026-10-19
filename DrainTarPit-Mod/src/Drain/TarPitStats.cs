@@ -16,10 +16,11 @@ namespace DrainTarPit.Drain
         internal static string LastDeposit = "-";      // what the last DepositLocal on this machine did (owner only)
 
         // Where did the poured liquid go? Counted per pool (owner only, since the world was loaded), shown by the editor:
-        // Stayed = raised in the basin, Edge = reached the border of the grid (continues into the next pool or runs off), Thin = a thin film behind a rim that
-        // FloodPass does not keep, Lost = in none of the others (no basin found / no reachable cell), ShedEdge = films that ShedFilms let run off the grid border,
+        // Stayed = kept in this grid (of it: Inner = in further dips inside the pool, OutsideRim = in a basin outside the rim), Edge = reached the border of the grid
+        // (continues into the next pool or runs off), Thin = ran over the RIM and lay as a thin film outside (W-3, not tracked), RimRemoved = removed at the rim
+        // ([Drain] PoolRimDisappear on, W-2), Lost = unplaced (no reachable cell / too many basins), ShedEdge = films that ShedFilms let run off the grid border,
         // Evap = films that ShedFilms evaporated. If 'Stayed' is a small part of 'Poured' the water is not staying in the pool, and the other numbers say why.
-        internal sealed class Budget { public float Poured, Stayed, Edge, Thin, Lost, ShedEdge, Evap, WallPushed, WallLost, WallKept; public int WallPasses; }
+        internal sealed class Budget { public float Poured, Stayed, Inner, OutsideRim, Edge, Thin, RimRemoved, Lost, ShedEdge, Evap, WallPushed, WallLost, WallKept, WallRepeat; public int WallPasses; internal Budget Clone() { return (Budget)MemberwiseClone(); } }
         internal static readonly Dictionary<LiquidVolume, Budget> Budgets = new();
 
         internal static Budget BudgetOf(LiquidVolume v)
@@ -33,7 +34,10 @@ namespace DrainTarPit.Drain
         {
             Budget b;
             if (v == null || !Budgets.TryGetValue(v, out b)) return "nothing poured into this pool on this machine yet";
-            return "poured " + b.Poured.ToString("0.0") + " m3 -> stayed in the basin " + b.Stayed.ToString("0.0") + ", reached the grid edge " + b.Edge.ToString("0.0") + ", thin film behind a rim dropped " + b.Thin.ToString("0.0") + ", no basin " + b.Lost.ToString("0.0") + "   |   later: films run off the grid border " + b.ShedEdge.ToString("0.0") + ", evaporated " + b.Evap.ToString("0.0") + "   |   wall pass (ApplyWalls): pushed to open neighbours " + b.WallPushed.ToString("0.0") + ", destroyed (no open neighbour) " + b.WallLost.ToString("0.0") + " in " + b.WallPasses + " passes";
+            return "poured " + b.Poured.ToString("0.0") + " m3 -> stayed " + b.Stayed.ToString("0.0") + " (inner dips " + b.Inner.ToString("0.0") + ", outside the rim " + b.OutsideRim.ToString("0.0") + "), reached the grid edge " + b.Edge.ToString("0.0") +
+                   ", removed at the rim " + b.RimRemoved.ToString("0.0") + ", ran over the rim (thin, not tracked) " + b.Thin.ToString("0.0") + ", unplaced " + b.Lost.ToString("0.0") +
+                   "   |   later: films run off the grid border " + b.ShedEdge.ToString("0.0") + ", evaporated " + b.Evap.ToString("0.0") +
+                   "   |   wall pass: displaced to open cells " + b.WallPushed.ToString("0.0") + ", no open cell (stayed, not deleted) " + b.WallLost.ToString("0.0") + ", moved again from the same cells " + b.WallRepeat.ToString("0.0") + " in " + b.WallPasses + " passes";
         }
 
         internal struct PoolStats { public int Width; public float Scale, Total, Max; public int Wet, Thin, WallCells; public bool Owner, Pump; }

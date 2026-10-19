@@ -26,13 +26,14 @@ namespace DrainTarPit.Debug
     ///   tank [R] [wallH] [n] [mode]  a synthetic closed tank (square of 2R+1 cells, walls wallH m high) in a fresh pool: geometry is known exactly, no built pieces
     ///                                and no terrain involved. mode = flood (the real FloodPass) or inject (water spread evenly over the tank, no FloodPass).
     ///   matrix                       the tank test under several settings (flood / inject / no film shedding / no flow boost / slow flow): where the loss comes from.
+    ///   shape / walls / suite        synthetic liquid-rule tests with PASS / FAIL against numbers known by construction (PoolShapeTests, PoolShapes).
     ///   rim                          the level at which the basin around the crosshair overflows its walls (and where the lowest gap is).
     ///   fields                       every field and method name of LiquidVolume / LiquidSurface with the values of the nearest pool.
     ///   out [folder] | stop | help
     /// Target selection skips unflagged/non-pump water volumes; use `dtp cleanpools` to request removal of empty stale ones before a test.
     ///
     /// Split by responsibility (T-016): this class = command entry; PoolTestOut = report + environment helpers; PoolSnapshot = pool snapshot + spill
-    /// level; PoolObserver = one observed pool; PoolRunTests = watch / pour; PoolTankTests = tank / matrix; PoolProbe = rim / fields.
+    /// level; PoolObserver = one observed pool; PoolRunTests = watch / pour; PoolTankTests = tank / matrix; PoolShapeTests + PoolShapes = shape / walls / suite; PoolProbe = rim / fields.
     /// </summary>
     internal static class PoolTests
     {
@@ -64,11 +65,17 @@ namespace DrainTarPit.Debug
                 case "pour": Start(Pour((int)Arg(args, 1, 10f), Arg(args, 2, DefaultPourInterval))); break;
                 case "tank": Start(TankTest((int)Arg(args, 1, 10f), Arg(args, 2, 6f), (int)Arg(args, 3, 8f), args.Length > 4 && args[4].ToLowerInvariant() == "inject")); break;
                 case "matrix": Start(Matrix()); break;
+                case "shape":
+                    Start(PoolShapeTests.ShapeTest(args.Length > 1 ? args[1].ToLowerInvariant() : "closed", args.Length > 2 && args[2].ToLowerInvariant() == "tar" ? PumpLiquid.Tar : PumpLiquid.Water,
+                        args.Length > 3 && args[3].ToLowerInvariant() == "rim1", (int)Arg(args, 4, 6f)));
+                    break;
+                case "walls": Start(PoolShapeTests.WallsTest(args.Length > 1 ? args[1].ToLowerInvariant() : "open")); break;
+                case "suite": Start(PoolShapeTests.Suite()); break;
                 default: Say(Help); break;
             }
         }
 
-        const string Help = "dtp ptest watch [sec] | pour [n] [interval] | tank [R] [wallH] [n] [flood|inject] | matrix | rim | fields | out [folder] | stop   (report: DrainTarPit.PoolTests.txt; use dtp cleanpools for empty stale water pools)";
+        const string Help = "dtp ptest watch [sec] | pour [n] [interval] | tank [R] [wallH] [n] [flood|inject] | matrix | shape <closed|gap|mixed|pillars|island|inside> [water|tar] [rim0|rim1] [n] | walls <open|thick|submerged|full|real> | suite | rim | fields | out [folder] | stop   (report: DrainTarPit.PoolTests.txt; use dtp cleanpools for empty stale water pools)";
 
         // The game console turns a typed backslash sequence into a control character ("\testruns" arrives with a TAB in it). Put the backslash back,
         // so a Windows path can be typed either way; forward slashes work too.

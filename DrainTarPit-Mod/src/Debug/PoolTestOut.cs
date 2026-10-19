@@ -49,7 +49,7 @@ namespace DrainTarPit.Debug
         internal static string ConfigLine()
         {
             return "cfg: WaterFlow=" + F2(ModSettings.WaterFlow.Value) + " PitFlowBoost=" + F2(ModSettings.PitFlowBoost.Value) + "/" + F2(ModSettings.PitFlowBoostSeconds.Value) + "s" +
-                   " PoolWalls=" + ModSettings.PoolWalls.Value + " PoolOverflow=" + ModSettings.PoolOverflow.Value + " PoolShedFilm=" + ModSettings.PoolShedFilm.Value +
+                   " PoolWalls=" + ModSettings.PoolWalls.Value + " PoolOverflow=" + ModSettings.PoolOverflow.Value + " PoolRimDisappear=" + ModSettings.PoolRimDisappear.Value + " PoolShedFilm=" + ModSettings.PoolShedFilm.Value +
                    " PoolFilmDepth=" + F2(ModSettings.PoolFilmDepth.Value) + " PoolFilmEvaporates=" + ModSettings.PoolFilmEvaporates.Value + " PoolRunoff=" + ModSettings.PoolRunoff.Value +
                    " VolumePerStroke=" + F2(ModSettings.VolumePerStroke.Value) + " cell=" + F2(ModSettings.WaterCellSize.Value) + " size=" + F2(ModSettings.WaterPoolSize.Value);
         }

@@ -73,19 +73,33 @@ namespace DrainTarPit.Drain
                 q.Add(new Dep { At = at, Volume = volume, Hop = hop });
                 return;
             }
-            float added, runoff; Vector3 runoffAt;
-            DropThin = 0f;
-            using (Hold(v)) added = FillBasin(v, at, volume, out runoff, out runoffAt);
-            float dropped = DropThin * v.m_scale * v.m_scale;
-            float lost = Mathf.Max(0f, volume - added - runoff - dropped);       // what is in none of the other numbers: no basin / no reachable cell
+            // Volume checkpoints (step 5) and the per-stroke accounting equation (step 6): every part of the stroke has exactly one destination.
+            float before, after; HeightField.FillResult r;
+            using (Hold(v))
+            {
+                before = TotalVolume(v);
+                r = FillBasin(v, at, volume);
+                after = TotalVolume(v);
+            }
+            if (r == null) { ModLog.Warn("Pit " + v.name + ": deposit of " + volume.ToString("0.00") + " m3 skipped, the grid is not usable"); return; }
+            float c2 = v.m_scale * v.m_scale;
+            float kept = r.Kept * c2, runoff = r.ToEdge * c2, rimRemoved = r.RimRemoved * c2, overflow = r.OverflowRemoved * c2, unplaced = r.Unplaced * c2;
+            var runoffAt = r.EdgeCell >= 0 ? CellWorld(v, r.EdgeCell) : at;
+            bool continued = runoff > 0.05f && TarPool.Continue(v, runoffAt, runoff, hop + 1);
+            float nextPool = continued ? runoff : 0f, edgeDiscarded = continued ? 0f : runoff;
             var bg = BudgetOf(v);
-            bg.Poured += volume; bg.Stayed += added; bg.Edge += runoff; bg.Thin += dropped; bg.Lost += lost;
-            if (added > 0f) { FDirty.SetValue(v, true); FNeedsSaving.SetValue(v, true); BoostFlow(v); }     // the freshly poured liquid spreads out quickly
-            ModLog.Verbose("Pit " + v.name + ": " + added.ToString("0.00") + " of " + volume.ToString("0.00") + " m3 stayed in the basin" + (runoff > 0.01f ? ", " + runoff.ToString("0.00") + " m3 reached the edge of the grid" : " (the rest ran off)"));
-            LastDeposit = Time.time.ToString("0") + "s: " + added.ToString("0.00") + " of " + volume.ToString("0.00") + " m3 stayed, " + runoff.ToString("0.00") + " m3 reached the grid edge, " + dropped.ToString("0.00") + " m3 dropped as a thin film behind a rim, " + lost.ToString("0.00") + " m3 found no basin (hop " + hop + ")";
+            bg.Poured += volume; bg.Stayed += kept; bg.Inner += r.OtherBasins * c2; bg.OutsideRim += r.Outside * c2; bg.Edge += runoff; bg.Thin += overflow;
+            bg.RimRemoved += rimRemoved; bg.Lost += unplaced;
+            if (kept > 0f) { FDirty.SetValue(v, true); FNeedsSaving.SetValue(v, true); BoostFlow(v); }     // the freshly poured liquid spreads out quickly
+            TarPitLedger.Checkpoint(v, "deposit", before, after, "(poured " + volume.ToString("0.000") + " m3, hop " + hop + ")");
+            TarPitLedger.Stroke(v, hop, volume, r, c2, nextPool, edgeDiscarded, after - before);
+            ModLog.Verbose("Pit " + v.name + ": " + kept.ToString("0.00") + " of " + volume.ToString("0.00") + " m3 stayed" + (runoff > 0.01f ? ", " + runoff.ToString("0.00") + " m3 reached the edge of the grid" + (continued ? " (continues into the next pool)" : " (discarded)") : "") +
+                (rimRemoved > 0.01f ? ", " + rimRemoved.ToString("0.00") + " m3 removed at the rim" : "") + (overflow > 0.01f ? ", " + overflow.ToString("0.00") + " m3 ran over the rim (not tracked)" : ""));
+            LastDeposit = Time.time.ToString("0") + "s: " + kept.ToString("0.00") + " of " + volume.ToString("0.00") + " m3 stayed (landing basin " + (r.Retained * c2).ToString("0.00") + ", inner dips " + (r.OtherBasins * c2).ToString("0.00") +
+                ", outside the rim " + (r.Outside * c2).ToString("0.00") + "), " + runoff.ToString("0.00") + " m3 reached the grid edge, " + rimRemoved.ToString("0.00") + " m3 removed at the rim, " + overflow.ToString("0.00") +
+                " m3 ran over the rim (thin, not tracked), " + unplaced.ToString("0.00") + " m3 unplaced (hop " + hop + ")";
             LastDiag = Diag;
             if (ModSettings.DebugLog.Value) ModLog.Info("Pit " + v.name + " deposit: " + LastDeposit + " | " + Diag);
-            if (runoff > 0.05f) TarPool.Continue(v, runoffAt, runoff, hop + 1);
         }
 
         internal static void FlushDeposits(LiquidVolume v)
