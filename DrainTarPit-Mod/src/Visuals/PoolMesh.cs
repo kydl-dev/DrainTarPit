@@ -34,6 +34,10 @@ namespace DrainTarPit.Visuals
         // wall as "below the water plane" (sunk), which hung a curtain from the wall top down its outer face. Only liquid at least this deep is
         // drawn as water and counts for the water plane.
         const float DrawDepth = 0.05f;
+        // User, 2026-10-20 (third look): smooth until the pool was full, jagged once the tar reached the wall TOP. At the rim the surface is level
+        // with the wall top, so the surface carried into the wall lay ON the wall top (z-fighting saw-teeth along the inner edge). A surface point
+        // carried into a wall / bank stays this far under that wall's top.
+        const float UnderTop = 0.05f;
         const int EdgeReach = 3;            // grid points the level surface runs on into a wall / bank (hidden inside it)
         static volatile int _reach = 6;
 
@@ -102,7 +106,7 @@ namespace DrainTarPit.Visuals
             {
                 if (d[i] >= DrawDepth) { _fix[i] = float.NaN; continue; }            // water: the game's vertex is right
                 float win = a[i];
-                _fix[i] = win < inf && h[i] >= win ? win : hidden;
+                _fix[i] = win < inf && h[i] >= win ? Mathf.Min(win, h[i] - UnderTop) : hidden;
                 b[i] = win < inf && h[i] < win ? 1f : 0f;                            // 1 = dry point below the water plane (outside a barrier)
             }
             for (int y = 0; y < stride; y++)
@@ -156,7 +160,7 @@ namespace DrainTarPit.Visuals
                             int j = yy * stride + xx;
                             if (d[j] < DrawDepth && h[j] < top) { outerFace = true; break; }
                         }
-                    if (!outerFace) _fix[i] = top;
+                    if (!outerFace) _fix[i] = Mathf.Min(top, h[i] - UnderTop);
                 }
         }
 
