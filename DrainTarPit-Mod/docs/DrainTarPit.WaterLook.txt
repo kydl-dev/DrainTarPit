@@ -1,9 +1,9 @@
 # DrainTarPit water look - material 'DTP_WaterVanilla', shader 'Custom/Water'
 depth 0.15
 queue 2900
-color _ColorTop 0.314926147 0.524 0.361246139 1
-color _ColorBottom 0.09770342 0.1958952 0.168535769 1
-color _ColorBottomShallow 0.1958952 0.176348388 0.105516009 1
+color _ColorTop 0.21999988 0.45 0.6 1
+color _ColorBottom 0.0499999374 0.1399999 0.24999997 1
+color _ColorBottomShallow 0.195895165 0.176348358 0.105515979 1
 float _Glossiness 1
 float _Metallic 0.5
 tiling _FoamTex 1 1 0 0
@@ -29,9 +29,9 @@ tiling _CurlTex 1 1 0 0
 tiling _BubbleTexture 1 1 0 0
 float _AshlandsDistance 12000
 float _AshlandsYOffset 4000
-color _AshlandsSurfaceColor 0.226414979 0.131363362 0.131363362 1
+color _AshlandsSurfaceColor 0.226414949 0.131363332 0.131363332 1
 color _AshlandsFoamColor 0.7264151 0.606488049 0.6273951 1
-color _AshlandsColorTop 0.5283019 0.226770967 0.261678 1
-color _AshlandsColorBottom 0.341176361 0 0.06274501 1
-color _AshlandsColorBottomShallow 0.377358377 0.161979228 0.197143167 1
+color _AshlandsColorTop 0.5283019 0.226770937 0.26167798 1
+color _AshlandsColorBottom 0.341176331 0 0.06274499 1
+color _AshlandsColorBottomShallow 0.377358317 0.1619792 0.197143137 1
 keyword _NORMALMAP

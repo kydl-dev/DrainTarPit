@@ -72,12 +72,35 @@ namespace DrainTarPit.Visuals
                     a[y * stride + x] = m;
                 }
             }
+            // 2026-10-20 (user screenshots: a translucent curtain on the OUTSIDE faces of the pool walls while no water is outside): a dry point
+            // whose ground is LOWER than the water plane near it lies outside a barrier (the water would stand there if it could reach it). It used
+            // to get y = its ground, so the quad from the wall top (water plane) down to it hung on the outer wall face. Now such a point is sunk
+            // 1 m under its ground, and a dry wall / bank point that touches one of them is sunk with it, so the step down happens INSIDE the
+            // wall body (a wall is several cells thick) instead of in front of its outer face. Real water outside (rim switch off, overflow) is wet
+            // and is drawn by the game as before.
             for (int i = 0; i < n; i++)
             {
                 if (d[i] >= 0.001f) { _fix[i] = float.NaN; continue; }               // wet: the game's vertex is right
                 float win = a[i];
-                _fix[i] = win < inf ? (h[i] < win ? h[i] : win) : h[i] - 1f;
+                _fix[i] = win < inf ? (h[i] < win ? h[i] - 1f : win) : h[i] - 1f;
+                b[i] = win < inf && h[i] < win ? 1f : 0f;                            // 1 = dry point below the water plane (outside a barrier)
             }
+            for (int y = 0; y < stride; y++)
+                for (int x = 0; x < stride; x++)
+                {
+                    int i = y * stride + x;
+                    if (d[i] >= 0.001f || b[i] > 0f || float.IsNaN(_fix[i])) continue;
+                    float low = float.PositiveInfinity;
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int xx = x + dx, yy = y + dy;
+                            if (xx < 0 || yy < 0 || xx > w || yy > w) continue;
+                            int j = yy * stride + xx;
+                            if (b[j] > 0f && _fix[j] < low) low = _fix[j];
+                        }
+                    if (low < _fix[i]) _fix[i] = low;
+                }
         }
 
         [HarmonyPatch(typeof(LiquidVolume), "PrebuildMesh")]
