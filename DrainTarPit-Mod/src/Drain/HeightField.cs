@@ -267,9 +267,13 @@ namespace DrainTarPit.Drain
                 rem = 0f;
             }
             p.Level = level; p.Region = region.Count;
-            if (isSpill && dropThin && level - h[cur] < MinSpillDepth)
+            // A thin film outside the rim is not tracked (W-3) - but only a film that comes to REST here. Liquid that is still on its way (it
+            // reached the grid border or spills on over a further lip) is a stream, however thin it lies where it starts: it goes on to the edge
+            // (next pool / runoff) or the next basin. Before 2026-10-20 the whole rest of a stroke was dropped here as soon as the first cell
+            // outside the rim was thin (in game: 100 of 100 m3 'ran over the rim (thin, not tracked)' at a full pool on a slope).
+            if (isSpill && dropThin && !edge && p.Spill < 0 && level - h[cur] < MinSpillDepth)
             {
-                // a thin film outside the rim: not tracked (W-3). Nothing else of this pass counts, so nothing is counted twice.
+                // Nothing else of this pass counts, so nothing is counted twice.
                 p.Thin = remaining; p.EdgeLeft = 0f; p.EdgeCell = -1; p.Capped = 0f; p.Spill = -1;
                 remaining = 0f;
                 return p;

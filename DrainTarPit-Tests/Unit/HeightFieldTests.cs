@@ -74,6 +74,77 @@ namespace DrainTarPit.Tests.Unit
             Assert.That(Total(d) - before, Is.EqualTo(r.Kept).Within(Eps * cap), "measured = kept");
         }
 
+        // ---------------------------------------------------------------- a FULL pool, rim switch off (user, 2026-10-20: 100 m3 strokes into the
+        // real pool at its rim were all booked 'ran over the rim (thin, not tracked)' and disappeared; the water should run over the rim and away)
+
+        /// Ground outside the ring falls away towards the grid border (a pool on a shore), 0.1 m per cell.
+        static float[] TankOnSlope(int r, float top)
+        {
+            return Tank(r, top, (dx, dy) =>
+            {
+                int cheb = Math.Max(Math.Abs(dx), Math.Abs(dy));
+                return cheb > r + 3 ? -0.5f - 0.1f * (cheb - r - 3) : (float?)null;
+            });
+        }
+
+        [Test]
+        public void FullTank_RimOff_OverflowRunsDownhillToTheGridEdge_NotDeleted()
+        {
+            var h = TankOnSlope(8, 1f); var d = new float[N];
+            float cap = Capacity(h, 8, 1f);
+            Pour(d, h, cap);                                                          // full to the rim
+            var r = Pour(d, h, 100f);
+            Assert.That(r.Retained + r.OtherBasins, Is.EqualTo(0f).Within(0.5f), "the pool is full: " + r.Path);
+            Assert.That(InTank(d, 8), Is.EqualTo(cap).Within(cap * 0.01f), "the pool stays full");
+            Assert.That(r.RimCrossings, Is.EqualTo(1), r.Path);
+            Assert.That(r.OverflowRemoved, Is.LessThan(1f), "a 100-unit stream is not a thin film: " + r.Path);
+            Assert.That(r.ToEdge + r.Outside, Is.EqualTo(100f).Within(1f), "it ran over the rim and on downhill: " + r.Path);
+            Assert.That(r.ToEdge, Is.GreaterThan(50f), "most of it leaves at the grid edge (next pool / runoff): " + r.Path);
+            Assert.That(r.RimRemoved, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void FullTank_RimOff_OverflowFillsABasinOutsideTheRim()
+        {
+            // ring 1 m, a moat 1 m deep around it (cheb 12 - 14), beyond the moat the ground is 0.8 m above the moat floor, flat to the border
+            var h = Tank(8, 1f, (dx, dy) =>
+            {
+                int cheb = Math.Max(Math.Abs(dx), Math.Abs(dy));
+                return cheb >= 12 && cheb <= 14 ? -1f : cheb > 14 ? -0.2f : (float?)null;
+            });
+            var d = new float[N];
+            float cap = Capacity(h, 8, 1f);
+            Pour(d, h, cap);
+            var r = Pour(d, h, 40f);
+            Assert.That(r.Outside, Is.EqualTo(40f).Within(0.5f), "the moat outside the rim catches it: " + r.Path);
+            Assert.That(r.OverflowRemoved + r.ToEdge, Is.EqualTo(0f).Within(0.5f), r.Path);
+            Assert.That(d[Cell(13, 0)], Is.GreaterThan(0.05f), "water stands in the moat");
+            Assert.That(InTank(d, 8), Is.EqualTo(cap).Within(cap * 0.01f));
+        }
+
+        [Test]
+        public void FullTank_RimOff_SmallSpillOnFlatGround_IsAThinFilmNotTracked()
+        {
+            var h = Tank(8, 1f); var d = new float[N];                               // outside: flat, 0.5 m below the tank floor
+            float cap = Capacity(h, 8, 1f);
+            Pour(d, h, cap);
+            float outsideBefore = Total(d) - InTank(d, 8);
+            var r = Pour(d, h, 2f);
+            Assert.That(r.OverflowRemoved, Is.EqualTo(2f).Within(0.05f), "2 units over ~1000 flat cells = a film far under 4 cm: " + r.Path);
+            Assert.That(Total(d) - InTank(d, 8) - outsideBefore, Is.EqualTo(0f).Within(Eps), "nothing is written outside");
+        }
+
+        [Test]
+        public void FullTank_RimOn_EverythingIsRemovedAtTheRim()
+        {
+            var h = TankOnSlope(8, 1f); var d = new float[N];
+            float cap = Capacity(h, 8, 1f);
+            Pour(d, h, cap, rim: true);
+            var r = Pour(d, h, 100f, rim: true);
+            Assert.That(r.RimRemoved, Is.EqualTo(100f).Within(0.5f), r.Path);
+            Assert.That(r.ToEdge + r.Outside + r.OverflowRemoved, Is.EqualTo(0f).Within(Eps));
+        }
+
         [Test]
         public void ClosedTank_RimOn_FillsToTheRimAndRemovesTheRestThere()
         {
