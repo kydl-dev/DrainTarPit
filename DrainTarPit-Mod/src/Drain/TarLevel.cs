@@ -68,15 +68,36 @@ namespace DrainTarPit.Drain
             static void Finalizer() { _inUpdate = false; }          // also when the game's own loop throws
         }
 
-        /// A second OnTriggerEnter for an object the surface already tracks (Unity re-reports it after the trigger mesh was rebuilt) bumped the object's
-        /// liquid counter again without adding a second list entry: one exit could never bring the counter back to 0, the tar level was never reset.
+        /// Enter / exit are counted per COLLIDER (TarPitTracking "the game's liquid counter"): a re-reported enter of a collider that is already inside
+        /// and an exit of a collider that was already released are skipped, so the game's counter can reach exactly 0 again and reset the level.
         [HarmonyPatch(typeof(LiquidSurface), "OnTriggerEnter")]
         static class Patch_OnTriggerEnter
         {
             static bool Prefix(LiquidSurface __instance, object[] __args)
             {
                 var col = __args != null && __args.Length > 0 ? __args[0] as Collider : null;
-                return !TarPitTracking.AlreadyTracked(__instance, col);
+                return TarPitTracking.AllowEnter(__instance, col);
+            }
+        }
+
+        [HarmonyPatch(typeof(LiquidSurface), "OnTriggerExit")]
+        static class Patch_OnTriggerExit
+        {
+            static bool Prefix(LiquidSurface __instance, object[] __args)
+            {
+                var col = __args != null && __args.Length > 0 ? __args[0] as Collider : null;
+                return TarPitTracking.AllowExit(__instance, col);
+            }
+        }
+
+        [HarmonyPatch(typeof(LiquidSurface), "OnDestroy")]
+        static class Patch_SurfaceOnDestroy
+        {
+            // the game's OnDestroy decrements once per tracked object; ours does it per counted collider and empties the list first
+            static void Prefix(LiquidSurface __instance)
+            {
+                try { TarPitTracking.ReleaseSurface(__instance, null); }
+                catch (System.Exception e) { ModLog.VerboseWarn("ReleaseSurface: " + e.Message); TarPitTracking.Forget(__instance); }
             }
         }
     }

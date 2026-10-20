@@ -72,6 +72,7 @@ namespace DrainTarPit.Debug
             if (p != null)
                 Print("  player liquid: tarLevel=" + CharField(p, "m_tarLevel") + " waterLevel=" + CharField(p, "m_waterLevel") + " liquidLevel=" + CharField(p, "m_liquidLevel") +
                       " cachedDepth=" + CharField(p, "m_cashedInLiquidDepth") + " y=" + p.transform.position.y.ToString("0.00"));
+            if (p != null) Print("  " + TarPitTracking.PlayerLiquidLine());
             if (TarPits.All.Count == 0) { Print("No loaded tar pits."); return; }
             foreach (var v in TarPits.All.Where(x => x != null).OrderBy(x => p != null ? Vector3.Distance(x.transform.position, p.transform.position) : 0f))
             {
