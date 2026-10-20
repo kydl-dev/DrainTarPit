@@ -80,8 +80,26 @@ namespace DrainTarPit.Signs
             text.font = f != null ? f : defFont;
             if (style.Size <= 0f) { text.enableAutoSizing = true; text.fontSizeMin = defMin; text.fontSizeMax = defMax; }
             else { text.enableAutoSizing = false; text.fontSize = style.Size; }
+            string face = NeutralFace(text);
             return "font " + (f != null ? f.name : "default" + (string.IsNullOrEmpty(style.Font) ? "" : " ('" + style.Font + "' not loaded)")) +
-                   ", size " + (style.Size <= 0f ? "auto" : style.Size.ToString("0.0"));
+                   ", size " + (style.Size <= 0f ? "auto" : style.Size.ToString("0.0")) + ", " + face;
+        }
+
+        /// T-56R2 (user: "colors are darker than it should be"): the game's sign text material has a dark ink face colour, and TextMeshPro
+        /// multiplies every letter colour with it (cream came out dark teal, red nearly black). Each pool sign gets its own material instance
+        /// (fontMaterial) with a white face colour and a white base colour, so the colours on the sign are the ones picked in the menu.
+        static string NeutralFace(TMP_Text text)
+        {
+            var m = text.fontMaterial;                                              // per-text instance (the shared font material is not touched)
+            string before = "?";
+            if (m != null && m.HasProperty(ShaderUtilities.ID_FaceColor))
+            {
+                before = "#" + ColorUtility.ToHtmlStringRGBA(m.GetColor(ShaderUtilities.ID_FaceColor));
+                m.SetColor(ShaderUtilities.ID_FaceColor, Color.white);
+            }
+            string baseBefore = "#" + ColorUtility.ToHtmlStringRGBA(text.color);
+            text.color = Color.white;
+            return "face colour " + before + " -> white, base colour " + baseBefore + " -> white (material '" + (m != null ? m.name : "none") + "', shader '" + (m != null && m.shader != null ? m.shader.name : "?") + "')";
         }
     }
 }
