@@ -27,7 +27,7 @@ namespace DrainTarPit.Drain
         sealed class State
         {
             public bool InPool; public float Surface = -10000f; public int Countdown, Misses; public string Pool = "";
-            public float NextReport; public int LevelAsks, WaypointTries, WaypointOk; public string LastTry = "";
+            public float NextReport; public int LevelAsks, DryAsks, WaypointTries, WaypointOk; public string LastTry = "";
         }
 
         static readonly AccessTools.FieldRef<Fish, bool> HaveWaypoint = AccessTools.FieldRefAccess<Fish, bool>("m_haveWaypoint");
@@ -44,9 +44,9 @@ namespace DrainTarPit.Drain
             ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " in " + st.Pool + ": y " + f.transform.position.y.ToString("0.00") + ", water " + st.Surface.ToString("0.00") +
                 ", gravity " + (b != null && b.useGravity) + ", speed " + (b != null ? b.linearVelocity.magnitude.ToString("0.00") : "?") + ", jumping " + IsJumping(f) +
                 ", waypoint " + (HaveWaypoint(f) ? Waypoint(f).ToString("0.0") : "none") + ", spawn " + SpawnPoint(f).ToString("0.0") + ", minDepth " + f.m_minDepth.ToString("0.0") +
-                ", swimRange " + f.m_swimRange.ToString("0") + " | water level asks " + st.LevelAsks + ", swim targets " + st.WaypointOk + " of " + st.WaypointTries + " tries" +
+                ", swimRange " + f.m_swimRange.ToString("0") + " | water level asks " + st.LevelAsks + " (" + st.DryAsks + " answered dry), swim targets " + st.WaypointOk + " of " + st.WaypointTries + " tries" +
                 (st.LastTry.Length > 0 ? ", last refused: " + st.LastTry : ""));
-            st.LevelAsks = 0; st.WaypointTries = 0; st.WaypointOk = 0; st.LastTry = "";
+            st.LevelAsks = 0; st.DryAsks = 0; st.WaypointTries = 0; st.WaypointOk = 0; st.LastTry = "";
         }
 
         [HarmonyPatch(typeof(Fish), "RandomizeWaypoint")]
@@ -151,7 +151,9 @@ namespace DrainTarPit.Drain
                     st.LevelAsks++;
                     float surface; string pool;
                     var probe = new Vector3(point.x, st.Surface, point.z);                  // waypoints carry a made-up y: test at the surface height
-                    __result = PoolSurface(probe, out surface, out pool) ? surface : -10000f; // outside the pool's water = dry (the fish does not swim there)
+                    bool wet = PoolSurface(probe, out surface, out pool);
+                    if (!wet) st.DryAsks++;
+                    __result = wet ? surface : -10000f;                                   // outside the pool's water = dry (the fish does not swim there)
                 }
                 catch (System.Exception e) { ModLog.VerboseWarn("PoolFish water level: " + e.Message); }
             }

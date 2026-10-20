@@ -184,7 +184,7 @@ namespace DrainTarPit.Visuals
         static volatile bool _worldRefreshPending;
 
         /// Called from the config events (any thread): every loaded hose is shown again in the next Tick (main thread).
-        public static void RequestWorldRefresh() { _worldRefreshPending = true; }
+        public static void RequestWorldRefresh() { _worldRefreshPending = true; ModLog.Verbose("Hoses: world look refresh queued for the next frame"); }
         static bool _noStandardLogged;
         static readonly Dictionary<string, Material> ClearCache = new();       // original wall material + opacity -> its see-through copy
         static readonly Dictionary<Material, Material> ClearOrigin = new();    // see-through copy -> the original wall material
@@ -204,7 +204,7 @@ namespace DrainTarPit.Visuals
         }
 
         /// Called from the config events (any thread): the refresh itself runs in Tick, on the main thread.
-        public static void RequestRefresh() { _refreshPending = true; }
+        public static void RequestRefresh() { _refreshPending = true; ModLog.Verbose("Hoses: build look refresh of the hose prefabs queued for the next frame"); }
 
         /// Called every frame from Plugin.Update (one bool check).
         public static void Tick()
