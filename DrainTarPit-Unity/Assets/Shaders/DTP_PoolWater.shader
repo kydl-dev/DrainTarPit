@@ -29,6 +29,7 @@ Shader "DTP/PoolWater"
         _FoamWidth ("Edge foam width (m)", Float) = 0.05
         _Emission ("Glow colour", Color) = (0, 0, 0, 1)
         _EmissionPulse ("Glow pulse", Range(0, 1)) = 0
+        _EdgeCut ("Hide steep edge faces (min up of a face, 0 = off)", Range(0, 1)) = 0.6
     }
 
     SubShader
@@ -57,7 +58,7 @@ Shader "DTP/PoolWater"
 
             float4 _Absorption, _ScatterColor, _FoamColor, _Emission;
             float _Refraction, _WaveScale, _WaveSpeed, _WaveStrength, _ReflectionStrength;
-            float _GlintPower, _GlintStrength, _CausticScale, _CausticStrength, _CausticDepth, _FoamWidth, _EmissionPulse;
+            float _GlintPower, _GlintStrength, _CausticScale, _CausticStrength, _CausticDepth, _FoamWidth, _EmissionPulse, _EdgeCut;
 
             struct appdata { float4 vertex : POSITION; float4 color : COLOR; };
             struct v2f
@@ -119,6 +120,12 @@ Shader "DTP/PoolWater"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                // T-055 (user: crystal walls showed 'long triangular water pillars'): where the pool surface meets a wall the mesh slopes down
+                // into it (PoolMesh sinks dry points 1 m). Solid walls hide those faces; see-through walls and clear water showed them. A water
+                // surface is flat, so faces steeper than _EdgeCut (the up-component of the face normal) are not drawn.
+                float3 faceN = normalize(cross(ddy(i.worldPos), ddx(i.worldPos)));
+                clip(abs(faceN.y) - _EdgeCut);
+
                 float t = _Time.y * _WaveSpeed;
                 float3 V = normalize(_WorldSpaceCameraPos - i.worldPos);
 

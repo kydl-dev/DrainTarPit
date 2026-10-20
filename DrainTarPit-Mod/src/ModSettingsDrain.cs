@@ -54,10 +54,10 @@ internal static class ModSettingsDrain
             "Built pieces (stone / wood walls, floors, ...) hold the tar of the pools the pump makes, like terrain does: a ring of walls (or a dip with walls on it) fills up to the lowest point of its rim instead of the tar sinking into the ground. Pieces of this mod, players and items are ignored; a roof floating over the pool does not count.");
         PoolOverflow = c.Bind("Drain", "PoolOverflow", true,
             "When the tar reaches the lowest point of the rim (the lowest wall top) the rest runs over it and fills whatever lies behind it (up to 3 more basins); what finds no basin runs off. Off = old behaviour: the lower ground behind the rim is filled up to the level of the pool.");
-        PoolRimDisappear = c.Bind("Drain", "PoolRimDisappear", false,
+        PoolRimDisappear = c.Bind("Drain", "PoolRimDisappear", true,
             "What happens at the RIM of a pool the pump fills (tar and water). The rim is the lowest point of the walls / ground around the pool: the top of the lowest wall, or a gap in the ring, or the edge of a hole dug in the ground. " +
-            "Off (default): the whole pool fills first; then the liquid runs over the rim, down the outside and away towards lower ground, where it is no longer tracked once it has spread thin. A gap in the walls is the lowest point of the rim, so the liquid leaves through it before the pool is full. " +
-            "On: the liquid rises to the rim and never higher; whatever would run over the rim disappears right there. " +
+            "On (default): the liquid rises to the rim and never higher; whatever would run over the rim disappears right there (no liquid running down the outside of the walls). " +
+            "Off: the whole pool fills first; then the liquid runs over the rim, down the outside and away towards lower ground, where it is no longer tracked once it has spread thin. A gap in the walls is the lowest point of the rim, so the liquid leaves through it before the pool is full. " +
             "Liquid poured where there is no pool (flat ground, a slope, a dent shallower than 0.15 m) just runs downhill in both modes. Trees, rocks, pillars and bushes are obstacles the liquid flows around; a closed ring of anything high enough holds it.");
         AllowWater = c.Bind("Drain", "AllowWater", true,
             "Strainers built in water pump water, from the sea / a lake (endless) or from a water pool the pump made (finite). A strainer is locked to what its tip sits in when it is built (tar or water) and its whole pipe system only ever moves that. The water is poured into a real water volume where the stream lands (see DepositWater). Off = strainers in water do nothing (tar is unaffected).");

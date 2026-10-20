@@ -30,6 +30,7 @@ Material:
     - _CausticStrength: 1.5
     - _Clarity: 2.5
     - _DepthRange: 2
+    - _EdgeCut: 0.6
     - _EmissionPulse: 0
     - _FoamWidth: 0.05
     - _GlintPower: 2200

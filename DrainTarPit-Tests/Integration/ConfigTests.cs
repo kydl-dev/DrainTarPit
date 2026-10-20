@@ -18,7 +18,7 @@ namespace DrainTarPit.Tests.Integration
     public class ConfigTests
     {
         const string Settings = "DrainTarPit.ModSettings";
-        const int LatestConfigVersion = 4; // ModSettings.Migrate: raise this together with a new migration step and add a test for the step
+        const int LatestConfigVersion = 5; // ModSettings.Migrate: raise this together with a new migration step and add a test for the step
         string _dir, _path;
 
         [SetUp]
@@ -196,6 +196,30 @@ namespace DrainTarPit.Tests.Integration
             BindFile(Cfg("[General]", "ConfigVersion = 4", "[Visuals]", "HoseStyle = Transparent"));
 
             Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
+        }
+
+        [Test]
+        public void Migrate_FromVersion4_TurnsPoolRimDisappearOnOnce()
+        {
+            BindFile(Cfg("[General]", "ConfigVersion = 4", "[Drain]", "PoolRimDisappear = false"));
+
+            Assert.That((bool)Value("PoolRimDisappear"), Is.EqualTo(true));
+        }
+
+        [Test]
+        public void Migrate_AlreadyAtVersion5_KeepsPoolRimDisappearOff()
+        {
+            BindFile(Cfg("[General]", "ConfigVersion = 5", "[Drain]", "PoolRimDisappear = false"));
+
+            Assert.That((bool)Value("PoolRimDisappear"), Is.EqualTo(false));
+        }
+
+        [Test]
+        public void Bind_NoFileYet_PoolRimDisappearIsOn()
+        {
+            BindFile();
+
+            Assert.That((bool)Value("PoolRimDisappear"), Is.EqualTo(true));
         }
 
         [Test]

@@ -259,6 +259,14 @@ internal static class ModSettings
                 ConfigVersion.Value = 3;
             }
             if (ConfigVersion.Value < 4) ConfigVersion.Value = 4;
+            if (ConfigVersion.Value < 5)
+            {
+                // v5 (user, 2026-10-20): PoolRimDisappear is on by default (liquid over the rim ran down the outside of see-through walls); every
+                // older file gets it once, a later "off" is kept
+                ModLog.Verbose("Config migration v5: PoolRimDisappear " + PoolRimDisappear.Value + " -> True (new default)");
+                PoolRimDisappear.Value = true;
+                ConfigVersion.Value = 5;
+            }
             if (dict != null) dict.Clear();
             c.Save();
         }
