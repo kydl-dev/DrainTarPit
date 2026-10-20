@@ -34,6 +34,7 @@ namespace DrainTarPit.Visuals
         // wall as "below the water plane" (sunk), which hung a curtain from the wall top down its outer face. Only liquid at least this deep is
         // drawn as water and counts for the water plane.
         const float DrawDepth = 0.05f;
+        const int EdgeReach = 3;            // grid points the level surface runs on into a wall / bank (hidden inside it)
         static volatile int _reach = 6;
 
         // the worker thread of a pool builds its mesh in PrebuildMesh: the map is made in the prefix and read by the CalcVertex postfix of the same call
@@ -130,9 +131,13 @@ namespace DrainTarPit.Visuals
                 {
                     int i = y * stride + x;
                     if (d[i] >= DrawDepth) continue;
+                    // 2026-10-20 second look (still golden teeth): the wall pass marks grid points up to 0.2 m IN FRONT of a wall face as wall
+                    // (sphere cast), so one cell of level surface ended in front of the face and the slope behind it was visible. The level now
+                    // runs EdgeReach cells (0.75 m at 0.25 m cells) into the wall. A point that touches lower dry ground (outside the wall) is
+                    // left alone, so nothing is drawn level in front of an OUTER face.
                     float top = float.NegativeInfinity;
-                    for (int dy = -1; dy <= 1; dy++)
-                        for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -EdgeReach; dy <= EdgeReach; dy++)
+                        for (int dx = -EdgeReach; dx <= EdgeReach; dx++)
                         {
                             int xx = x + dx, yy = y + dy;
                             if (xx < 0 || yy < 0 || xx > w || yy > w) continue;
@@ -141,7 +146,17 @@ namespace DrainTarPit.Visuals
                             float sj = h[j] + (d[j] > 0.1f ? d[j] : 0.1f);
                             if (sj > top) top = sj;
                         }
-                    if (top > float.NegativeInfinity && h[i] >= top) _fix[i] = top;
+                    if (top == float.NegativeInfinity || h[i] < top) continue;
+                    bool outerFace = false;
+                    for (int dy = -1; dy <= 1 && !outerFace; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int xx = x + dx, yy = y + dy;
+                            if (xx < 0 || yy < 0 || xx > w || yy > w) continue;
+                            int j = yy * stride + xx;
+                            if (d[j] < DrawDepth && h[j] < top) { outerFace = true; break; }
+                        }
+                    if (!outerFace) _fix[i] = top;
                 }
         }
 
