@@ -64,7 +64,7 @@ namespace DrainTarPit.Signs
         {
             if (_text == null) return;
             string how = SignFonts.Apply(_text, style, _defFont, _defMin, _defMax);
-            _text.text = style.Render(name);
+            _text.text = style.Render(name, SignFonts.EmojiFont);
             ModLog.Verbose("PoolSign: drawn '" + name + "' (" + how + ")");
         }
 

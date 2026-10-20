@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -164,8 +164,20 @@ namespace DrainTarPit.Signs
         }
 
         // --- rich text for the sign's TextMeshPro text (font and size are set on the text object itself) --------------------
+        /// Emoji (user: "force emoji display font to be their normal font"): pictographs above the basic plane, a letter with the emoji
+        /// selector U+FE0F, or a symbol from the arrows / dingbats blocks on.
+        public static bool IsEmoji(string letter)
+        {
+            int cp = string.IsNullOrEmpty(letter) ? 0 : char.IsSurrogatePair(letter, 0) ? char.ConvertToUtf32(letter, 0) : letter[0];
+            return cp > 0 && (cp >= 0x1F000 || letter.IndexOf('\uFE0F') >= 0 ||
+                              (cp >= 0x2190 && CharUnicodeInfo.GetUnicodeCategory(letter, 0) == UnicodeCategory.OtherSymbol));
+        }
+
         /// The name with this style as TextMeshPro rich text. '<' and '>' typed by a player are shown as letters, never read as tags.
-        public string Render(string name)
+        /// `emojiFont` (a TextMeshPro font name the text can reach) is put around every emoji, so emoji keep the emoji font whatever Font is.
+        public string Render(string name) { return Render(name, null); }
+
+        public string Render(string name, string emojiFont)
         {
             var sb = new StringBuilder();
             sb.Append("<align=").Append(Align == 'l' ? "left" : Align == 'r' ? "right" : "center").Append('>');
@@ -180,6 +192,7 @@ namespace DrainTarPit.Signs
             for (int i = 0; i < letters.Count; i++)
             {
                 string letter = Safe(letters[i]), hex;
+                if (!string.IsNullOrEmpty(emojiFont) && IsEmoji(letters[i])) letter = "<font=\"" + emojiFont + "\">" + letter + "</font>";
                 if (Letters.TryGetValue(i, out hex) && hex != Color) sb.Append("<color=").Append(hex).Append('>').Append(letter).Append("</color>");
                 else sb.Append(letter);
             }

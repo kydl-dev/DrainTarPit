@@ -36,6 +36,30 @@ namespace DrainTarPit.Signs
             return Names.Count;
         }
 
+        /// T-56R (user: "force emoji display font to be their normal font"): the game's emoji font. Registered with TextMeshPro so a
+        /// <font="..."> tag around each emoji (SignStyle.Render) finds it, whatever font the name uses. null = none loaded.
+        internal static string EmojiFont
+        {
+            get
+            {
+                if (_emojiChecked) return _emoji;
+                _emojiChecked = true;
+                if (Names.Count == 0) Refresh();
+                foreach (var n in new[] { "NotoEmoji-Regular SDF", "NotoEmoji-Light SDF" })
+                {
+                    TMP_FontAsset f;
+                    if (!ByName.TryGetValue(n, out f) || f == null) continue;
+                    MaterialReferenceManager.AddFontAsset(f);
+                    _emoji = n;
+                    break;
+                }
+                ModLog.Verbose("SignFonts: emoji font for signs: " + (_emoji ?? "none found (emoji use the name's font)"));
+                return _emoji;
+            }
+        }
+        static string _emoji;
+        static bool _emojiChecked;
+
         /// Emoji on signs (user: "Valheim allows some emoji usage into signs"): what the game's TextMeshPro has for them, for the debug log.
         static void ReportEmoji()
         {

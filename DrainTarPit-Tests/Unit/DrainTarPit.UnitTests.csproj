@@ -14,6 +14,6 @@
     <!-- per-sender rate limit of the drain / deposit RPCs (bug #9): pure, the clock is passed in -->
     <Compile Include="..\..\DrainTarPit-Mod\src\Drain\SenderThrottle.cs" Link="Mod\SenderThrottle.cs" />
     <!-- T-023: the pool sign's text style (pure) -->
-    <Compile Include="..\..\DrainTarPit-Mod\src\Signs\SignStyle.cs" Link="Mod\SignStyle.cs" />
+    <Compile Include="..\..\DrainTarPit-Unity\Assets\DTP_UI\Runtime\SignStyle.cs" Link="Mod\SignStyle.cs" />
   </ItemGroup>
 </Project>

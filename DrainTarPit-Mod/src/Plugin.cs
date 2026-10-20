@@ -47,6 +47,9 @@ namespace DrainTarPit
             CommandManager.Instance.AddConsoleCommand(new DtpCommands());
             new Harmony(ModGuid).PatchAll(Assembly.GetExecutingAssembly());
             WaterEditor.Install();                  // live water editor ([Visuals] EditorKey): input blocking patches, made by hand so a missing game method cannot break PatchAll
+            Ui.UiLog.VerboseSink = s => ModLog.Verbose(s);     // the shared UI code (Unity project) logs through the mod's log, debug lines only with DebugLog
+            Ui.UiLog.WarnSink = s => ModLog.Warn(s);
+            Ui.UiLog.ErrorSink = s => ModLog.Error(s);
             Ui.UiInputLock.Install();               // T-023: the character does not move while a DrainTarPit menu (UI Toolkit) is open
         }
 

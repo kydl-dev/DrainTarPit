@@ -45,6 +45,10 @@
     <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(ValheimRefs)\UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <ItemGroup>
+    <!-- T-56R: the UI code lives in the Unity project (previewed there, Assets/DTP_UI/Preview) and is compiled into the mod from there -->
+    <Compile Include="..\DrainTarPit-Unity\Assets\DTP_UI\Runtime\*.cs" Link="UiShared\%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Copy the built bundle to DrainTarPit/Assets/draintarpit; it is embedded in the DLL. -->
     <EmbeddedResource Include="Assets\draintarpit" LogicalName="draintarpit" Condition="Exists('Assets\draintarpit')" />
     <!-- Recorded sounds: used when the asset bundle does not contain them (assets/audio/*.ogg in the bundle win). -->

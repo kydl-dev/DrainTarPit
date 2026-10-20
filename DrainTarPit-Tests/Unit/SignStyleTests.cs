@@ -119,6 +119,28 @@ namespace DrainTarPit.Tests.Unit
         }
 
         [Test]
+        public void IsEmoji_PictographsAndSymbols_AreEmoji_LettersAreNot()
+        {
+            Assert.That(SignStyle.IsEmoji("\U0001F41F"), Is.True, "fish");
+            Assert.That(SignStyle.IsEmoji("❤️"), Is.True, "heart with the emoji selector");
+            Assert.That(SignStyle.IsEmoji("⚓"), Is.True, "anchor (dingbat block)");
+            Assert.That(SignStyle.IsEmoji("A"), Is.False);
+            Assert.That(SignStyle.IsEmoji("ä"), Is.False, "a with umlaut");
+            Assert.That(SignStyle.IsEmoji(""), Is.False);
+            Assert.That(SignStyle.IsEmoji(null), Is.False);
+        }
+
+        [Test]
+        public void Render_WithEmojiFont_WrapsOnlyTheEmoji()
+        {
+            var s = new SignStyle();
+            s.Letters[1] = "#00FF00";
+            string r = s.Render("a\U0001F41Fb", "Emo SDF");
+            Assert.That(r, Does.Contain("a<color=#00FF00><font=\"Emo SDF\">\U0001F41F</font></color>b"));
+            Assert.That(s.Render("ab", "Emo SDF"), Does.Not.Contain("<font"));
+        }
+
+        [Test]
         public void Gradient_ColoursEveryLetterFromOneEndToTheOther()
         {
             var s = new SignStyle();
