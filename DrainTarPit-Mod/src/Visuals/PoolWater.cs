@@ -40,7 +40,16 @@ namespace DrainTarPit.Visuals
 
         // --- for the live editor (WaterEditor) ----------------------------------------------------------------------------
         /// The material the pools show right now (the ocean copy, or the fallback until the ocean is found). null before any pool has asked for it.
-        internal static Material Active { get { return _vanilla != null ? _vanilla : _clear; } }
+        internal static Material Active
+        {
+            get
+            {
+                Material sm;
+                var style = ModSettings.WaterStyle != null ? ModSettings.WaterStyle.Value : WaterStyleOption.Game;
+                if (style != WaterStyleOption.Game && StyleMats.TryGetValue(style, out sm) && sm != null) return sm;    // the editor tunes the style in use (not saved)
+                return _vanilla != null ? _vanilla : _clear;
+            }
+        }
         internal static bool IsOceanCopy { get { return _vanilla != null; } }
 
         /// Throws the tuned copy away and copies the game's ocean material again (then the preset file, if any, is applied again unless `withPreset` is false).
@@ -141,7 +150,47 @@ namespace DrainTarPit.Visuals
             m.SetFloat("_UseGlobalWind", 0f);                                      // a pool has no open-sea swell
         }
 
+        // T-022 (user, 2026-10-20): [Visuals] WaterStyle. Game = the ocean copy below; the others = a preset material of the mod's own shader
+        // (DTP/PoolWater, in the bundle, procedural: no texture or shader from the game). One copy per style, made the first time it is used.
+        static readonly Dictionary<WaterStyleOption, Material> StyleMats = new();
+        static readonly HashSet<WaterStyleOption> StyleMissing = new();
+
+        static Material StyleMaterial(WaterStyleOption style)
+        {
+            Material m;
+            if (StyleMats.TryGetValue(style, out m) && m != null) return m;
+            if (StyleMissing.Contains(style)) return null;
+            string asset = "assets/materials/water/dtp_water_" + style.ToString().ToLowerInvariant() + ".mat";
+            try
+            {
+                var src = Plugin.Bundle != null ? Plugin.Bundle.LoadAsset<Material>(asset) : null;
+                if (src == null || src.shader == null || !src.shader.isSupported)
+                {
+                    StyleMissing.Add(style);
+                    ModLog.Warn("PoolWater: water style " + style + " is not usable (" + (src == null ? "'" + asset + "' not in the bundle" : "shader " + (src.shader == null ? "missing" : src.shader.name + " not supported on this graphics card")) + ") - the Game water is used");
+                    return null;
+                }
+                m = new Material(src) { name = "DTP_Water_" + style };
+                Object.DontDestroyOnLoad(m);
+                StyleMats[style] = m;
+                ModLog.Info("PoolWater: water style " + style + " loaded (material '" + src.name + "', shader '" + src.shader.name + "')");
+                return m;
+            }
+            catch (System.Exception e) { StyleMissing.Add(style); ModLog.Warn("PoolWater: water style " + style + " could not be loaded: " + e.Message + " - the Game water is used"); return null; }
+        }
+
         static Material Current()
+        {
+            var style = ModSettings.WaterStyle != null ? ModSettings.WaterStyle.Value : WaterStyleOption.Game;
+            if (style != WaterStyleOption.Game)
+            {
+                var sm = StyleMaterial(style);
+                if (sm != null) return sm;
+            }
+            return GameWater();
+        }
+
+        static Material GameWater()
         {
             if (_vanilla == null && Time.unscaledTime >= _nextSearch)
             {

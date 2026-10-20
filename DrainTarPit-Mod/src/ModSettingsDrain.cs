@@ -78,6 +78,10 @@ internal static class ModSettingsDrain
             new ConfigDescription(
                 "How deep the water looks to the game's ocean shader (the pools use a copy of the ocean material). 0 = shallow, calm and clear (like the shore), 1 = open sea. Raise it if you want more colour / less see-through; lower it for calmer water. Applies live.",
                 new AcceptableValueRange<float>(0f, 1f)));
+        WaterStyle = c.Bind("Visuals", "WaterStyle", WaterStyleOption.Game,
+            "Look of the water pools. Game = the game's own water (ocean shader) with the saved look (the live editor F8 tunes this one). Tropical = clear turquoise, " +
+            "light patterns on the floor, sun sparkles. Lake = deeper, darker blue. Ashlands = red water with a faint glow. Tropical / Lake / Ashlands use the mod's own water shader " +
+            "(needs nothing from the game). Applies live.");
         PoolShedFilm = c.Bind("Drain", "PoolShedFilm", true,
             "Liquid that runs over the rim of a pump pool (tar and water) does not linger as a thin film on the outside of the walls or on the ground: a film thinner than PoolFilmDepth that has lower ground next to it is moved down to the next cell about 7 times a second (it visibly slides off, fast), and a film that is left lying flat evaporates in a second or two. A film that reaches the border of the pool grid runs off. Off = the game's own slow spreading.");
         PoolFilmDepth = c.Bind("Drain", "PoolFilmDepth", 0.05f,

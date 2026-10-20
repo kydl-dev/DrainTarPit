@@ -67,6 +67,7 @@ internal static class ModSettings
     public static ConfigEntry<float> WaterPoolSize;
     public static ConfigEntry<float> WaterCellSize;
     public static ConfigEntry<float> WaterDepthLook;
+    public static ConfigEntry<WaterStyleOption> WaterStyle;
     public static ConfigEntry<bool> PoolShedFilm;
     public static ConfigEntry<float> PoolFilmDepth;
     public static ConfigEntry<float> WaterFlow;
@@ -208,6 +209,7 @@ internal static class ModSettings
         // hoses: a change (config manager, file reload) is applied live, see MaterialFixer.Tick
         ModSettingsHose.Hook();
         WaterDepthLook.SettingChanged += (s, e) => PoolWater.RequestRefresh();
+        WaterStyle.SettingChanged += (s, e) => { ModLog.Verbose("Config: WaterStyle = " + WaterStyle.Value + ", every water pool gets it"); PoolWater.RequestRefresh(); };
         PoolMeshFix.SettingChanged += (s, e) => PoolMesh.Refresh();
         PoolMeshReach.SettingChanged += (s, e) => PoolMesh.Refresh();
         WaterFlow.SettingChanged += (s, e) => TarPool.ApplyWaterFlow();       // live: existing water pools + the prefabs for new ones
@@ -271,3 +273,7 @@ internal enum HoseStyleOption { Transparent, Solid }
 
 /// [World Hose Visuals] World Hose Style: Default = every hose shows the look it was built with; Transparent / Solid = all hoses in the world, for now.
 internal enum WorldHoseStyleOption { Default, Transparent, Solid }
+
+/// [Visuals] WaterStyle (user, 2026-10-20): Game = the game's own water shader with the saved / built-in look; the others = the mod's own pool water
+/// shader (Unity, DTP/PoolWater, all procedural) with a preset material from the bundle.
+internal enum WaterStyleOption { Game, Tropical, Lake, Ashlands }
