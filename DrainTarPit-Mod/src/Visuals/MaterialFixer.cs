@@ -203,7 +203,49 @@ namespace DrainTarPit.Visuals
         {
             if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null || !IsHose(prefab.name)) return;
             if (!HosePrefabs.Contains(prefab)) HosePrefabs.Add(prefab);
+            foreach (var r in prefab.GetComponentsInChildren<Renderer>(true))      // remember the SOLID wall material before any look is applied
+            {
+                var mats = r.sharedMaterials; int slot = WallSlot(mats);
+                if (slot >= 0 && !LooksClear(mats[slot])) { SolidByName[BaseName(mats[slot])] = mats[slot]; ModLog.Verbose("Hoses: solid wall material of " + prefab.name + " = " + mats[slot].name); }
+            }
             ApplyHoseStyle(prefab);
+        }
+
+        // T-46 (dtp hosecheck, 20:23): a hose loaded with World Hose Style = Transparent had the wall material "DTP_LeatherTarred_clear (Instance)" -
+        // a COPY of our see-through material that the game made for that piece (the "(Instance)" copy), which is not in ClearOrigin. So it counted as
+        // the hose's original, and "Solid" put that see-through copy back: the hose stayed transparent until a restart with World = Solid. Now the
+        // solid material is found by name ("DTP_LeatherTarred") among the solid wall materials remembered from the hose prefabs.
+        static readonly Dictionary<string, Material> SolidByName = new();
+
+        /// "DTP_LeatherTarred_clear (Instance)" -> "DTP_LeatherTarred".
+        static string BaseName(Material m)
+        {
+            string n = m != null ? m.name : "";
+            for (bool again = true; again;)
+            {
+                again = false;
+                if (n.EndsWith(" (Instance)")) { n = n.Substring(0, n.Length - " (Instance)".Length); again = true; }
+                if (n.EndsWith("_clear")) { n = n.Substring(0, n.Length - "_clear".Length); again = true; }
+            }
+            return n;
+        }
+
+        static bool LooksClear(Material m) { return m != null && (ClearOrigin.ContainsKey(m) || m.name.Contains("_clear") || m.renderQueue >= 3000); }
+
+        /// The solid wall material behind `current` (our copy -> its origin; a game-made copy of a see-through material -> the remembered solid one by name).
+        static Material SolidOf(Material current, string who)
+        {
+            Material o;
+            if (current == null) return current;
+            if (ClearOrigin.TryGetValue(current, out o) && !LooksClear(o)) return o;
+            if (!LooksClear(current)) { SolidByName[BaseName(current)] = current; return current; }
+            if (SolidByName.TryGetValue(BaseName(current), out o) && o != null)
+            {
+                ModLog.Verbose("Hoses: " + who + " had a see-through wall material that was not ours (" + current.name + "): its solid one is " + o.name);
+                return o;
+            }
+            ModLog.Warn("Hoses: no solid wall material known for " + current.name + " on " + who + " - it stays see-through");
+            return current;
         }
 
         /// Called from the config events (any thread): the refresh itself runs in Tick, on the main thread.
@@ -265,8 +307,7 @@ namespace DrainTarPit.Visuals
                 int slot = WallSlot(mats);
                 if (slot < 0) continue;
                 var current = mats[slot];
-                Material original;
-                if (!ClearOrigin.TryGetValue(current, out original)) original = current;
+                var original = SolidOf(current, root.name);
                 var wanted = clear ? Clear(original, std, opacity) : original;
                 if (wanted == current) continue;
                 mats[slot] = wanted;

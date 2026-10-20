@@ -27,7 +27,7 @@ namespace DrainTarPit.Drain
         sealed class State
         {
             public bool InPool; public float Surface = -10000f; public int Countdown, Misses; public string Pool = "";
-            public float NextReport, NextTry; public int LevelAsks, DryAsks, WaypointTries, WaypointOk, Flees, GameCalls, Foreign; public Vector3 OurTarget = new Vector3(float.NaN, 0f, 0f); public string LastTry = "";
+            public float NextReport, NextTry; public int LevelAsks, DryAsks, WaypointTries, WaypointOk, Flees, GameCalls, Foreign, SeaOverrides; public Vector3 OurTarget = new Vector3(float.NaN, 0f, 0f); public string LastTry = "";
         }
 
         static readonly AccessTools.FieldRef<Fish, bool> HaveWaypoint = AccessTools.FieldRefAccess<Fish, bool>("m_haveWaypoint");
@@ -49,8 +49,8 @@ namespace DrainTarPit.Drain
                 ", swimRange " + f.m_swimRange.ToString("0") + " | water level asks " + st.LevelAsks + " (" + st.DryAsks + " answered dry), swim targets " + st.WaypointOk + " of " + st.WaypointTries + " tries" +
                 (st.LastTry.Length > 0 ? ", last refused: " + st.LastTry : "") + (st.Flees > 0 ? ", fled from a player " + st.Flees + " steps (land check skipped)" : "") +
                 " | owner " + (Nview(f) != null && Nview(f).IsOwner()) + ", water level now " + InWater(f).ToString("0.00") + ", out of water " + f.IsOutOfWater() + ", swim timer " + SwimTimer(f).ToString("0.00") +
-                ", touching " + Colliding(f) + ", game asked for a target " + st.GameCalls + "x, foreign targets replaced " + st.Foreign);
-            st.LevelAsks = 0; st.DryAsks = 0; st.WaypointTries = 0; st.WaypointOk = 0; st.Flees = 0; st.GameCalls = 0; st.Foreign = 0; st.LastTry = "";
+                ", touching " + Colliding(f) + ", game asked for a target " + st.GameCalls + "x, foreign targets replaced " + st.Foreign + ", sea water level overridden " + st.SeaOverrides + "x");
+            st.LevelAsks = 0; st.DryAsks = 0; st.WaypointTries = 0; st.WaypointOk = 0; st.Flees = 0; st.GameCalls = 0; st.Foreign = 0; st.SeaOverrides = 0; st.LastTry = "";
         }
 
         // T-44 (debugger, log 19:51): "water level asks 0" while "swim targets 0 of 60 tries" - inside RandomizeWaypoint the game's GetPointDepth /
@@ -179,7 +179,9 @@ namespace DrainTarPit.Drain
             {
                 try
                 {
-                    if (__instance == null || WaterVol(__instance) != null) return;          // sea / lake fish: the game handles them
+                    if (__instance == null) return;
+                    // T-46: NOT skipped when the fish has a WaterVolume: a pool on the coast lies inside the sea's water trigger, which kept setting the
+                    // fish's water level to the sea (~30 m, under the pool floor). A fish over pump-pool water whose surface is higher belongs to the pool.
                     var st = States.GetOrCreateValue(__instance);
                     if (--st.Countdown <= 0)
                     {
@@ -195,6 +197,7 @@ namespace DrainTarPit.Drain
                         if (!inPool && st.InPool && Mathf.Approximately(InWater(__instance), st.Surface)) InWater(__instance) = -10000f;   // our level, not the game's: out of water again
                         st.InPool = inPool; st.Surface = surface; st.Pool = pool;
                     }
+                    if (st.InPool && WaterVol(__instance) != null) { WaterVol(__instance) = null; st.SeaOverrides++; }   // the pool, not the sea, decides
                     if (st.InPool) InWater(__instance) = st.Surface;
                     if (st.InPool) DriveTarget(__instance, st);
                 }
@@ -214,6 +217,25 @@ namespace DrainTarPit.Drain
                     Report(__instance, st);
                 }
                 catch (System.Exception e) { ModLog.VerboseWarn("PoolFish report: " + e.Message); }
+            }
+        }
+
+        // T-46 (log 20:21, fish report "water level now 29.8, out of water True" right after the fish's update): the sea's WaterVolume trigger reaches
+        // up over the coastal pool and calls SetLiquidLevel(sea surface) on the fish every step, so it thought the water was under it and flopped.
+        // While the fish is in a pump pool, a lower water level from the sea (or a lake) is replaced by the pool surface and the sea is not taken.
+        [HarmonyPatch(typeof(Fish), nameof(Fish.SetLiquidLevel))]
+        static class Patch_SetLiquidLevel
+        {
+            static void Prefix(Fish __instance, ref float level, LiquidType type, ref Component liquidObj)
+            {
+                try
+                {
+                    State st;
+                    if (__instance == null || type != LiquidType.Water || !States.TryGetValue(__instance, out st) || !st.InPool || level >= st.Surface) return;
+                    if (!(liquidObj is WaterVolume) && liquidObj != null) return;          // a LiquidSurface (our pool's own trigger): the game's value is right
+                    level = st.Surface; liquidObj = null; st.SeaOverrides++;
+                }
+                catch (System.Exception e) { ModLog.VerboseWarn("PoolFish liquid level: " + e.Message); }
             }
         }
 
