@@ -426,6 +426,7 @@ namespace DrainTarPit.Drain
                     if (plv == null) return false;
                     float half = plv.m_width * plv.m_scale * 0.5f;
                     target = Spawn(edge + dir * Mathf.Max(3f, half - 4f), liquid);    // the new grid covers the edge point with 4 m to spare
+                    RunoffCleanup.MarkRunoff(target);                                     // removed again if it keeps (almost) nothing
                 }
                 if (target == null || target == from) return false;
                 ModLog.Verbose("TarPool: " + volume.ToString("0.00", CultureInfo.InvariantCulture) + " m3 continues from " + TarPoolDiagnostics.DescribeVolume(from) +

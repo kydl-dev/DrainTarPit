@@ -83,6 +83,7 @@ namespace DrainTarPit.Drain
                 r = FillBasin(v, at, volume);
                 after = TotalVolume(v);
             }
+            RunoffCleanup.Touched(v);
             if (r == null) { ModLog.Warn("Pit " + v.name + ": deposit of " + volume.ToString("0.00") + " m3 skipped, the grid is not usable"); return; }
             float c2 = v.m_scale * v.m_scale;
             float kept = r.Kept * c2, runoff = r.ToEdge * c2, rimRemoved = r.RimRemoved * c2, overflow = r.OverflowRemoved * c2, unplaced = r.Unplaced * c2;

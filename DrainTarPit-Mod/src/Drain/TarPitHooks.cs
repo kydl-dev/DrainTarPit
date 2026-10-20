@@ -97,7 +97,7 @@ namespace DrainTarPit.Drain
         [HarmonyPatch(typeof(LiquidVolume), "OnDestroy")]
         static class Patch_OnDestroy
         {
-            static void Prefix(LiquidVolume __instance) { All.Remove(__instance); Registered.Remove(__instance); RefillTimers.Remove(__instance); Memos.Remove(__instance); PendingDeposits.Remove(__instance); SettleTimers.Remove(__instance); ShedTimers.Remove(__instance); Budgets.Remove(__instance); UnboostIfDone(__instance, true); TarPitLedger.Destroyed(__instance); }
+            static void Prefix(LiquidVolume __instance) { All.Remove(__instance); Registered.Remove(__instance); RefillTimers.Remove(__instance); Memos.Remove(__instance); PendingDeposits.Remove(__instance); SettleTimers.Remove(__instance); ShedTimers.Remove(__instance); Budgets.Remove(__instance); UnboostIfDone(__instance, true); TarPitLedger.Destroyed(__instance); RunoffCleanup.Forget(__instance); }
         }
 
         [HarmonyPatch(typeof(LiquidVolume), "Update")]
@@ -111,6 +111,7 @@ namespace DrainTarPit.Drain
                 if (PendingDeposits.Count > 0) FlushDeposits(__instance);
                 RefillTick(__instance, Time.deltaTime);
                 if (TarPitLedger.Books.Count > 0) TarPitLedger.Tick(__instance);
+                if (ZNetScene.instance != null) RunoffCleanup.Tick(__instance);
                 float next; SettleTimers.TryGetValue(__instance, out next);
                 if (Time.time >= next) { SettleTimers[__instance] = Time.time + 1f; SettleFloaters(__instance); }
                 float shedAt; ShedTimers.TryGetValue(__instance, out shedAt);
