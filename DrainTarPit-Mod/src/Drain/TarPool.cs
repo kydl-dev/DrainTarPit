@@ -33,7 +33,8 @@ namespace DrainTarPit.Drain
     /// </summary>
     internal static class TarPool
     {
-        public const string PrefabName = "DTP_TarPool2";                 // 48x48 cells of 0.5 m = 24 m, as wide as a water pool (user, 2026-10-20)
+        public const string PrefabName = "DTP_TarPool3";                 // like water: 0.25 m cells over 24 m (user, 2026-10-20: finer edge along walls)
+        public const string LegacyTar2PrefabName = "DTP_TarPool2";       // 48x48 x 0.5 m (24 m), made for a few hours on 2026-10-20
         public const string LegacyTarPrefabName = "DTP_TarPool";         // 32x32 (16 m): pools saved by older versions keep loading with this one
         public const string WaterPrefabName = "DTP_WaterPool2";
         public const string LegacyWaterPrefabName = "DTP_WaterPool";      // 0.5 m cells, 48x48: pools saved by older versions keep loading with this one
@@ -49,7 +50,7 @@ namespace DrainTarPit.Drain
 
         static GameObject _prefab;          // the tar clone (lives in an inactive container, survives scene changes)
         static GameObject _waterPrefab;     // the water clone
-        static GameObject _legacyWaterPrefab, _legacyTarPrefab;   // the clones older worlds were saved with (Legacy*PrefabName)
+        static GameObject _legacyWaterPrefab, _legacyTarPrefab, _legacyTar2Prefab;   // the clones older worlds were saved with (Legacy*PrefabName)
         static GameObject _container;
 
         static GameObject Get(PumpLiquid liquid) { return liquid == PumpLiquid.Water ? _waterPrefab : _prefab; }
@@ -96,13 +97,15 @@ namespace DrainTarPit.Drain
             bool water = liquid == PumpLiquid.Water;
             if (water && _legacyWaterPrefab == null) _legacyWaterPrefab = BuildPrefab(scene, liquid, true);
             if (!water && _legacyTarPrefab == null) _legacyTarPrefab = BuildPrefab(scene, liquid, true);
+            if (!water && _legacyTar2Prefab == null) _legacyTar2Prefab = BuildPrefab(scene, liquid, true, LegacyTar2PrefabName, TarGridWidth);
+            if (!water && _legacyTar2Prefab != null) { if (!scene.m_prefabs.Contains(_legacyTar2Prefab)) scene.m_prefabs.Add(_legacyTar2Prefab); named[_legacyTar2Prefab.name.GetStableHashCode()] = _legacyTar2Prefab; }
             var go = water ? _legacyWaterPrefab : _legacyTarPrefab;
             if (go == null) return;
             if (!scene.m_prefabs.Contains(go)) scene.m_prefabs.Add(go);
             named[go.name.GetStableHashCode()] = go;
         }
 
-        static GameObject BuildPrefab(ZNetScene scene, PumpLiquid liquid, bool legacy = false)
+        static GameObject BuildPrefab(ZNetScene scene, PumpLiquid liquid, bool legacy = false, string legacyName = null, int legacyWidth = 0)
         {
             bool water = liquid == PumpLiquid.Water;
             var source = FindVanillaTarVolume(scene);
@@ -119,11 +122,11 @@ namespace DrainTarPit.Drain
                 Object.DontDestroyOnLoad(_container);
             }
             var go = Object.Instantiate(source, _container.transform, false);
-            go.name = water ? (legacy ? LegacyWaterPrefabName : WaterPrefabName) : legacy ? LegacyTarPrefabName : PrefabName;
+            go.name = legacyName ?? (water ? (legacy ? LegacyWaterPrefabName : WaterPrefabName) : legacy ? LegacyTarPrefabName : PrefabName);
             var lv = go.GetComponentInChildren<LiquidVolume>(true);
             // water pools use finer cells: the surface mesh ends at a grid point, so the gap between the liquid and a wall is up to one cell wide
-            float cell = water && !legacy ? ModSettings.WaterCellSize.Value : CellScale;
-            int width = !water ? (legacy ? LegacyTarGridWidth : TarGridWidth) : legacy ? 48 : Mathf.Clamp(Mathf.RoundToInt(ModSettings.WaterPoolSize.Value / cell), 16, 128);
+            float cell = !legacy ? ModSettings.WaterCellSize.Value : CellScale;
+            int width = legacyWidth > 0 ? legacyWidth : legacy ? (water ? 48 : LegacyTarGridWidth) : Mathf.Clamp(Mathf.RoundToInt(ModSettings.WaterPoolSize.Value / cell), 16, 128);
             Set(lv, "m_width", width);
             Set(lv, "m_scale", cell);
             Set(lv, "m_maxDepth", MaxDepth);
@@ -236,7 +239,7 @@ namespace DrainTarPit.Drain
                 if (p == null) continue;
                 var lv = p.GetComponentInChildren<LiquidVolume>(true);
                 if (lv == null || lv.m_liquidType != LiquidType.Tar || p.GetComponent<ZNetView>() == null) continue;
-                if (p.name == PrefabName || p.name == LegacyTarPrefabName || p.name == WaterPrefabName || p.name == LegacyWaterPrefabName) continue;       // our own clones (a second ZNetScene.Awake)
+                if (p.name.StartsWith("DTP_TarPool") || p.name.StartsWith("DTP_WaterPool")) continue;       // our own clones (a second ZNetScene.Awake)
                 ModLog.Verbose("TarPool: tar volume prefab candidate '" + p.name + "'");
                 if (p.name == VanillaPitName) return p;
                 if (best == null) best = p;
