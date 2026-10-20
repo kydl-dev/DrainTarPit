@@ -127,6 +127,37 @@ namespace DrainTarPit.Drain
             return report;
         }
 
+        /// Console `dtp cleanpools small [m3]` (user, 2026-10-20): removes PUMP pools (water or tar) that hold less than `maxM3` (default 1 m3), e.g. the
+        /// leftover runoff pools the old hop chains spawned along a shore. A pool with a valid grid and more liquid is never touched; characters it
+        /// tracks are released first (TarPitTracking.ReleaseAll), so nobody is left swimming in a removed pool.
+        internal static List<string> RemoveSmallPumpPools(float maxM3)
+        {
+            var report = new List<string>();
+            if (ZNetScene.instance == null) { report.Add("dtp cleanpools small: ABORTED - no ZNetScene"); return report; }
+            int removed = 0, kept = 0;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (var v in new List<LiquidVolume>(All))
+            {
+                if (v == null || !IsPumpPool(v)) continue;
+                string id = "poolId=" + v.GetInstanceID() + " name=\"" + v.name + "\" pos=" + v.transform.position.ToString("0.0");
+                try
+                {
+                    var nv = Nview(v);
+                    if (nv == null || !nv.IsValid() || !TarPoolDiagnostics.GridIsValid(v)) { kept++; report.Add("dtp cleanpools small: KEEP " + id + " reason=no valid ZNetView / grid, volume not verifiable"); continue; }
+                    float volume = TotalVolume(v);
+                    if (float.IsNaN(volume) || volume >= maxM3) { kept++; report.Add("dtp cleanpools small: KEEP " + id + " holds " + volume.ToString("0.000", inv) + " m3"); continue; }
+                    foreach (var l in TarPitTracking.ReleaseAll(v)) ModLog.Info("Pool " + v.name + ": " + l);
+                    nv.ClaimOwnership();
+                    ZNetScene.instance.Destroy(v.gameObject);
+                    removed++;
+                    report.Add("dtp cleanpools small: REMOVE_REQUESTED " + id + " held " + volume.ToString("0.000", inv) + " m3 (< " + maxM3.ToString("0.###", inv) + ")");
+                }
+                catch (System.Exception e) { kept++; report.Add("dtp cleanpools small: KEEP " + id + " reason=" + e.GetType().Name + ": " + e.Message); }
+            }
+            report.Add("dtp cleanpools small summary: removed " + removed + ", kept " + kept + " pump pool(s) (limit " + maxM3.ToString("0.###", inv) + " m3). Confirm with dtp pits.");
+            return report;
+        }
+
         /// Test button: removes all the liquid from a pool (owner only).
         internal static bool DebugEmpty(LiquidVolume v)
         {
