@@ -84,11 +84,19 @@ namespace DrainTarPit.Visuals
             // 1 m under its ground, and a dry wall / bank point that touches one of them is sunk with it, so the step down happens INSIDE the
             // wall body (a wall is several cells thick) instead of in front of its outer face. Real water outside (rim switch off, overflow) is wet
             // and is drawn by the game as before.
+            // 2026-10-20 (user: one stroke, 0.8 m of water inside, a sheet up to 5 m high on the OUTER face of the wall): a dry point away from the
+            // water used to go 1 m under ITS ground - but under a wall "its ground" is the wall top (the wall pass raises those heights), so the
+            // point sat 4 m up inside the wall and the quad to the next point outside hung down the outer face. Every dry point that is not
+            // directly under a bank / wall next to the water now goes 1 m under the LOWEST ground of the whole grid: all of them are under the
+            // terrain everywhere, and the water ends at the inner face of the wall (its last quad dips into the wall body).
+            float hidden = inf;
+            for (int i = 0; i < n; i++) if (h[i] < hidden) hidden = h[i];
+            hidden -= 1f;
             for (int i = 0; i < n; i++)
             {
                 if (d[i] >= DrawDepth) { _fix[i] = float.NaN; continue; }            // water: the game's vertex is right
                 float win = a[i];
-                _fix[i] = win < inf ? (h[i] < win ? h[i] - 1f : win) : h[i] - 1f;
+                _fix[i] = win < inf && h[i] >= win ? win : hidden;
                 b[i] = win < inf && h[i] < win ? 1f : 0f;                            // 1 = dry point below the water plane (outside a barrier)
             }
             for (int y = 0; y < stride; y++)
