@@ -336,6 +336,7 @@ namespace DrainTarPit.Drain
                 var g = TarPits.ToGrid(v, p);
                 if (!TarPits.InGrid(v, g) || !TarPits.Contains(v, p, 1.5f)) continue;
                 if (liquid == PumpLiquid.Water && !TarPits.IsPumpPool(v)) continue;
+                if (!TarPits.IsPumpPool(v) && !PoolTarget.HasTarNear(v, p)) continue;      // a vanilla pit only when poured INTO its tar (see HasTarNear)
                 float d = (v.transform.position - p).sqrMagnitude;
                 if (d < bd) { bd = d; best = v; }
             }

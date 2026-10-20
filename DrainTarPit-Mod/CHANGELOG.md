@@ -3,6 +3,7 @@
 ## 1.0.0 (unreleased)
 The mod has not been released yet, so its version is 1.0.0 and stays 1.0.0 until the user says otherwise (`_agent/PROJECT_RULES.md`): new changes are added below under this heading, `Plugin.ModVersion` and `manifest.json` are not bumped. The 0.x headings further down are the development history from before the first release.
 
+- Tar into a walled hole near a vanilla tar pit: the pit's large area used to take the tar (walls do not count there), so it stopped at the edge of the ground. A vanilla pit now takes tar only when you pour into its tar; anywhere else a pump tar pool takes it and walls hold it like water. Built, NOT tested in game.
 - Pool look: no sheet on the outer face of tall walls any more (a dry point away from the water was placed 1 m under the TOP of the wall it stands under); every dry point now sits under the lowest ground of the pool's area, and the water surface ends exactly at the inner face of the wall. Built, NOT tested in game.
 - Runoff pools clean up after themselves (D-030): a pool that only the runoff made removes itself when it still holds less than 1 m3 a minute after the last liquid reached it, so no small leftover pools pile up along slopes and shores. Pools you pour into yourself are never removed. Built, NOT tested in game.
 - Console `dtp cleanpools small [m3]`: removes pump pools (water or tar) holding less than the given volume (default 1 m3), e.g. leftover runoff pools along a shore; pools with more liquid are never touched. Built, NOT tested in game.
