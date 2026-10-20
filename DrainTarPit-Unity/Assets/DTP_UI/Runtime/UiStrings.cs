@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace DrainTarPit.Ui
 {
@@ -26,7 +26,7 @@ namespace DrainTarPit.Ui
             { "dtp_ui_reset", "Reset to default style" }, { "dtp_ui_reset_done", "Default style loaded - Save to keep it." },
             { "dtp_ui_pref_saved", "Preferred style saved." }, { "dtp_ui_pref_failed", "Saving the preferred style failed (see the log)." },
             { "dtp_ui_pref_used", "Preferred style loaded - Save to keep it." }, { "dtp_ui_pref_none", "No preferred style saved yet." },
-            { "dtp_ui_save", "Save" }, { "dtp_ui_cancel", "Cancel" },
+            { "dtp_ui_save", "Save" }, { "dtp_ui_cancel", "Cancel" }, { "dtp_ui_esc_close", "Esc to close" },
         };
 
         public static readonly Dictionary<string, string> De = new Dictionary<string, string>
@@ -47,7 +47,7 @@ namespace DrainTarPit.Ui
             { "dtp_ui_reset", "Auf Standardstil zurücksetzen" }, { "dtp_ui_reset_done", "Standardstil geladen - Speichern, um ihn zu behalten." },
             { "dtp_ui_pref_saved", "Bevorzugter Stil gespeichert." }, { "dtp_ui_pref_failed", "Speichern des bevorzugten Stils fehlgeschlagen (siehe Log)." },
             { "dtp_ui_pref_used", "Bevorzugter Stil geladen - Speichern, um ihn zu behalten." }, { "dtp_ui_pref_none", "Noch kein bevorzugter Stil gespeichert." },
-            { "dtp_ui_save", "Speichern" }, { "dtp_ui_cancel", "Abbrechen" },
+            { "dtp_ui_save", "Speichern" }, { "dtp_ui_cancel", "Abbrechen" }, { "dtp_ui_esc_close", "Esc zum Schließen" },
         };
 
         /// English text with {0} {1} ... filled in (the Unity preview; the game uses its own localization).

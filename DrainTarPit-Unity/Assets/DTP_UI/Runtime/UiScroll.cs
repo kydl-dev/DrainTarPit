@@ -11,7 +11,7 @@ namespace DrainTarPit.Ui
     /// </summary>
     internal sealed class UiScroll
     {
-        const float BarWidth = 14f, WheelStep = 60f, MinThumb = 28f;
+        const float BarWidth = 8f, WheelStep = 60f, MinThumb = 28f;
 
         internal readonly VisualElement Root;          // add this to the parent
         internal readonly VisualElement Content;       // add the scrolled items here
@@ -37,12 +37,16 @@ namespace DrainTarPit.Ui
             Content.style.flexDirection = FlexDirection.Column;
             _viewport.Add(Content);
 
+            // T-58: FollowPlayer's slim bar - dark track, gold handle
             _bar = new VisualElement();
-            _bar.style.width = BarWidth; _bar.style.flexShrink = 0; _bar.style.marginLeft = 4;
-            UiKit.Skin(_bar, UiKit.SpriteSunken, UiKit.Field);
+            _bar.style.width = BarWidth; _bar.style.flexShrink = 0; _bar.style.marginLeft = 4; _bar.style.marginRight = 4;
+            _bar.style.marginTop = 6; _bar.style.marginBottom = 6;
+            _bar.style.backgroundColor = UiKit.Track; UiKit.Radius(_bar, BarWidth / 2f);
             _thumb = new VisualElement();
-            _thumb.style.position = Position.Absolute; _thumb.style.left = 1; _thumb.style.right = 1; _thumb.style.top = 0; _thumb.style.height = MinThumb;
-            UiKit.Skin(_thumb, UiKit.SpriteButton, UiKit.Btn);
+            _thumb.style.position = Position.Absolute; _thumb.style.left = 0; _thumb.style.right = 0; _thumb.style.top = 0; _thumb.style.height = MinThumb;
+            _thumb.style.backgroundColor = UiKit.GoldDim; UiKit.Radius(_thumb, BarWidth / 2f);
+            _thumb.RegisterCallback<PointerEnterEvent>(e => _thumb.style.backgroundColor = UiKit.Gold);
+            _thumb.RegisterCallback<PointerLeaveEvent>(e => _thumb.style.backgroundColor = UiKit.GoldDim);
             _bar.Add(_thumb);
             Root.Add(_bar);
 

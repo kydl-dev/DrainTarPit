@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DrainTarPit.Signs;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -43,7 +43,7 @@ namespace DrainTarPit.Ui
             _name = name ?? "";
             _style = style != null ? style.Clone() : new SignStyle();
             UiScroll body;
-            Window = UiKit.Window(_host.T("dtp_ui_sign_title"), () => _host.Close("X"), out body);
+            Window = UiKit.Window(_host.T("dtp_ui_sign_title"), _host.T("dtp_ui_esc_close"), () => _host.Close("X"), out body);
             _content = body.Content;
             Build();
             UiLog.Verbose("SignMenuView: built for '" + _name + "' (" + _host.Fonts.Count + " font(s), style " + _style + ")");
@@ -118,7 +118,7 @@ namespace DrainTarPit.Ui
             _status = UiControls.Note("");
             _content.Add(_status);
             var bottom = UiControls.Line(
-                UiControls.Button(_host.T("dtp_ui_save"), () => _host.Save(_name, _style)),
+                UiControls.Button(_host.T("dtp_ui_save"), () => _host.Save(_name, _style), true),
                 UiControls.Button(_host.T("dtp_ui_cancel"), () => _host.Close("Cancel")));
             bottom.style.justifyContent = Justify.FlexEnd; bottom.style.marginTop = 12;
             _content.Add(bottom);
@@ -142,11 +142,10 @@ namespace DrainTarPit.Ui
                 if (!_style.Letters.TryGetValue(i, out hex)) hex = _style.Color;
                 Color c; ColorUtility.TryParseHtmlString(hex, out c);
                 var chip = new Label(letters[i]);
-                chip.style.minWidth = 32; chip.style.height = 36; chip.style.unityTextAlign = TextAnchor.MiddleCenter; chip.style.fontSize = 22;
+                chip.style.minWidth = 36; chip.style.height = 40; chip.style.unityTextAlign = TextAnchor.MiddleCenter; chip.style.fontSize = 24;
                 chip.style.color = c; chip.style.marginRight = 4; chip.style.marginTop = 4; chip.style.flexShrink = 0;
-                UiKit.Skin(chip, UiKit.SpriteSunken, UiKit.Field);
                 bool sel = _selected.Contains(i);
-                UiKit.Border(chip, sel ? UiKit.Accent : Color.clear, sel ? 3 : 0, 3);
+                chip.style.backgroundColor = UiKit.Track; UiKit.Radius(chip, 4); UiKit.Borders(chip, sel ? 2 : 1, sel ? UiKit.Gold : UiKit.Border);
                 chip.RegisterCallback<PointerDownEvent>(e =>
                 {
                     if (!_selected.Remove(idx)) _selected.Add(idx);
