@@ -42,10 +42,18 @@ namespace DrainTarPit
 
             PumpFx.Preload();                       // pump_up / oil_pumped sounds (no-op on a dedicated server)
             PrefabManager.OnVanillaPrefabsAvailable += PieceRegistrar.RegisterAll;
+            PrefabManager.OnVanillaPrefabsAvailable += RegisterSign;    // T-023 pool sign (cloned from the game's sign, so it needs the vanilla prefabs)
             // the pool that holds the pumped tar is registered from a ZNetScene.Awake patch (TarPool), not here: this event fires in the main menu, before any ZNetScene exists
             CommandManager.Instance.AddConsoleCommand(new DtpCommands());
             new Harmony(ModGuid).PatchAll(Assembly.GetExecutingAssembly());
             WaterEditor.Install();                  // live water editor ([Visuals] EditorKey): input blocking patches, made by hand so a missing game method cannot break PatchAll
+            Ui.UiInputLock.Install();               // T-023: the character does not move while a DrainTarPit menu (UI Toolkit) is open
+        }
+
+        static void RegisterSign()
+        {
+            PrefabManager.OnVanillaPrefabsAvailable -= RegisterSign;
+            Signs.PoolSignPiece.Register();
         }
 
         // 1) embedded resource (read fully into memory: LoadFromStream needs the stream to stay open, which breaks
@@ -121,6 +129,7 @@ namespace DrainTarPit
             TickConfigReload();
             MaterialFixer.Tick();                    // applies a changed [Visuals] HoseStyle / HoseOpacity (to hoses built from now on) on the main thread
             WaterEditor.Tick();                      // [Visuals] EditorKey opens / closes the live water editor
+            Signs.PoolSignMenu.Tick();               // T-023: Escape / walking away closes the sign menu
         }
 
         void OnGUI()
