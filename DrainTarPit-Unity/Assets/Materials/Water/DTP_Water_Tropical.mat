@@ -27,7 +27,7 @@ Material:
     m_Floats:
     - _CausticDepth: 3
     - _CausticScale: 1.1
-    - _CausticStrength: 0
+    - _CausticStrength: 1.5
     - _Clarity: 5
     - _DepthRange: 3
     - _EmissionPulse: 0
@@ -36,7 +36,7 @@ Material:
     - _GlintStrength: 12
     - _ReflectionStrength: 0.55
     - _Refraction: 0.06
-    - _WaveScale: 0.8
+    - _WaveScale: 1
     - _WaveSpeed: 0.75
     - _WaveStrength: 0.06
     m_Colors:
