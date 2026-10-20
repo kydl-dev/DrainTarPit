@@ -27,22 +27,24 @@ Material:
     m_Floats:
     - _CausticDepth: 3
     - _CausticScale: 1.1
-    - _CausticStrength: 0.5
+    - _CausticStrength: 0.3
     - _Clarity: 1.2
     - _DepthRange: 1.5
-    - _EmissionPulse: 0.45
-    - _FoamWidth: 0.12
-    - _GlintPower: 900
-    - _GlintStrength: 8
+    - _EmissionPulse: 0.4
+    - _FoamWidth: 0.05
+    - _GlintPower: 2200
+    - _GlintStrength: 5
     - _ReflectionStrength: 0.35
-    - _Refraction: 0.035
-    - _WaveScale: 0.9
-    - _WaveSpeed: 0.22
-    - _WaveStrength: 0.35
+    - _Refraction: 0.02
+    - _WaveScale: 0.6
+    - _WaveSpeed: 0.45
+    - _WaveStrength: 0.16
     m_Colors:
+    - _Absorption: {r: 0.12, g: 0.75, b: 0.95, a: 1}
     - _DeepColor: {r: 0.32, g: 0.04, b: 0.02, a: 1}
-    - _Emission: {r: 0.22, g: 0.04, b: 0, a: 1}
-    - _FoamColor: {r: 0.18, g: 0.14, b: 0.12, a: 1}
+    - _Emission: {r: 0.05, g: 0.008, b: 0, a: 1}
+    - _FoamColor: {r: 0.2, g: 0.16, b: 0.14, a: 0.5}
+    - _ScatterColor: {r: 0.28, g: 0.05, b: 0.02, a: 1}
     - _ShallowColor: {r: 0.95, g: 0.42, b: 0.18, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
