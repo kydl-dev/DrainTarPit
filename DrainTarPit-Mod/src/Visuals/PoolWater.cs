@@ -95,7 +95,7 @@ namespace DrainTarPit.Visuals
             try
             {
                 var list = PInstances != null ? PInstances.GetValue(null, null) as System.Collections.IEnumerable : null;
-                if (list == null) return null;
+                if (list == null) return FromLoadedMaterials();
                 foreach (var o in list)
                 {
                     var wv = o as WaterVolume;
@@ -109,7 +109,29 @@ namespace DrainTarPit.Visuals
                 }
             }
             catch (System.Exception e) { ModLog.Warn("PoolWater: could not copy the ocean material: " + e.Message); }
-            return null;
+            return FromLoadedMaterials();
+        }
+
+        // T-012 step 1: no ocean surface loaded yet (inland, right after loading the world) - the game's water material is usually in memory anyway (the
+        // ocean prefab); take it from there so the pools get their real look at once instead of the plain tint. Searched at most every 2 s (Current).
+        const string WaterShader = "Custom/Water";
+        static Material FromLoadedMaterials()
+        {
+            try
+            {
+                Material best = null;
+                foreach (var m in Resources.FindObjectsOfTypeAll<Material>())
+                {
+                    if (m == null || m.shader == null || m.shader.name != WaterShader || m.name.StartsWith("DTP_")) continue;
+                    if (best == null || (m.name.ToLowerInvariant().StartsWith("water") && !best.name.ToLowerInvariant().StartsWith("water"))) best = m;
+                }
+                if (best == null) { ModLog.Verbose("PoolWater: no ocean surface and no loaded '" + WaterShader + "' material yet, the plain tint is used for now"); return null; }
+                var c = new Material(best) { name = "DTP_WaterVanilla" };
+                Object.DontDestroyOnLoad(c);
+                ModLog.Info("PoolWater: no ocean surface loaded, using a copy of the loaded game material '" + best.name + "' (shader '" + WaterShader + "') for water pools.");
+                return c;
+            }
+            catch (System.Exception e) { ModLog.Warn("PoolWater: could not search the loaded materials: " + e.Message); return null; }
         }
 
         static void Configure(Material m)

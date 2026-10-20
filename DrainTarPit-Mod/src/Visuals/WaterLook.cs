@@ -68,15 +68,41 @@ namespace DrainTarPit.Visuals
             catch (System.Exception e) { ModLog.Warn("WaterLook: could not save the preset: " + e.Message); return false; }
         }
 
-        /// Applies the preset file (if there is one) to the material. Properties the shader does not have are skipped. Returns the number of lines applied.
+        // T-012 step 1 (user, 2026-10-20: "bake the current look first"): the look the user saved ("clearly blue", docs/DrainTarPit.WaterLook.txt) is
+        // embedded in the DLL as the BUILT-IN look, so every player gets it, not only someone who has the file in BepInEx/config. A file there still wins
+        // (the live editor saves to it). The built-in look never writes the config: its "depth" line is skipped ([Drain] WaterDepthLook keeps its value).
+        internal const string BuiltInResource = "DrainTarPit.WaterLook.txt";
+
+        static string[] BuiltInLines()
+        {
+            var asm = System.Reflection.Assembly.GetExecutingAssembly();
+            using (var st = asm.GetManifestResourceStream(BuiltInResource))
+            {
+                if (st == null) { ModLog.Warn("WaterLook: the built-in look (" + BuiltInResource + ") is missing from the DLL - the pools keep the game's ocean look"); return null; }
+                using (var rd = new StreamReader(st)) return rd.ReadToEnd().Split(new[] { '\n' }, System.StringSplitOptions.None);
+            }
+        }
+
+        /// Applies the look to the material: the preset file in BepInEx/config when there is one, else the built-in look. Properties the shader does not
+        /// have are skipped. Returns the number of lines applied.
         public static int Apply(Material m)
         {
-            if (m == null) return 0;
+            if (m == null) { ModLog.Verbose("WaterLook: no material to apply the look to"); return 0; }
+            bool fromFile = File.Exists(Path);
+            string[] lines;
+            try { lines = fromFile ? File.ReadAllLines(Path) : BuiltInLines(); }
+            catch (IOException e) { ModLog.Warn("WaterLook: the preset file could not be read (" + e.Message + "), the built-in look is used"); fromFile = false; lines = BuiltInLines(); }
+            if (lines == null) return 0;
+            ModLog.Verbose("WaterLook: applying the " + (fromFile ? "saved look from " + Path : "built-in look") + " (" + lines.Length + " lines)");
+            return ApplyLines(m, lines, fromFile ? Path : "the built-in look", fromFile);
+        }
+
+        static int ApplyLines(Material m, string[] lines, string source, bool allowDepth)
+        {
             int applied = 0;
             try
             {
-                if (!File.Exists(Path)) return 0;
-                foreach (var raw in File.ReadAllLines(Path))
+                foreach (var raw in lines)
                 {
                     var line = raw.Trim();
                     if (line.Length == 0 || line[0] == '#') continue;
@@ -105,15 +131,17 @@ namespace DrainTarPit.Visuals
                                 m.renderQueue = (int)Parse(p[1]); applied++;
                                 break;
                             case "depth":
+                                if (!allowDepth) { ModLog.Verbose("WaterLook: depth " + p[1] + " of the built-in look skipped ([Drain] WaterDepthLook keeps " + (ModSettings.WaterDepthLook != null ? ModSettings.WaterDepthLook.Value.ToString("0.00") : "?") + ")"); break; }
                                 if (ModSettings.WaterDepthLook != null) { ModSettings.WaterDepthLook.Value = Mathf.Clamp01(Parse(p[1])); applied++; }
                                 break;
                         }
                     }
+                    catch (System.FormatException e) { ModLog.VerboseWarn("WaterLook: line skipped, a number could not be read '" + line + "': " + e.Message); }
                     catch (System.Exception e) { ModLog.VerboseWarn("WaterLook: line skipped '" + line + "': " + e.Message); }
                 }
-                if (applied > 0) ModLog.Info("WaterLook: " + applied + " values from " + Path + " applied to the pool water.");
+                ModLog.Info("WaterLook: " + applied + " values from " + source + " applied to the pool water.");
             }
-            catch (System.Exception e) { ModLog.Warn("WaterLook: could not read the preset: " + e.Message); }
+            catch (System.Exception e) { ModLog.Warn("WaterLook: could not apply the look from " + source + ": " + e.Message); }
             return applied;
         }
 
