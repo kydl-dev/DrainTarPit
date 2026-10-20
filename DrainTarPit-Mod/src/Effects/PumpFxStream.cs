@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using DrainTarPit.Building;
 using DrainTarPit.Logging;
+using DrainTarPit.Visuals;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Networking;
@@ -85,6 +86,7 @@ namespace DrainTarPit.Effects
             landAt = pos; fallSeconds = 0f;
             bool water = liquid == Drain.PumpLiquid.Water;
             Color dark = water ? WaterDark : TarDark, light = water ? WaterLight : TarLight, puddle = water ? WaterPuddle : TarPuddle;
+            if (water) StyleColours(ref dark, ref light, ref puddle);
             var mat = Mat(); if (mat == null) { ModLog.Verbose("Pour stream: no particle material, nothing shown"); return; }
             if (dir.sqrMagnitude < 0.01f) dir = Vector3.down;
             dir.Normalize();
@@ -175,6 +177,20 @@ namespace DrainTarPit.Effects
             col3.color = gr;
             var r3 = go3.GetComponent<ParticleSystemRenderer>(); r3.sharedMaterial = mat; r3.renderMode = ParticleSystemRenderMode.HorizontalBillboard;
             ps3.Play();
+        }
+
+        // T-054 (user: the stream out of the nozzle stayed blue while the hose water and the Ashlands pool were red): with a pool water style
+        // in use the spurt / splash / puddle colours come from it (WaterTint, same as the hose water); the Game style keeps the blue above.
+        static void StyleColours(ref Color dark, ref Color light, ref Color puddle)
+        {
+            Color body, glow;
+            var from = WaterTint.Current(out body, out glow);
+            if (from == WaterStyleOption.Game) { ModLog.Verbose("Pour stream: Game water style, blue droplets"); return; }
+            Color lit = body + glow;                                          // unlit particles: the glow is added to the colour itself
+            dark = new Color(lit.r * 0.85f, lit.g * 0.85f, lit.b * 0.85f, WaterDark.a);
+            light = Color.Lerp(lit, Color.white, 0.45f); light.a = WaterLight.a;
+            puddle = new Color(lit.r, lit.g, lit.b, WaterPuddle.a);
+            ModLog.Verbose("Pour stream: " + from + " water style colours: droplets " + dark + " - " + light + ", puddle " + puddle);
         }
 
         // --- droplets ---------------------------------------------------------------------------------------------------
