@@ -37,27 +37,41 @@ namespace DrainTarPit.Drain
             var hits = FHits.GetValue(v) as RaycastHit[];
             var h = Heights(v); var d = Depths(v);
             int w = v.m_width, stride = w + 1, n = stride * stride;
-            if (hits == null || h == null || d == null || hits.Length < n || h.Count < n || d.Count < n) return;
+            if (hits == null || h == null || d == null || hits.Length < n || h.Count < n || d.Count < n)
+            { ModLog.Verbose("Pit " + v.name + ": missed heights not checked, grid data not ready (hits " + (hits == null ? "none" : hits.Length.ToString()) + ", heights " + (h == null ? "none" : h.Count.ToString()) + ", need " + n + ")"); return; }
             float maxDepth = (float)FMaxDepth.GetValue(v);
             var o = v.transform.position;
             float half = w * v.m_scale * -0.5f;
-            int moved = 0;
-            using (Hold(v))
-            {
-                for (int y = 0; y <= w; y++)
-                    for (int x = 0; x <= w; x++)
+            // Bug #6: the terrain is sampled FIRST (GetGroundHeight is a ray per missed cell) and the lock is taken only for the write, so this method
+            // no longer makes the pool's worker thread wait for the samples. Note: with [Drain] PoolWalls on, Patch_UpdateHeights already holds the
+            // pool's lock from before the game's height write until the wall pass is done (on purpose, see there), so then the samples still run
+            // inside that outer lock; this change only shortens our own hold.
+            Missed.Clear();
+            for (int y = 0; y <= w; y++)
+                for (int x = 0; x <= w; x++)
+                {
+                    int i = y * stride + x;
+                    if (hits[i].distance > 0f) continue;                       // the ray hit ground: vanilla already wrote the right height
+                    float gh = ZoneSystem.instance.GetGroundHeight(new Vector3(o.x + half + x * v.m_scale, 0f, o.z + half + y * v.m_scale)) - o.y;
+                    Missed.Add(new KeyValuePair<int, float>(i, Mathf.Clamp(gh, -maxDepth, maxDepth)));
+                }
+            int moved = 0, floored = 0;
+            if (Missed.Count > 0)
+                using (Hold(v))
+                {
+                    foreach (var m in Missed)
                     {
-                        int i = y * stride + x;
-                        if (hits[i].distance > 0f) continue;                       // the ray hit ground: vanilla already wrote the right height
-                        float gh = ZoneSystem.instance.GetGroundHeight(new Vector3(o.x + half + x * v.m_scale, 0f, o.z + half + y * v.m_scale)) - o.y;
-                        float nh = Mathf.Clamp(gh, -maxDepth, maxDepth);
-                        if (Mathf.Abs(nh - h[i]) > 0.01f) { h[i] = nh; moved++; }     // below the reach of the grid this is -m_maxDepth: the tar column stands on that floor, its surface stays right
+                        if (Mathf.Abs(m.Value - h[m.Key]) <= 0.01f) continue;
+                        h[m.Key] = m.Value; moved++;                                // below the reach of the grid this is -m_maxDepth: the tar column stands on that floor, its surface stays right
+                        if (m.Value <= -maxDepth + 0.001f) floored++;
                     }
-                if (moved > 0) { FDirty.SetValue(v, true); FNeedsSaving.SetValue(v, true); }
-            }
-            if (moved > 0 && ModSettings.DebugLog.Value)
-                ModLog.Info("Pit " + v.name + ": " + moved + " stale ground heights corrected");
+                    if (moved > 0) { FDirty.SetValue(v, true); FNeedsSaving.SetValue(v, true); }
+                }
+            if (moved > 0)
+                ModLog.Verbose("Pit " + v.name + ": " + moved + " of " + Missed.Count + " missed-ray ground heights corrected" + (floored > 0 ? " (" + floored + " below the grid's reach, set to the floor -" + maxDepth.ToString("0.0") + " m)" : ""));
         }
+
+        static readonly List<KeyValuePair<int, float>> Missed = new();      // main thread only (UpdateHeights runs there)
 
         // --- walls: built pieces hold the tar like terrain ----------------------------------------------------------------------------
         // LiquidVolume.UpdateHeights measures the ground with one ray per cell using the volume's m_groundLayer (the vanilla pit's mask: the terrain), so a stone

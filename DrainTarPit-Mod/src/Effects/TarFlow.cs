@@ -42,13 +42,18 @@ namespace DrainTarPit.Effects
 
         sealed class Slug { public Path A, B; public float T0, Total; public bool Claimed, NoPour; public DtpPiece Pump; public GameObject Go; public Mesh Mesh; }
 
-        const float MatchWindow = 1.5f;         // a pour belongs to a slug that started at most this long ago
+        // Bug #8: a pour used to claim only a slug started less than 1.5 s ago, so on a laggy host (drain reply later than that) the claim failed and
+        // the pour played at once, out of sync with its slug. Now a slug can be claimed until it has reached the nozzle plus MatchSlack seconds of lag.
+        const float MatchSlack = 1.5f;
 
         static readonly List<Slug> Slugs = new();
         static GameObject _host;
         static Material _mat, _matWater;
 
-        static bool Enabled { get { return ModSettings.Effects.Value && ModSettings.TarFlow.Value && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
+        // Bug #3: an error used to set ModSettings.TarFlow.Value = false, which BepInEx saved into the config file (the switch stayed off after a restart).
+        // It is now a runtime-only switch like PumpFx._disabled: the config file is never touched, the next game launch tries again.
+        static bool _disabled;
+        static bool Enabled { get { return !_disabled && ModSettings.Effects.Value && ModSettings.TarFlow.Value && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
 
         static void EnsureHost()
         {
@@ -67,15 +72,22 @@ namespace DrainTarPit.Effects
         /// marks that slug as taken. -1 = no slug to follow (TarFlow off, none in flight): the caller should not wait.
         public static float ClaimArrival(DtpPiece pump)
         {
-            if (pump == null) return -1f;
+            if (pump == null) { ModLog.Verbose("TarFlow: pour not matched, no pump"); return -1f; }
             float speed = Mathf.Max(0.1f, ModSettings.TarFlowSpeed.Value), now = Time.time;
+            int stale = 0;
             for (int i = 0; i < Slugs.Count; i++)
             {
                 var s = Slugs[i];
-                if (s.Pump != pump || s.Claimed || s.NoPour || s.B == null || now - s.T0 > MatchWindow) continue;
+                if (s.Pump != pump || s.Claimed || s.NoPour || s.B == null) continue;
+                float travel = s.Total / speed;                           // seconds from the stroke until the head reaches the nozzle
+                if (now - s.T0 > travel + MatchSlack) { stale++; continue; }
                 s.Claimed = true;
-                return Mathf.Max(0f, s.T0 + s.Total / speed - now);      // same formula as Tick: the head is at the nozzle when (now - T0) * speed >= Total
+                float wait = Mathf.Max(0f, s.T0 + travel - now);          // same formula as Tick: the head is at the nozzle when (now - T0) * speed >= Total
+                ModLog.Verbose("TarFlow: pour matched to a slug started " + (now - s.T0).ToString("0.00") + " s ago (travel " + travel.ToString("0.00") + " s), waits " + wait.ToString("0.00") + " s" +
+                    (stale > 0 ? ", " + stale + " older slugs too old to match" : ""));
+                return wait;
             }
+            ModLog.Verbose("TarFlow: pour not matched (no unclaimed slug of this pump" + (stale > 0 ? "; " + stale + " too old" : "") + "), it plays at once");
             return -1f;
         }
 
@@ -112,30 +124,56 @@ namespace DrainTarPit.Effects
         /// its slug is shown, but no pour will follow it.
         public static void Stroke(DtpPiece pump, bool takesTar = true, PumpLiquid liquid = PumpLiquid.Tar)
         {
-            if (!Enabled || pump == null) return;
+            if (!Enabled || pump == null)
+            { ModLog.Verbose("TarFlow: stroke not shown (" + (pump == null ? "no pump" : _disabled ? "switched off after an error this session" : "TarFlow / Effects off or no graphics") + ")"); return; }
+            GameObject go = null; Mesh mesh = null;
             try
             {
                 var intake = Trace(pump, "intake");
                 var outlet = Trace(pump, "outlet");
-                if (intake == null && outlet == null) return;
+                if (intake == null && outlet == null) { ModLog.Verbose("TarFlow: stroke not shown, neither the intake nor the outlet chain is complete"); return; }
                 if (intake != null) intake = Reverse(intake);           // strainer tip -> pump
                 EnsureHost();
-                while (Slugs.Count >= MaxSlugs) Remove(0);
-                var go = new GameObject("slug");
+                int dropped = 0;
+                while (Slugs.Count >= MaxSlugs) { Remove(0); dropped++; }
+                go = new GameObject("slug");
                 go.transform.SetParent(_host.transform, false);
                 var mr = go.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = Mat(liquid);
                 mr.shadowCastingMode = ShadowCastingMode.Off; mr.receiveShadows = false;
-                var mesh = new Mesh { name = "DTP_slug" }; mesh.MarkDynamic();
+                mesh = new Mesh { name = "DTP_slug" }; mesh.MarkDynamic();
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 float la = intake != null ? intake.Length : 0f, lb = outlet != null ? outlet.Length : 0f;
-                Slugs.Add(new Slug
+                var slug = new Slug
                 {
                     A = intake, B = outlet, T0 = Time.time, Go = go, Mesh = mesh, Pump = pump, NoPour = !takesTar,
                     Total = la + (intake != null && outlet != null ? PumpGap : 0f) + lb
-                });
+                };
+                Slugs.Add(slug);
+                ModLog.Verbose("TarFlow: " + liquid + " slug started, intake " + la.ToString("0.00") + " m, outlet " + lb.ToString("0.00") + " m, total " + slug.Total.ToString("0.00") +
+                    " m" + (takesTar ? "" : " (no pour follows: nothing to pump)") + (dropped > 0 ? ", " + dropped + " oldest slugs dropped (max " + MaxSlugs + ")" : ""));
             }
-            catch (System.Exception e) { ModLog.Warn("TarFlow disabled after an error: " + e.Message); ModSettings.TarFlow.Value = false; }
+            catch (MissingReferenceException e)
+            {
+                // a hose / the pump was removed while its chain was traced (hammer, destroyed piece): only this stroke is skipped, the effect stays on
+                DropHalfMade(go, mesh);
+                ModLog.VerboseWarn("TarFlow: stroke skipped, a piece of the chain was removed while tracing it: " + e.Message);
+            }
+            catch (System.Exception e)
+            {
+                DropHalfMade(go, mesh);
+                _disabled = true;
+                ModLog.Warn("TarFlow switched off for this session after an error (the config file is not changed): " + e);
+            }
+        }
+
+        static void DropHalfMade(GameObject go, Mesh mesh)
+        {
+            bool tracked = false;
+            for (int i = 0; i < Slugs.Count; i++) if (Slugs[i].Go == go && go != null) tracked = true;
+            if (tracked) return;                                            // it made it into the list: Tick / Remove clean it up
+            if (mesh != null) Object.Destroy(mesh);
+            if (go != null) Object.Destroy(go);
         }
 
         static void Remove(int i)

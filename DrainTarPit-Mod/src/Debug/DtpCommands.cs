@@ -54,11 +54,13 @@ namespace DrainTarPit.Debug
         {
             var p = Player.m_localPlayer;
             if (p == null) { Print("No local player."); return; }
+            // bug #10: from the main menu there is no ZNetScene (was a NullReferenceException)
+            if (ZNetScene.instance == null) { Print("No world loaded (no ZNetScene): spawn works only in a world."); return; }
             var prefab = ZNetScene.instance.GetPrefab(name);
             if (prefab == null) { Print("Prefab not found: " + name); return; }
             var pos = p.transform.position + p.transform.forward * 3f + Vector3.up * 0.5f;
-            Object.Instantiate(prefab, pos, Quaternion.Euler(0f, p.transform.eulerAngles.y + 180f, 0f));
-            Print("Spawned " + name);
+            var go = Object.Instantiate(prefab, pos, Quaternion.Euler(0f, p.transform.eulerAngles.y + 180f, 0f));
+            Print(go != null && go.name.StartsWith(name) ? "Spawned " + name + " at " + pos.ToString("0.0") : "Spawn of " + name + " did not produce the expected object");
         }
 
         static void CleanPools(string[] args)

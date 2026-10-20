@@ -22,11 +22,19 @@ namespace DrainTarPit.Drain
         // runs (component order), so registration is retried from Update until it has happened exactly once per volume.
         static readonly HashSet<LiquidVolume> Registered = new();
 
+        /// Bug #2: callers that send an RPC right after spawning a pool ask first. Expected outcome: the volume is in the registered set afterwards.
+        internal static bool TryRegister(LiquidVolume vol)
+        {
+            EnsureRegistered(vol);
+            return vol != null && Registered.Contains(vol);
+        }
+
         static void EnsureRegistered(LiquidVolume vol)
         {
             if (vol == null || Registered.Contains(vol)) return;
             var nv = Nview(vol);
-            if (nv == null || !nv.IsValid() || nv.GetZDO() == null) return;
+            if (nv == null || !nv.IsValid() || nv.GetZDO() == null)
+            { ModLog.Verbose("TarPits: RPCs of '" + vol.name + "' not registered yet, " + (nv == null ? "no ZNetView" : "its ZDO does not exist yet") + " (retried every frame)"); return; }
             Registered.Add(vol);
             nv.Register<ZPackage>(RpcDrain, (sender, pkg) => OnDrainRequest(vol, sender, pkg));
             nv.Register<ZPackage>(RpcDrained, (sender, pkg) => OnDrained(vol, sender, pkg));

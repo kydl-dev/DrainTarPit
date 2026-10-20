@@ -145,7 +145,13 @@ namespace DrainTarPit.Drain
         public static float TotalVolume(LiquidVolume v)
         {
             float sum = 0f;
-            using (Hold(v)) { var d = Depths(v); for (int i = 0; i < d.Count; i++) sum += d[i]; }
+            using (Hold(v))
+            {
+                var d = Depths(v);
+                // bug #10: a volume whose depth list does not exist yet (just spawned / not loaded) counts as empty instead of throwing
+                if (d == null) { Logging.ModLog.Verbose("Pit " + v.name + ": volume asked before its depth list exists, counted as 0 m3"); return 0f; }
+                for (int i = 0; i < d.Count; i++) sum += d[i];
+            }
             return sum * v.m_scale * v.m_scale;
         }
 

@@ -68,25 +68,27 @@ namespace DrainTarPit.Drain
         // runs on the pit's owner. The request comes from another machine, so it is checked: sane numbers, capped at what one
         // stroke can take, centre inside this pit, the sender near it (the chain is at most MaxChainPieces * ~2.5 m long) and
         // not faster than a pump can be worked.
-        static readonly Dictionary<long, float> LastDrainAt = new();
+        static readonly SenderThrottle DrainThrottle = new SenderThrottle(0.2f);   // bug #9: pruned, was a dictionary that only grew
         internal static void OnDrainRequest(LiquidVolume v, long sender, ZPackage pkg)
         {
             var center = pkg.ReadVector3(); float radius = pkg.ReadSingle(), volume = pkg.ReadSingle();
             var nozzle = pkg.ReadVector3(); var pumpId = pkg.ReadZDOID();
-            if (float.IsNaN(radius) || float.IsNaN(volume) || float.IsInfinity(radius) || float.IsInfinity(volume) || volume <= 0f || radius <= 0f) return;
+            if (float.IsNaN(radius) || float.IsNaN(volume) || float.IsInfinity(radius) || float.IsInfinity(volume) || volume <= 0f || radius <= 0f)
+            { ModLog.Verbose("Pit " + v.name + ": drain request from " + sender + " refused, bad numbers (radius " + radius + ", volume " + volume + ")"); return; }
             volume = Mathf.Min(volume, ModSettings.VolumePerStroke.Value * 1.01f + 0.001f);
             radius = Mathf.Min(radius, ModSettings.DrainRadius.Value + 0.01f);
-            if (!InGrid(v, ToGrid(v, center))) return;
+            if (!InGrid(v, ToGrid(v, center))) { ModLog.Verbose("Pit " + v.name + ": drain request from " + sender + " refused, " + center.ToString("0.0") + " is outside the grid"); return; }
             bool local = ZDOMan.instance != null && sender == ZDOMan.GetSessionID();
             if (!local)
             {
                 var peer = ZNet.instance != null ? ZNet.instance.GetPeer(sender) : null;
                 float reach = ModSettings.MaxChainPieces.Value * 2.5f + 15f;
-                if (peer == null || (peer.m_refPos - center).sqrMagnitude > reach * reach) return;
+                if (peer == null || (peer.m_refPos - center).sqrMagnitude > reach * reach)
+                { ModLog.Verbose("Pit " + v.name + ": drain request from " + sender + " refused, " + (peer == null ? "unknown peer" : "sender farther than " + reach.ToString("0") + " m")); return; }
             }
-            float last; float now = Time.unscaledTime;
-            if (LastDrainAt.TryGetValue(sender, out last) && now - last < 0.2f) return;
-            LastDrainAt[sender] = now;
+            bool allowed = DrainThrottle.Allow(sender, Time.unscaledTime);
+            ModLog.Verbose("Pit " + v.name + ": drain request, " + DrainThrottle.LastReason + " (" + DrainThrottle.Count + " senders remembered)");
+            if (!allowed) return;
 
             float removed = DrainLocal(v, center, radius, volume);
             if (removed <= 0f) return;

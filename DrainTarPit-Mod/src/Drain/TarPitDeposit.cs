@@ -22,42 +22,72 @@ namespace DrainTarPit.Drain
 
         internal static readonly Dictionary<LiquidVolume, List<Dep>> PendingDeposits = new();     // waits for the ground heights
         internal struct Dep { public Vector3 At, Origin; public float Volume; public int Hop; }
-        static readonly Dictionary<long, float> LastDepositAt = new();
+        static readonly SenderThrottle DepositThrottle = new SenderThrottle(0.2f);   // bug #9: pruned, was a dictionary that only grew
 
         /// `hop` = how many pools in a row the liquid has already run on through (0 = poured by a player, see TarPool.Continue).
         /// `origin` = where the player's stroke landed (hop 0); runoff may not go further than RunoffRules.MaxRunoffDistance from it.
         public static void RequestDeposit(LiquidVolume v, Vector3 at, float volume, int hop = 0, Vector3? origin = null)
         {
             var nv = Nview(v);
-            if (nv == null || !nv.IsValid()) return;
+            if (nv == null || !nv.IsValid()) { ModLog.Verbose("Deposit of " + volume.ToString("0.000") + " m3 not sent: the pool has no valid ZNetView"); return; }
+            // Bug #2: a pool spawned in this frame may not have its RPCs yet (LiquidVolume.Awake ran before the ZDO existed). An RPC sent to it now
+            // is dropped by the game ("Failed to find rpc method"), so that stroke was lost. Wait until it is registered instead.
+            if (!TarPitHooks.TryRegister(v))
+            {
+                if (Plugin.Instance == null) { ModLog.Warn("Deposit of " + volume.ToString("0.000") + " m3 lost: pool RPCs not registered and no plugin to wait with"); return; }
+                ModLog.Verbose("Pit " + v.name + ": RPCs not registered yet, deposit of " + volume.ToString("0.000") + " m3 waits for them");
+                Plugin.Instance.RunCoroutine(SendWhenRegistered(v, at, volume, hop, origin ?? at));
+                return;
+            }
+            Send(nv, at, volume, hop, origin ?? at);
+        }
+
+        const float RegisterWaitSeconds = 3f;
+
+        static System.Collections.IEnumerator SendWhenRegistered(LiquidVolume v, Vector3 at, float volume, int hop, Vector3 origin)
+        {
+            float until = Time.time + RegisterWaitSeconds; int frames = 0;
+            while (v != null && !TarPitHooks.TryRegister(v) && Time.time < until) { frames++; yield return null; }
+            var nv = v != null ? Nview(v) : null;
+            bool ready = v != null && TarPitHooks.TryRegister(v) && nv != null && nv.IsValid();
+            if (!ready) { ModLog.Warn("Deposit of " + volume.ToString("0.000") + " m3 lost: the pool " + (v == null ? "was destroyed" : "never registered its RPCs") + " within " + RegisterWaitSeconds + " s"); yield break; }
+            ModLog.Verbose("Pit " + v.name + ": RPCs registered after " + frames + " frames, deposit of " + volume.ToString("0.000") + " m3 sent");
+            Send(nv, at, volume, hop, origin);
+        }
+
+        static void Send(ZNetView nv, Vector3 at, float volume, int hop, Vector3 origin)
+        {
             var pkg = new ZPackage();
-            pkg.Write(at); pkg.Write(volume); pkg.Write(hop); pkg.Write(origin ?? at);
+            pkg.Write(at); pkg.Write(volume); pkg.Write(hop); pkg.Write(origin);
             nv.InvokeRPC(RpcDeposit, pkg);
+            ModLog.Verbose("Deposit of " + volume.ToString("0.000") + " m3 (hop " + hop + ") sent to the pool owner, landing " + at.ToString("0.0"));
         }
 
         // runs on the owner of the volume; the request comes from another machine, so it is checked like a drain request
         internal static void OnDepositRequest(LiquidVolume v, long sender, ZPackage pkg)
         {
             var at = pkg.ReadVector3(); float volume = pkg.ReadSingle(); int hop = pkg.ReadInt(); var origin = pkg.ReadVector3();
-            if (float.IsNaN(volume) || float.IsInfinity(volume) || volume <= 0f) return;
-            if (hop < 0 || hop > TarPool.MaxRunoffHops + 1) return;
-            if (float.IsNaN(at.x) || float.IsNaN(at.y) || float.IsNaN(at.z)) return;
+            string who = "Pit " + v.name + ": deposit request from " + sender + " (hop " + hop + ") refused, ";
+            if (float.IsNaN(volume) || float.IsInfinity(volume) || volume <= 0f) { ModLog.Verbose(who + "bad volume " + volume); return; }
+            if (hop < 0 || hop > TarPool.MaxRunoffHops + 1) { ModLog.Verbose(who + "hop out of range"); return; }
+            if (float.IsNaN(at.x) || float.IsNaN(at.y) || float.IsNaN(at.z)) { ModLog.Verbose(who + "landing point is NaN"); return; }
             if (float.IsNaN(origin.x) || float.IsNaN(origin.z) || hop == 0) origin = at;
             volume = Mathf.Min(volume, ModSettings.VolumePerStroke.Value * 1.01f + 0.001f);
-            if (!InGrid(v, ToGrid(v, at))) return;
+            if (!InGrid(v, ToGrid(v, at))) { ModLog.Verbose(who + at.ToString("0.0") + " is outside the grid"); return; }
             bool local = ZDOMan.instance != null && sender == ZDOMan.GetSessionID();
             if (!local)
             {
                 var peer = ZNet.instance != null ? ZNet.instance.GetPeer(sender) : null;
                 float reach = ModSettings.MaxChainPieces.Value * 2.5f + 25f;
-                if (peer == null || (peer.m_refPos - at).sqrMagnitude > reach * reach) return;
+                if (peer == null || (peer.m_refPos - at).sqrMagnitude > reach * reach)
+                { ModLog.Verbose(who + (peer == null ? "unknown peer" : "sender farther than " + reach.ToString("0") + " m")); return; }
             }
             // a pool that runs over into the next one sends its request in the same moment as the player's (and chains of them in one frame): only the player's own pours are rate limited
             if (hop == 0)
             {
-                float last; float now = Time.unscaledTime;
-                if (LastDepositAt.TryGetValue(sender, out last) && now - last < 0.2f) return;
-                LastDepositAt[sender] = now;
+                bool allowed = DepositThrottle.Allow(sender, Time.unscaledTime);
+                ModLog.Verbose("Pit " + v.name + ": deposit request, " + DepositThrottle.LastReason + " (" + DepositThrottle.Count + " senders remembered)");
+                if (!allowed) return;
             }
             DepositLocal(v, at, volume, hop, origin);
         }

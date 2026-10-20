@@ -23,23 +23,36 @@ namespace DrainTarPit.Effects
 
         // Height of the ground under the nozzle. The ray skips our own hoses / pump (the nozzle sits right above its own collider, which made the
         // puddle float at pipe height) and the player; terrain is the fallback.
+        // Bug #7: TarPool.Landing already used RaycastNonAlloc; this was the last RaycastAll in the stroke path (a new array on every call, up to 4 per
+        // stroke: garbage while pumping continuously). One shared buffer
+        // (main thread only). 64 hits is far more than a 12 m ray down through a base meets; if it is ever full the debug log says so.
+        static readonly RaycastHit[] GroundHits = new RaycastHit[64];
+
         internal static float GroundBelow(Vector3 pos)
         {
-            float best = float.MaxValue; bool found = false;
+            float best = float.MaxValue; bool found = false; int n = 0;
             try
             {
-                var hits = Physics.RaycastAll(pos + Vector3.up * 0.1f, Vector3.down, 12f, ~0, QueryTriggerInteraction.Ignore);
-                foreach (var h in hits)
+                n = Physics.RaycastNonAlloc(pos + Vector3.up * 0.1f, Vector3.down, GroundHits, 12f, ~0, QueryTriggerInteraction.Ignore);
+                if (n >= GroundHits.Length) ModLog.VerboseWarn("GroundBelow: " + n + " hits fill the buffer at " + pos.ToString("0.0") + ", lower hits may be missed");
+                for (int i = 0; i < n; i++)
                 {
+                    var h = GroundHits[i];
                     if (h.collider == null || h.distance < 0.05f) continue;
                     if (h.collider.GetComponentInParent<DtpPiece>() != null || h.collider.GetComponentInParent<Character>() != null) continue;
                     if (h.normal.y < 0.3f) continue;                       // walls / undersides are not ground
                     if (h.distance < best) { best = h.distance; found = true; }
                 }
             }
-            catch { }
+            catch (System.Exception e) { ModLog.VerboseWarn("GroundBelow: ray failed at " + pos.ToString("0.0") + ": " + e.Message + " (terrain height used)"); found = false; }
             if (found) return pos.y + 0.1f - best;
-            if (ZoneSystem.instance != null) return ZoneSystem.instance.GetGroundHeight(pos);
+            if (ZoneSystem.instance != null)
+            {
+                float terrain = ZoneSystem.instance.GetGroundHeight(pos);
+                ModLog.Verbose("GroundBelow: no ground among " + n + " hits under " + pos.ToString("0.0") + ", terrain height " + terrain.ToString("0.00") + " used");
+                return terrain;
+            }
+            ModLog.Verbose("GroundBelow: no ground and no ZoneSystem at " + pos.ToString("0.0") + ", 0.6 m below used");
             return pos.y - 0.6f;
         }
 
