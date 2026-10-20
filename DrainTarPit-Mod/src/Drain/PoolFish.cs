@@ -27,7 +27,7 @@ namespace DrainTarPit.Drain
         sealed class State
         {
             public bool InPool; public float Surface = -10000f; public int Countdown, Misses; public string Pool = "";
-            public float NextReport; public int LevelAsks, DryAsks, WaypointTries, WaypointOk; public string LastTry = "";
+            public float NextReport; public int LevelAsks, DryAsks, WaypointTries, WaypointOk, Flees; public string LastTry = "";
         }
 
         static readonly AccessTools.FieldRef<Fish, bool> HaveWaypoint = AccessTools.FieldRefAccess<Fish, bool>("m_haveWaypoint");
@@ -45,29 +45,64 @@ namespace DrainTarPit.Drain
                 ", gravity " + (b != null && b.useGravity) + ", speed " + (b != null ? b.linearVelocity.magnitude.ToString("0.00") : "?") + ", jumping " + IsJumping(f) +
                 ", waypoint " + (HaveWaypoint(f) ? Waypoint(f).ToString("0.0") : "none") + ", spawn " + SpawnPoint(f).ToString("0.0") + ", minDepth " + f.m_minDepth.ToString("0.0") +
                 ", swimRange " + f.m_swimRange.ToString("0") + " | water level asks " + st.LevelAsks + " (" + st.DryAsks + " answered dry), swim targets " + st.WaypointOk + " of " + st.WaypointTries + " tries" +
-                (st.LastTry.Length > 0 ? ", last refused: " + st.LastTry : ""));
-            st.LevelAsks = 0; st.DryAsks = 0; st.WaypointTries = 0; st.WaypointOk = 0; st.LastTry = "";
+                (st.LastTry.Length > 0 ? ", last refused: " + st.LastTry : "") + (st.Flees > 0 ? ", fled from a player " + st.Flees + " steps (land check skipped)" : ""));
+            st.LevelAsks = 0; st.DryAsks = 0; st.WaypointTries = 0; st.WaypointOk = 0; st.Flees = 0; st.LastTry = "";
+        }
+
+        // T-44 (debugger, log 19:51): "water level asks 0" while "swim targets 0 of 60 tries" - inside RandomizeWaypoint the game's GetPointDepth /
+        // GetWaterLevel calls never reached the GetWaterLevel patch (most likely inlined by the JIT, so a patch on that small method is skipped there);
+        // every target looked like dry land (sea level 30 m under the pool) and was refused. So for a fish in a pump pool RandomizeWaypoint itself is
+        // replaced: the same rules as the game (a point within m_swimRange of the spawn point, at least m_minDepth of water there AND halfway there,
+        // swim depth between m_minDepth and m_maxDepth under the surface), but the depth is the pool's. Up to TargetTries points per call (the pool is
+        // small compared to the swim range). Fish in the sea / lakes run the game's own code. Fishing floats are not looked for in pools (yet).
+        const int TargetTries = 8;
+        static readonly AccessTools.FieldRef<Fish, FishingFloat> WaypointFF = AccessTools.FieldRefAccess<Fish, FishingFloat>("m_waypointFF");
+        static readonly AccessTools.FieldRef<Fish, float> SwimTimer = AccessTools.FieldRefAccess<Fish, float>("m_swimTimer");
+        static readonly AccessTools.FieldRef<Fish, float> BlockChange = AccessTools.FieldRefAccess<Fish, float>("m_blockChange");
+
+        /// Water depth of the pool at x/z (surface - floor under it), or -1 when there is no pool water there.
+        static float PoolDepth(float x, float z, float surfaceHint, out float surface)
+        {
+            string pool; float floor;
+            if (!PoolSurface(new Vector3(x, surfaceHint, z), out surface, out pool)) return -1f;
+            if (ZoneSystem.instance == null || !ZoneSystem.instance.GetSolidHeight(new Vector3(x, surface, z), out floor, 1)) return -1f;  // ray from 1 m over the surface: hoses / roofs above do not count
+            return surface - floor;
         }
 
         [HarmonyPatch(typeof(Fish), "RandomizeWaypoint")]
         static class Patch_RandomizeWaypoint
         {
-            static void Postfix(Fish __instance, bool __result)
+            static bool Prefix(Fish __instance, float timeNow, ref bool __result)
             {
                 try
                 {
                     State st;
-                    if (__instance == null || !States.TryGetValue(__instance, out st) || !st.InPool) return;
+                    if (__instance == null || WaterVol(__instance) != null || !States.TryGetValue(__instance, out st) || !st.InPool) return true;   // the game's code
                     st.WaypointTries++;
-                    if (__result) { st.WaypointOk++; return; }
-                    var w = Waypoint(__instance);
-                    float s; string pool; float solid = float.NaN;
-                    bool wet = PoolSurface(new Vector3(w.x, st.Surface, w.z), out s, out pool);
-                    bool floor = ZoneSystem.instance != null && ZoneSystem.instance.GetSolidHeight(w, out solid, 1000);
-                    if (!floor) solid = float.NaN;
-                    st.LastTry = "target " + w.ToString("0.0") + (wet ? " over the pool, depth " + (s - solid).ToString("0.00") : " outside the pool's water");
+                    if (IsJumping(__instance)) { st.LastTry = "jumping"; __result = IsJumping(__instance) == false; return false; }
+                    var pos = __instance.transform.position; var spawn = SpawnPoint(__instance);
+                    for (int i = 0; i < TargetTries; i++)
+                    {
+                        var c = Random.insideUnitCircle * __instance.m_swimRange;
+                        float sx = spawn.x + c.x, sz = spawn.z + c.y, surface, mid;
+                        float depth = PoolDepth(sx, sz, st.Surface, out surface);
+                        if (depth < __instance.m_minDepth) { st.LastTry = "target (" + sx.ToString("0.0") + ", " + sz.ToString("0.0") + ") " + (depth < 0f ? "outside the pool's water" : "only " + depth.ToString("0.00") + " m deep"); continue; }
+                        float midDepth = PoolDepth((sx + pos.x) * 0.5f, (sz + pos.z) * 0.5f, st.Surface, out mid);
+                        if (midDepth < __instance.m_minDepth) { st.LastTry = "the way to (" + sx.ToString("0.0") + ", " + sz.ToString("0.0") + ") is only " + midDepth.ToString("0.00") + " m deep halfway"; continue; }
+                        float deepest = Mathf.Min(__instance.m_maxDepth, depth - __instance.m_height);
+                        var wp = new Vector3(sx, surface - Random.Range(__instance.m_minDepth, Mathf.Max(__instance.m_minDepth, deepest)), sz);
+                        Waypoint(__instance) = wp; WaypointFF(__instance) = null; HaveWaypoint(__instance) = true;
+                        SwimTimer(__instance) = Random.Range(__instance.m_wpDurationMin, __instance.m_wpDurationMax);
+                        BlockChange(__instance) = timeNow + Random.Range(__instance.m_blockChangeDurationMin, __instance.m_blockChangeDurationMax);
+                        st.WaypointOk++;
+                        __result = HaveWaypoint(__instance);
+                        return false;
+                    }
+                    __result = HaveWaypoint(__instance) && false;          // no target this time (the game tries again next step)
+                    return false;
                 }
-                catch (System.Exception e) { ModLog.VerboseWarn("PoolFish waypoint: " + e.Message); }
+                catch (System.MissingFieldException e) { ModLog.Warn("PoolFish: a Fish field is missing in this game version (" + e.Message + "), the game's own swim targets are used"); return true; }
+                catch (System.Exception e) { ModLog.VerboseWarn("PoolFish waypoint: " + e.Message + " (the game's own code runs)"); return true; }
             }
         }
         static readonly ConditionalWeakTable<Fish, State> States = new ConditionalWeakTable<Fish, State>();
@@ -131,10 +166,36 @@ namespace DrainTarPit.Drain
                         st.InPool = inPool; st.Surface = surface; st.Pool = pool;
                     }
                     if (st.InPool) InWater(__instance) = st.Surface;
-                    if (st.InPool && Time.time >= st.NextReport) { st.NextReport = Time.time + ReportEvery; Report(__instance, st); }
                 }
                 catch (System.MissingFieldException e) { ModLog.Warn("PoolFish: a Fish field is missing in this game version (" + e.Message + "), fish in pools are not helped"); }
                 catch (System.Exception e) { ModLog.VerboseWarn("PoolFish: " + e.Message); }
+            }
+
+            // T-44: the state line is written AFTER the fish's own update (the T-43 line was written before it and always showed gravity on: the game's
+            // ZSyncTransform turns gravity back on every frame and the fish turns it off again in its update).
+            static void Postfix(Fish __instance)
+            {
+                try
+                {
+                    State st;
+                    if (__instance == null || !States.TryGetValue(__instance, out st) || !st.InPool || Time.time < st.NextReport) return;
+                    st.NextReport = Time.time + ReportEvery;
+                    Report(__instance, st);
+                }
+                catch (System.Exception e) { ModLog.VerboseWarn("PoolFish report: " + e.Message); }
+            }
+        }
+
+        // T-44: when a player is near, the fish swims away with "avoid land", which asks the same depth as above (GetPointDepth) and, getting the
+        // sea level, stops the fish dead in a pool. For a fish in a pump pool that check is skipped: the swim targets already keep it in deep water.
+        [HarmonyPatch(typeof(Fish), "SwimDirection")]
+        static class Patch_SwimDirection
+        {
+            static void Prefix(Fish __instance, ref bool avoidLand)
+            {
+                if (!avoidLand || __instance == null) return;
+                State st;
+                if (States.TryGetValue(__instance, out st) && st.InPool && WaterVol(__instance) == null) { avoidLand = false; st.Flees++; }
             }
         }
 

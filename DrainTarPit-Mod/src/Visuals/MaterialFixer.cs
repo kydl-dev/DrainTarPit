@@ -183,6 +183,9 @@ namespace DrainTarPit.Visuals
         // Each translucent material is a separate copy per opacity (never edited afterwards), so showing one look never changes another hose.
         static volatile bool _worldRefreshPending;
 
+        /// For `dtp hosecheck`: true exactly when `m` is one of the see-through copies made here.
+        internal static bool IsClearCopy(Material m) { return m != null && ClearOrigin.ContainsKey(m); }
+
         /// Called from the config events (any thread): every loaded hose is shown again in the next Tick (main thread).
         public static void RequestWorldRefresh() { _worldRefreshPending = true; ModLog.Verbose("Hoses: world look refresh queued for the next frame"); }
         static bool _noStandardLogged;
