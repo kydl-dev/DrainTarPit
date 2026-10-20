@@ -214,6 +214,16 @@ namespace DrainTarPit.Visuals
             if (GUILayout.Button("Pour one stroke at crosshair")) Result("Pour one stroke at crosshair", PourAtCrosshair());
             if (GUILayout.Button("Empty this pool")) Result("Empty this pool", _pool != null && TarPitDebug.DebugEmpty(_pool) ? "pool emptied" : "not emptied (no pool, or you are not its owner)");
             GUILayout.EndHorizontal();
+            if (GUILayout.Button("Empty pool at crosshair (tar or water pump pool)")) Result("Empty pool at crosshair", EmptyAtCrosshair());
+        }
+
+        static string EmptyAtCrosshair()
+        {
+            var cam = Camera.main;
+            if (cam == null) return "no camera";
+            RaycastHit hit;
+            if (!Physics.Raycast(cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f)), out hit, 80f, ~0, QueryTriggerInteraction.Ignore)) return "the crosshair points at nothing within 80 m";
+            return TarPitDebug.EmptyPumpPoolAt(hit.point);
         }
 
         static string PourAtCrosshair()

@@ -172,6 +172,26 @@ namespace DrainTarPit.Drain
             return true;
         }
 
+        /// Editor button "Empty pool at crosshair" (user, 2026-10-20): empties the PUMP pool (tar or water) whose grid holds the point the crosshair hits;
+        /// the closest centre wins where grids overlap. Vanilla tar pits are never emptied here. Takes the ownership first, so it works in multiplayer.
+        internal static string EmptyPumpPoolAt(Vector3 p)
+        {
+            LiquidVolume best = null; float bd = float.MaxValue;
+            foreach (var v in All)
+            {
+                if (v == null || !IsPumpPool(v) || !InGrid(v, ToGrid(v, p))) continue;
+                float dd = (v.transform.position - p).sqrMagnitude;
+                if (dd < bd) { bd = dd; best = v; }
+            }
+            if (best == null) return "no pump pool (tar or water) covers the point the crosshair hits";
+            var nv = Nview(best);
+            if (nv == null || !nv.IsValid()) return "the pool is not ready";
+            nv.ClaimOwnership();
+            float before = TotalVolume(best);
+            if (!DebugEmpty(best)) return "could not empty it (not the owner yet - try again)";
+            return "emptied '" + best.name + "' @ " + best.transform.position.ToString("0") + ": " + before.ToString("0.00") + " m3 removed (remove the empty pool with dtp cleanpools small)";
+        }
+
         /// Makes every loaded volume of this liquid rebuild its mesh (PoolMesh settings changed). Same flag the drain / deposit code sets after a depth change.
         internal static void MarkMeshDirty(LiquidType type)
         {
