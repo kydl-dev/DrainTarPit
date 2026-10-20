@@ -1,9 +1,9 @@
 # DrainTarPit - procedural tileable PBR textures (leather / iron / wood / rope)
 # Pure numpy + zlib, so the output is bit-identical in Blender and in plain Python.
 # Per material it writes:
-#   TPD_<Name>_BaseColor.png   RGB   sRGB albedo
-#   TPD_<Name>_Normal.png      RGB   tangent space, OpenGL (Y+), linear
-#   TPD_<Name>_Mask.png        RGBA  R=metallic G=AO B=0 A=smoothness   (HDRP MaskMap, also Standard/Custom-Piece metal-gloss)
+#   DTP_<Name>_BaseColor.png   RGB   sRGB albedo
+#   DTP_<Name>_Normal.png      RGB   tangent space, OpenGL (Y+), linear
+#   DTP_<Name>_Mask.png        RGBA  R=metallic G=AO B=0 A=smoothness   (HDRP MaskMap, also Standard/Custom-Piece metal-gloss)
 # Usage: build_all(out_dir, n=1024, preview_dir=None)
 
 import os
@@ -310,9 +310,9 @@ def write_set(out_dir, name, m):
     nrm = to_u8(normal_from_height(m["height"], m["nstrength"]))
     mask = to_u8(np.dstack([m["metal"], m["ao"], np.zeros_like(m["metal"]), 1.0 - m["rough"]]))
     files = {
-        "BaseColor": os.path.join(out_dir, "TPD_%s_BaseColor.png" % name),
-        "Normal": os.path.join(out_dir, "TPD_%s_Normal.png" % name),
-        "Mask": os.path.join(out_dir, "TPD_%s_Mask.png" % name),
+        "BaseColor": os.path.join(out_dir, "DTP_%s_BaseColor.png" % name),
+        "Normal": os.path.join(out_dir, "DTP_%s_Normal.png" % name),
+        "Mask": os.path.join(out_dir, "DTP_%s_Mask.png" % name),
     }
     write_png(files["BaseColor"], base)
     write_png(files["Normal"], nrm)

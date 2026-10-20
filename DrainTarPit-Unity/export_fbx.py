@@ -1,9 +1,9 @@
-"""Exports each TPD_ root (with children) to the Unity project as FBX (Y-up, -Z fwd, baked transform)."""
+"""Exports each DTP_ root (with children) to the Unity project as FBX (Y-up, -Z fwd, baked transform)."""
 import bpy, os
 out_dir = r"E:\Projects\Valheim\DrainTarPit\DrainTarPit\Assets\Models"
 os.makedirs(out_dir, exist_ok=True)
-roots = ["TPD_Hose_Straight_2m", "TPD_Hose_Straight_1m", "TPD_Hose_Elbow90",
-         "TPD_Hose_IntakeStrainer", "TPD_Hose_OutletNozzle", "TPD_Pump_Manual"]
+roots = ["DTP_Hose_Straight_2m", "DTP_Hose_Straight_1m", "DTP_Hose_Elbow90",
+         "DTP_Hose_IntakeStrainer", "DTP_Hose_OutletNozzle", "DTP_Pump_Manual"]
 
 def descendants(o):
     out = [o]

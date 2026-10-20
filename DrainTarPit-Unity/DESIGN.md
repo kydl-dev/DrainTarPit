@@ -4,7 +4,7 @@
 Unity project: E:\Projects\Valheim\DrainTarPit\DrainTarPit (Unity 6000.0.75f1, HDRP)
 - Models (FBX, Y-up): Hose_Straight_1m, Hose_Straight_2m, Hose_Elbow90, Hose_IntakeStrainer, Hose_OutletNozzle, Pump_Manual
 - Prefabs for all six in Assets/Prefabs, all labelled asset bundle `draintarpit`; bundle already built to AssetBundles/draintarpit
-- Pump prefab: `model` child (rot Y 180), Animator + Assets/Animation/TPD_Pump.controller (bool param `pump`), clip TPD_Pump_Cycle.anim, `fx_outlet` child
+- Pump prefab: `model` child (rot Y 180), Animator + Assets/Animation/DTP_Pump.controller (bool param `pump`), clip DTP_Pump_Cycle.anim, `fx_outlet` child
 - Editor: Assets/Editor/DrainTarPitBundleBuilder.cs (menu DrainTarPit/Build AssetBundle)
 - No BepInEx/Jotunn plugin project exists yet.
 
