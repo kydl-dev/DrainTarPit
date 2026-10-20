@@ -401,7 +401,11 @@ namespace DrainTarPit.Drain
         /// the rest `volume` (m3) is poured into the pool beyond the edge, which is made if it does not exist yet. `hop` counts the pools in a row,
         /// so a stroke can never spread over the whole map.
         /// Returns true when the liquid was handed to the next pool (counted as 'nextPool' in the stroke accounting), false when it was discarded.
-        public static bool Continue(LiquidVolume from, Vector3 edge, float volume, int hop)
+        /// `origin` = where the player's stroke landed, `prevAt` = where it landed in `from`. User (2026-10-20, D-029): overflow runs down to the
+        /// low point and collects there, but only within MaxRunoffDistance of the pool it came from; it never flows back towards it (two pools on a
+        /// slope used to hand it back and forth until the hop limit); reaching the sea / a river (ground under the water level) ends it there.
+        /// false = the rest vanishes at the ground (booked as edgeDiscarded).
+        public static bool Continue(LiquidVolume from, Vector3 edge, float volume, int hop, Vector3 origin, Vector3 prevAt)
         {
             if (from == null || volume < 0.05f || hop > MaxRunoffHops || ZNetScene.instance == null || !ModSettings.PoolRunoff.Value) return false;
             try
@@ -412,6 +416,8 @@ namespace DrainTarPit.Drain
                 if (dir.sqrMagnitude < 0.01f) return false;
                 dir.Normalize();
                 var into = edge + dir * 1.5f;                              // lands just beyond the edge
+                string why;
+                if (!RunoffRules.Allowed(into, origin, prevAt, out why)) { ModLog.Verbose("TarPool: runoff " + why); return false; }
                 var target = FindVolume(into, liquid);
                 if (target == null)
                 {
@@ -424,7 +430,7 @@ namespace DrainTarPit.Drain
                 if (target == null || target == from) return false;
                 ModLog.Verbose("TarPool: " + volume.ToString("0.00", CultureInfo.InvariantCulture) + " m3 continues from " + TarPoolDiagnostics.DescribeVolume(from) +
                     " into next pool " + TarPoolDiagnostics.DescribeVolume(target) + " (hop " + hop + ")");
-                TarPitDeposit.RequestDeposit(target, into, volume, hop);
+                TarPitDeposit.RequestDeposit(target, into, volume, hop, origin);
                 return true;
             }
             catch (System.Exception e) { ModLog.Warn("TarPool runoff failed: " + e.Message); return false; }

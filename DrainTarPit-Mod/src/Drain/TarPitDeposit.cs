@@ -21,26 +21,28 @@ namespace DrainTarPit.Drain
         // mesh and the liquid surface (players are slowed like in a vanilla pit), and it is saved with the volume.
 
         internal static readonly Dictionary<LiquidVolume, List<Dep>> PendingDeposits = new();     // waits for the ground heights
-        internal struct Dep { public Vector3 At; public float Volume; public int Hop; }
+        internal struct Dep { public Vector3 At, Origin; public float Volume; public int Hop; }
         static readonly Dictionary<long, float> LastDepositAt = new();
 
         /// `hop` = how many pools in a row the liquid has already run on through (0 = poured by a player, see TarPool.Continue).
-        public static void RequestDeposit(LiquidVolume v, Vector3 at, float volume, int hop = 0)
+        /// `origin` = where the player's stroke landed (hop 0); runoff may not go further than RunoffRules.MaxRunoffDistance from it.
+        public static void RequestDeposit(LiquidVolume v, Vector3 at, float volume, int hop = 0, Vector3? origin = null)
         {
             var nv = Nview(v);
             if (nv == null || !nv.IsValid()) return;
             var pkg = new ZPackage();
-            pkg.Write(at); pkg.Write(volume); pkg.Write(hop);
+            pkg.Write(at); pkg.Write(volume); pkg.Write(hop); pkg.Write(origin ?? at);
             nv.InvokeRPC(RpcDeposit, pkg);
         }
 
         // runs on the owner of the volume; the request comes from another machine, so it is checked like a drain request
         internal static void OnDepositRequest(LiquidVolume v, long sender, ZPackage pkg)
         {
-            var at = pkg.ReadVector3(); float volume = pkg.ReadSingle(); int hop = pkg.ReadInt();
+            var at = pkg.ReadVector3(); float volume = pkg.ReadSingle(); int hop = pkg.ReadInt(); var origin = pkg.ReadVector3();
             if (float.IsNaN(volume) || float.IsInfinity(volume) || volume <= 0f) return;
             if (hop < 0 || hop > TarPool.MaxRunoffHops + 1) return;
             if (float.IsNaN(at.x) || float.IsNaN(at.y) || float.IsNaN(at.z)) return;
+            if (float.IsNaN(origin.x) || float.IsNaN(origin.z) || hop == 0) origin = at;
             volume = Mathf.Min(volume, ModSettings.VolumePerStroke.Value * 1.01f + 0.001f);
             if (!InGrid(v, ToGrid(v, at))) return;
             bool local = ZDOMan.instance != null && sender == ZDOMan.GetSessionID();
@@ -57,12 +59,12 @@ namespace DrainTarPit.Drain
                 if (LastDepositAt.TryGetValue(sender, out last) && now - last < 0.2f) return;
                 LastDepositAt[sender] = now;
             }
-            DepositLocal(v, at, volume, hop);
+            DepositLocal(v, at, volume, hop, origin);
         }
 
         /// Runs on the owner. Raises the liquid in the basin around `at` by `volume` m3. Queued until the volume knows the ground heights (a freshly spawned one).
         /// What reaches the edge of the grid while the ground goes on downhill continues into the next pool (TarPool.Continue); `hop` counts those pools.
-        public static void DepositLocal(LiquidVolume v, Vector3 at, float volume, int hop = 0)
+        public static void DepositLocal(LiquidVolume v, Vector3 at, float volume, int hop = 0, Vector3? origin = null)
         {
             var nv = Nview(v);
             if (v == null || nv == null || !nv.IsValid() || !nv.IsOwner() || volume <= 0f) return;
@@ -70,7 +72,7 @@ namespace DrainTarPit.Drain
             {
                 List<Dep> q;
                 if (!PendingDeposits.TryGetValue(v, out q)) PendingDeposits[v] = q = new List<Dep>();
-                q.Add(new Dep { At = at, Volume = volume, Hop = hop });
+                q.Add(new Dep { At = at, Origin = origin ?? at, Volume = volume, Hop = hop });
                 return;
             }
             // Volume checkpoints (step 5) and the per-stroke accounting equation (step 6): every part of the stroke has exactly one destination.
@@ -85,7 +87,7 @@ namespace DrainTarPit.Drain
             float c2 = v.m_scale * v.m_scale;
             float kept = r.Kept * c2, runoff = r.ToEdge * c2, rimRemoved = r.RimRemoved * c2, overflow = r.OverflowRemoved * c2, unplaced = r.Unplaced * c2;
             var runoffAt = r.EdgeCell >= 0 ? CellWorld(v, r.EdgeCell) : at;
-            bool continued = runoff > 0.05f && TarPool.Continue(v, runoffAt, runoff, hop + 1);
+            bool continued = runoff > 0.05f && TarPool.Continue(v, runoffAt, runoff, hop + 1, origin ?? at, at);
             float nextPool = continued ? runoff : 0f, edgeDiscarded = continued ? 0f : runoff;
             var bg = BudgetOf(v);
             bg.Poured += volume; bg.Stayed += kept; bg.Inner += r.OtherBasins * c2; bg.OutsideRim += r.Outside * c2; bg.Edge += runoff; bg.Thin += overflow;
@@ -109,7 +111,7 @@ namespace DrainTarPit.Drain
             var nv = Nview(v);
             if (nv == null || !nv.IsValid() || !nv.IsOwner()) return;
             PendingDeposits.Remove(v);
-            foreach (var p in q) DepositLocal(v, p.At, p.Volume, p.Hop);
+            foreach (var p in q) DepositLocal(v, p.At, p.Volume, p.Hop, p.Origin);
         }
     }
 }
