@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace DrainTarPit.Tests.Integration
 {
-    internal sealed class PatchRow
+    public sealed class PatchRow
     {
         public string Id, GameType, Assembly, Method, Kind, Via, ModPatch;
         public string[] Parameters;
