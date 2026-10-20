@@ -104,6 +104,7 @@ internal static class ModSettings
 
     public static void Bind(ConfigFile c)
     {
+        var savedLines = ModSettingsCommaFix.Capture(c);     // before the first Bind: each Bind saves the file with what BepInEx parsed
         ShaderName = c.Bind("Visuals", "ShaderName", "Custom/Piece",
             "Valheim shader the pump/hose materials are swapped to. Falls back to Custom/Piece, then Standard.");
         UseMaskMap = c.Bind("Visuals", "UseMaskMap", true,
@@ -185,6 +186,7 @@ internal static class ModSettings
 
         ModSettingsPump.Bind(c);
 
+        ModSettingsCommaFix.Apply(c, savedLines);       // after every Bind, before Migrate saves the file: "3,5" typed by hand means 3.5, not 35
         Migrate(c);
 
         // hoses: a change (config manager, file reload) is applied live, see MaterialFixer.Tick
