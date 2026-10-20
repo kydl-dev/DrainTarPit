@@ -95,11 +95,14 @@ namespace DrainTarPit.Signs
             if (m != null && m.HasProperty(ShaderUtilities.ID_FaceColor))
             {
                 before = "#" + ColorUtility.ToHtmlStringRGBA(m.GetColor(ShaderUtilities.ID_FaceColor));
-                m.SetColor(ShaderUtilities.ID_FaceColor, Color.white);
+                // T-59b (user: "a bit more brighter"): [Visuals] SignTextBrightness lifts the face colour above white (HDR), so the picked colours read brighter
+                float b = ModSettings.SignTextBrightness != null ? ModSettings.SignTextBrightness.Value : 1f;
+                m.SetColor(ShaderUtilities.ID_FaceColor, new Color(b, b, b, 1f));
+                before += " -> x" + b.ToString("0.00");
             }
             string baseBefore = "#" + ColorUtility.ToHtmlStringRGBA(text.color);
             text.color = Color.white;
-            return "face colour " + before + " -> white, base colour " + baseBefore + " -> white (material '" + (m != null ? m.name : "none") + "', shader '" + (m != null && m.shader != null ? m.shader.name : "?") + "')";
+            return "face colour " + before + ", base colour " + baseBefore + " -> white (material '" + (m != null ? m.name : "none") + "', shader '" + (m != null && m.shader != null ? m.shader.name : "?") + "')";
         }
     }
 }

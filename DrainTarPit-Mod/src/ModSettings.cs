@@ -77,6 +77,7 @@ internal static class ModSettings
     public static ConfigEntry<bool> PoolFilmEvaporates;
     public static ConfigEntry<KeyCode> EditorKey;
     public static ConfigEntry<KeyCode> PoolMenuKey;      // T-023 pool menu (ModSettingsDrain binds it)
+    public static ConfigEntry<float> SignBoardBrightness, SignTextBrightness;   // T-59b pool sign brightness (ModSettingsDrain binds them)
 
     // [Pump]
     public static ConfigEntry<float> StaminaPerStroke;
@@ -212,6 +213,8 @@ internal static class ModSettings
         WaterDepthLook.SettingChanged += (s, e) => PoolWater.RequestRefresh();
         WaterStyle.SettingChanged += (s, e) => { ModLog.Verbose("Config: WaterStyle = " + WaterStyle.Value + ", every water pool gets it"); PoolWater.RequestRefresh(); };
         PoolMeshFix.SettingChanged += (s, e) => PoolMesh.Refresh();
+        SignBoardBrightness.SettingChanged += (s, e) => ModLog.Verbose("Config: SignBoardBrightness = " + SignBoardBrightness.Value + ", " + Signs.PoolSign.BrightnessChanged() + " sign(s) redrawn");
+        SignTextBrightness.SettingChanged += (s, e) => ModLog.Verbose("Config: SignTextBrightness = " + SignTextBrightness.Value + ", " + Signs.PoolSign.BrightnessChanged() + " sign(s) redrawn");
         PoolMeshReach.SettingChanged += (s, e) => PoolMesh.Refresh();
         WaterFlow.SettingChanged += (s, e) => TarPool.ApplyWaterFlow();       // live: existing water pools + the prefabs for new ones
         PoolMesh.Refresh();

@@ -103,6 +103,10 @@ internal static class ModSettingsDrain
             "PoolShedFilm: a film that lies flat with nothing deeper next to it evaporates (0.05 m/s). Off (default): such films stay (the game's slow spreading); only films on a slope / the face of a wall slide down. On was the 0.9.x behaviour: a pool with less than PoolFilmDepth of water evaporated in a second or two.");
         PoolMenuKey = c.Bind("Visuals", "PoolMenuKey", KeyCode.F9,
             "Opens / closes the pool menu: the world water style (server admins), and every pool with a named pool sign (position, closest portal) with your own water style for it (only on your screen). Set to None to disable.");
+        SignBoardBrightness = c.Bind("Visuals", "SignBoardBrightness", 1.4f,
+            new ConfigDescription("Pool sign: brightness of the wooden board (1 = the game's sign wood, higher = lighter wood). Applies live.", new AcceptableValueRange<float>(0.5f, 3f)));
+        SignTextBrightness = c.Bind("Visuals", "SignTextBrightness", 1.3f,
+            new ConfigDescription("Pool sign: brightness of the name's colours (1 = exactly the picked colours, higher = brighter / slightly glowing in the shade). Applies live.", new AcceptableValueRange<float>(0.5f, 3f)));
         EditorKey = c.Bind("Visuals", "EditorKey", KeyCode.F8,
             "Opens / closes the live water editor in game: every property of the pool water material as sliders, the pool mesh / simulation settings, the numbers of the nearest water pool and test buttons (pour water at the crosshair, empty the pool). The look can be saved to BepInEx/config/DrainTarPit.WaterLook.txt and is applied again at the next start. Set to None to disable.");
     }

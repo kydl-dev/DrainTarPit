@@ -45,13 +45,49 @@ namespace DrainTarPit.Signs
             if (_text != null) { _defFont = _text.font; _defMin = _text.fontSizeMin; _defMax = _text.fontSizeMax; _text.richText = true; }
             if (_nview == null || _nview.GetZDO() == null) return;           // the build ghost: no ZDO
             Loaded.Add(this);
+            GrabBoard();
             Refresh();
             Changed("sign loaded");
             InvokeRepeating(nameof(Refresh), 1f, 1f);
             ModLog.Verbose("PoolSign: loaded at " + transform.position.ToString("0.0") + ", name '" + SignName + "', text object " + (_text != null ? "found" : "MISSING"));
         }
 
-        void OnDestroy() { if (Loaded.Remove(this)) Changed("sign unloaded"); }
+        void OnDestroy()
+        {
+            foreach (var b in _board) if (b.Mat != null) Destroy(b.Mat);
+            if (Loaded.Remove(this)) Changed("sign unloaded");
+        }
+
+        // --- brightness (T-59b, user: "adjust the color of the sign to be a bit more brighter") -----------------------------
+        struct BoardMat { public Material Mat; public Color Orig; }
+        readonly List<BoardMat> _board = new();
+
+        /// The board's (not the post's) materials as this sign's own copies, remembering their colours.
+        void GrabBoard()
+        {
+            foreach (var r in GetComponentsInChildren<MeshRenderer>(true))
+            {
+                if (r.transform.parent != null && r.transform.parent.name.StartsWith("post")) continue;
+                if (r.name.StartsWith("post")) continue;
+                foreach (var m in r.materials)                                   // .materials = instances for this renderer only
+                    if (m != null && m.HasProperty("_Color")) _board.Add(new BoardMat { Mat = m, Orig = m.color });
+            }
+            Brighten();
+        }
+
+        void Brighten()
+        {
+            float b = ModSettings.SignBoardBrightness != null ? ModSettings.SignBoardBrightness.Value : 1f;
+            foreach (var x in _board) x.Mat.color = new Color(x.Orig.r * b, x.Orig.g * b, x.Orig.b * b, x.Orig.a);
+            ModLog.Verbose("PoolSign: board x" + b.ToString("0.00") + " (" + _board.Count + " material(s)), text x" + (ModSettings.SignTextBrightness != null ? ModSettings.SignTextBrightness.Value.ToString("0.00") : "1"));
+        }
+
+        /// A brightness setting changed: every loaded sign redraws its board and text.
+        internal static int BrightnessChanged()
+        {
+            foreach (var s in Loaded) { if (s == null) continue; s.Brighten(); s.Draw(s._previewName ?? s.SignName, s._previewStyle ?? s.Style); }
+            return Loaded.Count;
+        }
 
         /// Reads name + style from the ZDO when it changed (another player saved it) and redraws.
         void Refresh()
