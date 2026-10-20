@@ -96,7 +96,46 @@ namespace DrainTarPit.Effects
                 var src = p != null ? p.GetComponentInChildren<AudioSource>(true) : null;
                 if (src != null && src.outputAudioMixerGroup != null) { _group = src.outputAudioMixerGroup; break; }
             }
+            ModLog.Verbose("Sound: SFX mixer group " + (_group != null ? "'" + _group.name + "' of mixer '" + (_group.audioMixer != null ? _group.audioMixer.name : "?") + "'" : "not found (sounds play without a group)"));
             return _group;
+        }
+
+        // --- dry routing ([Effects] DrySound, default on) --------------------------------------------------------------------
+        // The game's MasterMixer has an "SFX Reverb" on the SFX group; in its Default (outdoor) snapshot that reverb is loud (Reverb +293 mB, decay
+        // 0.5 s; read from the AssetRipper copy of MasterMixer.mixer, 2026-10-20). Indoors / in the menu it is off. A recording of 5 strokes showed an
+        // attenuated copy of every lever hit ~0.28 s and ~0.35 s after it: that was the echo. The parent group "Effects" (Master/Effects) has only an
+        // attenuation, so the pump sounds go there; the player's sound-effects volume (exposed mixer parameter "SfxVol", set by the game's settings,
+        // it belongs to the SFX group we skip) is applied to the AudioSource instead.
+        const string SfxVolParam = "SfxVol";
+        static AudioMixerGroup _dry;
+        static bool _dryResolved;
+
+        internal static AudioMixerGroup DryGroup()
+        {
+            if (_dryResolved) return _dry;
+            var sfx = Group();
+            if (sfx == null || sfx.audioMixer == null) return null;          // try again later (no world yet)
+            _dryResolved = true;
+            try
+            {
+                foreach (var g in sfx.audioMixer.FindMatchingGroups("Effects"))
+                    if (g != null && g.name == "Effects") { _dry = g; break; }
+            }
+            catch (System.ArgumentException e) { ModLog.VerboseWarn("Sound: Effects group lookup refused: " + e.Message); }
+            catch (System.Exception e) { ModLog.Warn("Sound: Effects group lookup failed, pump sounds keep the SFX reverb: " + e.Message); }
+            ModLog.Verbose("Sound: dry group " + (_dry != null ? "'Effects' found, pump sounds play without the SFX reverb" : "NOT found, pump sounds use the SFX group (with its reverb)"));
+            return _dry;
+        }
+
+        /// The game's sound-effects volume as a factor 0..1 (mixer parameter SfxVol, in dB). 1 when it cannot be read.
+        internal static float SfxGain(AudioMixerGroup anyGroup)
+        {
+            float db;
+            if (anyGroup == null || anyGroup.audioMixer == null || !anyGroup.audioMixer.GetFloat(SfxVolParam, out db))
+            { ModLog.Verbose("Sound: '" + SfxVolParam + "' not readable, sound-effects volume taken as 100 %"); return 1f; }
+            float gain = db <= -79.9f ? 0f : Mathf.Clamp01(Mathf.Pow(10f, db / 20f));
+            ModLog.Verbose("Sound: sound-effects volume " + db.ToString("0.0") + " dB = " + (gain * 100f).ToString("0") + " %");
+            return gain;
         }
 
         // One voice per clip: a new stroke fades the previous one out (0.08 s) instead of letting two copies ring over each other
@@ -145,10 +184,20 @@ namespace DrainTarPit.Effects
             go.transform.position = pos;
             var a = go.AddComponent<AudioSource>();
             float vol = Mathf.Clamp01(ModSettings.EffectsVolume.Value * gain);
-            a.clip = clip; a.volume = vol;
+            a.clip = clip;
             a.spatialBlend = 1f; a.minDistance = 2f; a.maxDistance = 30f; a.rolloffMode = AudioRolloffMode.Linear;
             a.dopplerLevel = 0f; a.playOnAwake = false;
-            var g = Group(); if (g != null) a.outputAudioMixerGroup = g;
+            var dry = ModSettings.DrySound.Value ? DryGroup() : null;
+            var g = dry ?? Group();
+            if (g != null) a.outputAudioMixerGroup = g;
+            if (dry != null)
+            {
+                vol *= SfxGain(dry);                                   // the SFX group's volume (the player's slider) is skipped with it: apply it here
+                a.bypassReverbZones = true; a.reverbZoneMix = 0f;     // no world reverb zones either
+            }
+            a.volume = vol;
+            ModLog.Verbose("Sound '" + clip.name + "' at " + pos.ToString("0.0") + ": volume " + vol.ToString("0.00") + ", group " + (g != null ? g.name : "none") + (dry != null ? " (dry)" : "") +
+                (tailSeconds > 0.01f ? ", tail fade " + tailSeconds.ToString("0.00") + " s" : ""));
             var voice = go.AddComponent<SfxVoice>();
             voice.Src = a; voice.Volume = vol;
             float peak = PeakTime(clip); voice.PeakT = peak;
