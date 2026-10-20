@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using DrainTarPit.Building;
 using DrainTarPit.Drain;
 using DrainTarPit.Logging;
+using DrainTarPit.Visuals;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -197,16 +198,53 @@ namespace DrainTarPit.Effects
             return _mat;
         }
 
-        // water in the hoses: lighter, bluish and glossy so it reads as water against the dark tar
+        // water in the hoses: lighter and glossy so it reads as water against the dark tar. T-053 (user: blue hose water next to a red Ashlands pool):
+        // the colour follows the pool water style in use, re-checked on every stroke (style switched live, F8 tuning, reset).
+        static readonly Color GameHoseWater = new(0.30f, 0.55f, 0.72f, 1f);
+        static string _waterLookKey = "";
+
         static Material WaterMat()
         {
-            if (_matWater != null) return _matWater;
-            Shader sh = Shader.Find("Standard") ?? Shader.Find("Custom/Piece") ?? Shader.Find("Sprites/Default");
-            _matWater = new Material(sh) { name = "DTP_WaterLiquid" };
-            _matWater.color = new Color(0.30f, 0.55f, 0.72f, 1f);
-            if (_matWater.HasProperty("_Glossiness")) _matWater.SetFloat("_Glossiness", 0.95f);
-            if (_matWater.HasProperty("_Metallic")) _matWater.SetFloat("_Metallic", 0f);
+            if (_matWater == null)
+            {
+                Shader sh = Shader.Find("Standard") ?? Shader.Find("Custom/Piece") ?? Shader.Find("Sprites/Default");
+                _matWater = new Material(sh) { name = "DTP_WaterLiquid" };
+                if (_matWater.HasProperty("_Glossiness")) _matWater.SetFloat("_Glossiness", 0.95f);
+                if (_matWater.HasProperty("_Metallic")) _matWater.SetFloat("_Metallic", 0f);
+                ModLog.Verbose("TarFlow: hose water material made (shader '" + sh.name + "')");
+            }
+            var style = PoolWater.StyleLook();
+            Color col = GameHoseWater, glow = Color.black;
+            if (style != null) HoseColour(style, out col, out glow);
+            string key = (style != null ? style.name : "Game") + " " + col + " " + glow;
+            if (key == _waterLookKey) return _matWater;
+            _waterLookKey = key;
+            _matWater.color = col;
+            if (_matWater.HasProperty("_EmissionColor"))
+            {
+                int lit = glow.maxColorComponent > 0.001f ? 1 : 0;
+                if (lit == 1) { _matWater.EnableKeyword("_EMISSION"); _matWater.SetColor("_EmissionColor", glow); }
+                else { _matWater.DisableKeyword("_EMISSION"); _matWater.SetColor("_EmissionColor", Color.black); }
+            }
+            ModLog.Verbose("TarFlow: hose water colour set from " + (style != null ? "water style material '" + style.name + "'" : "the Game style (fixed blue)") +
+                ": colour " + col + ", glow " + glow);
             return _matWater;
+        }
+
+        /// The colour a short look into the style's water gives: light that went through 1 m of it (absorption) plus its own scattered colour,
+        /// scaled so the brightest channel is 0.6 (the hose interior is dark; the pool's own sky reflection is not there). Glow = the style's emission.
+        static void HoseColour(Material style, out Color col, out Color glow)
+        {
+            Color a = style.HasProperty("_Absorption") ? style.GetColor("_Absorption") : new Color(0.3f, 0.1f, 0.05f);
+            Color s = style.HasProperty("_ScatterColor") ? style.GetColor("_ScatterColor") : new Color(0.05f, 0.3f, 0.33f);
+            var through = new Color(Mathf.Exp(-a.r * 4f), Mathf.Exp(-a.g * 4f), Mathf.Exp(-a.b * 4f));
+            Color c = through * 0.6f + s * 0.6f;
+            float max = Mathf.Max(c.maxColorComponent, 0.001f);
+            col = c * (0.6f / max);
+            col.a = 1f;
+            glow = style.HasProperty("_Emission") ? style.GetColor("_Emission") * 2f : Color.black;
+            glow.a = 1f;
+            ModLog.Verbose("TarFlow: hose water colour from '" + style.name + "': absorption " + a + ", scatter " + s + ", through 1 m " + through + " -> " + col);
         }
 
         // --- path tracing -------------------------------------------------------------------------------------------------
