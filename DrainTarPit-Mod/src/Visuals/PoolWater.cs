@@ -60,6 +60,26 @@ namespace DrainTarPit.Visuals
         }
         static bool _skipPreset;
 
+        /// The water style in use (Game when the config is not bound yet).
+        internal static WaterStyleOption StyleInUse { get { return ModSettings.WaterStyle != null ? ModSettings.WaterStyle.Value : WaterStyleOption.Game; } }
+
+        /// T-050 (user: "reset tropical to its initial values"): throws the tuned copy of a style material away; the next pool update copies the
+        /// style's material from the bundle again (its shipped values). Returns the number of copies thrown away (0 = the style was not loaded yet).
+        internal static int ResetStyle(WaterStyleOption style)
+        {
+            int dropped = 0;
+            Material m;
+            if (StyleMats.TryGetValue(style, out m))
+            {
+                StyleMats.Remove(style);
+                if (m != null) { Object.Destroy(m); dropped++; }
+            }
+            StyleMissing.Remove(style);                                      // a style that failed to load gets one more try
+            _gen++;                                                          // every pool takes the fresh copy on its next update
+            ModLog.Verbose("PoolWater: water style " + style + " reset to its shipped values (" + dropped + " tuned copy thrown away, look generation " + _gen + ")");
+            return dropped;
+        }
+
         // --- fallback look ------------------------------------------------------------------------------------------------
         /// A translucent, clear blue surface (much clearer than the old 0.62 alpha tint). The tar material is only used as the base when the Standard
         /// shader is not in the game build (it is stripped from player builds); its ripple is flattened.

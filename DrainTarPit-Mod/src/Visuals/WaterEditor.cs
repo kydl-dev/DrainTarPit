@@ -169,7 +169,21 @@ namespace DrainTarPit.Visuals
         static void DrawLookButtons(Material m)
         {
             Header("Look");
-            GUILayout.Label(m == null ? "material: none" : "material '" + m.name + "'  shader '" + (m.shader != null ? m.shader.name : "?") + "'  " + (PoolWater.IsOceanCopy ? "(copy of the ocean)" : "(FALLBACK tint: the ocean material was not found yet)"));
+            GUILayout.Label(m == null ? "material: none" : "material '" + m.name + "'  shader '" + (m.shader != null ? m.shader.name : "?") + "'  " + (PoolWater.StyleInUse != WaterStyleOption.Game ? "(water style " + PoolWater.StyleInUse + ": tuning is NOT saved)" : PoolWater.IsOceanCopy ? "(copy of the ocean)" : "(FALLBACK tint: the ocean material was not found yet)"));
+            var style = PoolWater.StyleInUse;
+            if (style != WaterStyleOption.Game)
+            {
+                // T-050: a Unity style material: its tuning lives only for this session, so the only action is going back to its shipped values
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Reset " + style + " to its shipped values"))
+                {
+                    int dropped = PoolWater.ResetStyle(style);
+                    Result("Reset " + style, dropped == 1 ? "tuned copy thrown away, shipped values loaded again" : "style was not loaded yet, nothing to reset");
+                }
+                if (GUILayout.Button("Dump to log")) { ModLog.Info(WaterLook.Dump(m)); Result("Dump to log", "written to the BepInEx log"); }
+                GUILayout.EndHorizontal();
+                return;
+            }
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Save look")) Result("Save look", WaterLook.Save(m) ? "saved to " + WaterLook.Path : "saving failed (see the log)");
             if (GUILayout.Button("Reload saved look")) { PoolWater.ResetLook(true); Result("Reload saved look", "ocean material copied again + saved look applied"); }

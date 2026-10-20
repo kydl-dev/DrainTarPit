@@ -33,18 +33,18 @@ Material:
     - _EmissionPulse: 0.4
     - _FoamWidth: 0.05
     - _GlintPower: 2200
-    - _GlintStrength: 5
-    - _ReflectionStrength: 0.35
-    - _Refraction: 0.02
-    - _WaveScale: 0.6
-    - _WaveSpeed: 0.45
-    - _WaveStrength: 0.16
+    - _GlintStrength: 10
+    - _ReflectionStrength: 0.55
+    - _Refraction: 0.06
+    - _WaveScale: 1
+    - _WaveSpeed: 0.75
+    - _WaveStrength: 0.06
     m_Colors:
-    - _Absorption: {r: 0.12, g: 0.75, b: 0.95, a: 1}
+    - _Absorption: {r: 0.15, g: 0.7, b: 1, a: 1}
     - _DeepColor: {r: 0.32, g: 0.04, b: 0.02, a: 1}
     - _Emission: {r: 0.05, g: 0.008, b: 0, a: 1}
     - _FoamColor: {r: 0.2, g: 0.16, b: 0.14, a: 0.5}
-    - _ScatterColor: {r: 0.28, g: 0.05, b: 0.02, a: 1}
+    - _ScatterColor: {r: 0.27, g: 0.05, b: 0.02, a: 1}
     - _ShallowColor: {r: 0.95, g: 0.42, b: 0.18, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
