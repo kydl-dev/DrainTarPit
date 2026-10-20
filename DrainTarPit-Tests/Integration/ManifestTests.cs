@@ -10,14 +10,14 @@ using System.Web.Script.Serialization;
 namespace DrainTarPit.Tests.Integration
 {
     /// <summary>
-    /// manifest.json, dependencies, version consistency and the Thunderstore package rules. The version had drifted between
+    /// manifest.json, dependencies, version consistency and Hexium's package rules (https://hexium.gg/packaging, read 2026-10-20; the user publishes on Hexium only). The version had drifted between
     /// Plugin.cs / manifest.json / CHANGELOG before (bug #4), and a mismatch breaks version checks between players.
     /// </summary>
     [TestFixture]
     public class ManifestTests
     {
         static readonly Regex DependencyFormat = new Regex(@"^[A-Za-z0-9_]+-[A-Za-z0-9_]+-\d+\.\d+\.\d+$");
-        static readonly Regex SemVer = new Regex(@"^\d+\.\d+\.\d+$");
+        static readonly Regex SemVer = new Regex(@"^\d+\.\d+\.\d+(-(alpha|beta|rc)\.\d+)?$");   // Hexium: Major.Minor.Patch, optional -alpha.X / -beta.X / -rc.X
 
         static string ModFile(string name) { return Path.Combine(TestPaths.ModDir, name); }
 
@@ -51,10 +51,10 @@ namespace DrainTarPit.Tests.Integration
         }
 
         [Test]
-        public void Manifest_Name_MatchesThePluginNameAndThunderstoreCharacterRules()
+        public void Manifest_Name_MatchesThePluginNameAndHexiumCharacterRules()
         {
             Assert.That(Str("name"), Is.EqualTo(PluginConst("ModName")));
-            Assert.That(Str("name"), Does.Match(@"^[A-Za-z0-9_]{1,128}$"), "Thunderstore allows letters, digits and underscore only");
+            Assert.That(Str("name"), Does.Match(@"^[A-Za-z0-9_]{1,128}$"), "Hexium: 1 - 128 letters, digits and underscores");
         }
 
         [Test]
@@ -122,13 +122,13 @@ namespace DrainTarPit.Tests.Integration
                 Assert.That(File.Exists(ModFile(f)), Is.True, f);
         }
 
-        // ---- Thunderstore package rules (checked against Thunderstore's documentation on 2026-10-19). Release gates, not day-to-day failures. ----
+        // ---- Hexium package rules (https://hexium.gg/packaging, read 2026-10-20). Release gates, not day-to-day failures. ----
 
         [Category("ReleaseGate")]
         [Test]
-        public void Manifest_Description_IsAtMost250Characters()
+        public void Manifest_Description_IsAtMost256Characters()
         {
-            Assert.That(Str("description").Length, Is.LessThanOrEqualTo(250), "Thunderstore rejects a longer description");
+            Assert.That(Str("description").Length, Is.LessThanOrEqualTo(256), "Hexium: the description is at most 256 characters");
         }
 
         [Category("ReleaseGate")]
@@ -141,7 +141,7 @@ namespace DrainTarPit.Tests.Integration
             Assert.That(b.Take(8).ToArray(), Is.EqualTo(png), "not a PNG file");
             int width = (b[16] << 24) | (b[17] << 16) | (b[18] << 8) | b[19];
             int height = (b[20] << 24) | (b[21] << 16) | (b[22] << 8) | b[23];
-            Assert.That(new[] { width, height }, Is.EqualTo(new[] { 256, 256 }), "Thunderstore requires exactly 256x256");
+            Assert.That(new[] { width, height }, Is.EqualTo(new[] { 256, 256 }), "Hexium requires exactly 256x256");
         }
     }
 }
