@@ -19,6 +19,13 @@ namespace DrainTarPit.Signs
         const float PoolReach = 2.5f;
 
         internal static readonly List<PoolSign> Loaded = new();
+        /// Bumped when a sign loads, unloads or gets another name: PoolStyles finds the pools' signs again, the pools redraw.
+        internal static int Generation;
+
+        static void Changed(string why) { Generation++; Visuals.PoolWater.RequestRefresh(); ModLog.Verbose("PoolSign: " + why + " -> pools look for their sign again"); }
+
+        /// The sign's world id ("user:id", kept across restarts): the key of the players' personal pool styles.
+        internal string Id { get { return _nview != null && _nview.GetZDO() != null ? _nview.GetZDO().m_uid.ToString() : ""; } }
 
         ZNetView _nview;
         TMP_Text _text;
@@ -39,11 +46,12 @@ namespace DrainTarPit.Signs
             if (_nview == null || _nview.GetZDO() == null) return;           // the build ghost: no ZDO
             Loaded.Add(this);
             Refresh();
+            Changed("sign loaded");
             InvokeRepeating(nameof(Refresh), 1f, 1f);
             ModLog.Verbose("PoolSign: loaded at " + transform.position.ToString("0.0") + ", name '" + SignName + "', text object " + (_text != null ? "found" : "MISSING"));
         }
 
-        void OnDestroy() { Loaded.Remove(this); }
+        void OnDestroy() { if (Loaded.Remove(this)) Changed("sign unloaded"); }
 
         /// Reads name + style from the ZDO when it changed (another player saved it) and redraws.
         void Refresh()
@@ -52,7 +60,9 @@ namespace DrainTarPit.Signs
             var zdo = _nview.GetZDO();
             if (zdo.DataRevision == _lastRev) return;
             _lastRev = zdo.DataRevision;
+            string before = SignName;
             SignName = zdo.GetString(KeyName, "");
+            if (before != SignName) Changed("sign renamed '" + before + "' -> '" + SignName + "'");
             var problems = new List<string>();
             Style = SignStyle.Parse(zdo.GetString(KeyStyle, ""), problems);
             if (problems.Count > 0) ModLog.VerboseWarn("PoolSign '" + SignName + "': style read with problems: " + string.Join("; ", problems));

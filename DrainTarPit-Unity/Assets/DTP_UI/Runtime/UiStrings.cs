@@ -26,7 +26,18 @@ namespace DrainTarPit.Ui
             { "dtp_ui_reset", "Reset to default style" }, { "dtp_ui_reset_done", "Default style loaded - Save to keep it." },
             { "dtp_ui_pref_saved", "Preferred style saved." }, { "dtp_ui_pref_failed", "Saving the preferred style failed (see the log)." },
             { "dtp_ui_pref_used", "Preferred style loaded - Save to keep it." }, { "dtp_ui_pref_none", "No preferred style saved yet." },
-            { "dtp_ui_save", "Save" }, { "dtp_ui_cancel", "Cancel" }, { "dtp_ui_esc_close", "Esc to close" },
+            { "dtp_ui_pools_title", "Pools" }, { "dtp_ui_pools_close", "{0} or Esc to close" },
+            { "dtp_ui_world_style", "World water style" }, { "dtp_ui_world_style_all", "All pools" },
+            { "dtp_ui_world_style_note", "Every pool in this world shows this style for every player. A player's own choice for a pool (below) still wins on their screen. Not set: each player's config decides." },
+            { "dtp_ui_world_style_admin_only", "Only a server admin can change this." },
+            { "dtp_ui_style_notset", "Not set" }, { "dtp_ui_style_game", "Game water" }, { "dtp_ui_style_tropical", "Tropical" }, { "dtp_ui_style_lake", "Lake" }, { "dtp_ui_style_ashlands", "Ashlands" },
+            { "dtp_ui_style_default", "Default ({0})" },
+            { "dtp_ui_pools", "Named pools" }, { "dtp_ui_pools_count", "{0} pool(s)" }, { "dtp_ui_refresh", "Refresh" },
+            { "dtp_ui_pools_note", "Pools with a named pool sign, anywhere in the world. Your style choice is only on your screen." },
+            { "dtp_ui_pools_loading", "Asking the server..." },
+            { "dtp_ui_pools_none", "No pool has a named sign yet. Build a pool sign at a pool and name it (E)." },
+            { "dtp_ui_pool_pos", "Position {0}, {1} (height {2})" }, { "dtp_ui_pool_portal", "Closest portal: {0} ({1} m)" },
+            { "dtp_ui_pool_noportal", "No portal in this world" }, { "dtp_ui_pool_portal_unnamed", "(no name)" }, { "dtp_ui_my_style", "My style" },            { "dtp_ui_save", "Save" }, { "dtp_ui_cancel", "Cancel" }, { "dtp_ui_esc_close", "Esc to close" },
         };
 
         public static readonly Dictionary<string, string> De = new Dictionary<string, string>
@@ -47,7 +58,18 @@ namespace DrainTarPit.Ui
             { "dtp_ui_reset", "Auf Standardstil zurücksetzen" }, { "dtp_ui_reset_done", "Standardstil geladen - Speichern, um ihn zu behalten." },
             { "dtp_ui_pref_saved", "Bevorzugter Stil gespeichert." }, { "dtp_ui_pref_failed", "Speichern des bevorzugten Stils fehlgeschlagen (siehe Log)." },
             { "dtp_ui_pref_used", "Bevorzugter Stil geladen - Speichern, um ihn zu behalten." }, { "dtp_ui_pref_none", "Noch kein bevorzugter Stil gespeichert." },
-            { "dtp_ui_save", "Speichern" }, { "dtp_ui_cancel", "Abbrechen" }, { "dtp_ui_esc_close", "Esc zum Schließen" },
+            { "dtp_ui_pools_title", "Becken" }, { "dtp_ui_pools_close", "{0} oder Esc zum Schließen" },
+            { "dtp_ui_world_style", "Wasserstil der Welt" }, { "dtp_ui_world_style_all", "Alle Becken" },
+            { "dtp_ui_world_style_note", "Jedes Becken dieser Welt zeigt diesen Stil für jeden Spieler. Die eigene Wahl eines Spielers für ein Becken (unten) gilt trotzdem auf seinem Bildschirm. Nicht gesetzt: die Konfiguration jedes Spielers entscheidet." },
+            { "dtp_ui_world_style_admin_only", "Nur ein Server-Admin kann das ändern." },
+            { "dtp_ui_style_notset", "Nicht gesetzt" }, { "dtp_ui_style_game", "Spielwasser" }, { "dtp_ui_style_tropical", "Tropisch" }, { "dtp_ui_style_lake", "See" }, { "dtp_ui_style_ashlands", "Aschelande" },
+            { "dtp_ui_style_default", "Standard ({0})" },
+            { "dtp_ui_pools", "Benannte Becken" }, { "dtp_ui_pools_count", "{0} Becken" }, { "dtp_ui_refresh", "Aktualisieren" },
+            { "dtp_ui_pools_note", "Becken mit einem benannten Beckenschild, irgendwo in der Welt. Deine Stilwahl gilt nur auf deinem Bildschirm." },
+            { "dtp_ui_pools_loading", "Frage den Server..." },
+            { "dtp_ui_pools_none", "Noch kein Becken hat ein benanntes Schild. Baue ein Beckenschild an ein Becken und benenne es (E)." },
+            { "dtp_ui_pool_pos", "Position {0}, {1} (Höhe {2})" }, { "dtp_ui_pool_portal", "Nächstes Portal: {0} ({1} m)" },
+            { "dtp_ui_pool_noportal", "Kein Portal in dieser Welt" }, { "dtp_ui_pool_portal_unnamed", "(ohne Namen)" }, { "dtp_ui_my_style", "Mein Stil" },            { "dtp_ui_save", "Speichern" }, { "dtp_ui_cancel", "Abbrechen" }, { "dtp_ui_esc_close", "Esc zum Schließen" },
         };
 
         /// English text with {0} {1} ... filled in (the Unity preview; the game uses its own localization).

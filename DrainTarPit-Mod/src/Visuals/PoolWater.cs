@@ -61,7 +61,7 @@ namespace DrainTarPit.Visuals
         static bool _skipPreset;
 
         /// The water style in use (Game when the config is not bound yet).
-        internal static WaterStyleOption StyleInUse { get { return ModSettings.WaterStyle != null ? ModSettings.WaterStyle.Value : WaterStyleOption.Game; } }
+        internal static WaterStyleOption StyleInUse { get { return Signs.PoolStyles.Default; } }   // T-023: the admin's world style, else this PC's config
 
         /// T-053: the material of the water style in use (null for Game or when the style could not be loaded): the hose water takes its colour from it.
         internal static Material StyleLook()
@@ -206,9 +206,10 @@ namespace DrainTarPit.Visuals
             catch (System.Exception e) { StyleMissing.Add(style); ModLog.Warn("PoolWater: water style " + style + " could not be loaded: " + e.Message + " - the Game water is used"); return null; }
         }
 
-        static Material Current()
+        /// T-023: each pool its own style (Signs.PoolStyles: this player's choice for the pool > the admin's world style > [Visuals] WaterStyle).
+        static Material Current(LiquidVolume v)
         {
-            var style = ModSettings.WaterStyle != null ? ModSettings.WaterStyle.Value : WaterStyleOption.Game;
+            var style = v != null ? Signs.PoolStyles.For(v) : StyleInUse;
             if (style != WaterStyleOption.Game)
             {
                 var sm = StyleMaterial(style);
@@ -251,12 +252,15 @@ namespace DrainTarPit.Visuals
         static void Tick(LiquidVolume v)
         {
             if (v == null || v.m_liquidType != LiquidType.Water || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
-            var mat = Current();
+            if (_vanilla == null) GameWater();                                 // keeps looking for the ocean material (every 2 s); finding it redraws all pools
+            int g;
+            bool fresh = Done.TryGetValue(v, out g) && g == _gen;
+            if (fresh) { FeedTime(); return; }                                 // ripple time of the ocean copy (once per frame, only when it exists)
+            var mat = Current(v);
             if (mat == null) return;
             if (mat == _vanilla) FeedTime();
-            int g;
-            if (Done.TryGetValue(v, out g) && g == _gen) return;
             Done[v] = _gen;
+            ModLog.Verbose("PoolWater: pool " + v.name + " at " + v.transform.position.ToString("0") + " drawn with '" + mat.name + "' (look generation " + _gen + ")");
             foreach (var r in v.GetComponentsInChildren<Renderer>(true))
             {
                 if (r is ParticleSystemRenderer) continue;

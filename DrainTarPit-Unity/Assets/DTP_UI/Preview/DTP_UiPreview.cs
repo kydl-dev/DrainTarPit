@@ -10,8 +10,14 @@ using UnityEngine.UIElements;
 /// changes are written to the Console and shown on the preview sign line at the top. The game's UI sprites and fonts are copied from the
 /// AssetRipper project into GameAssets (preview only: nothing here goes into the asset bundle or the mod).
 /// </summary>
-public class DTP_UiPreview : MonoBehaviour, ISignMenuHost
+public class DTP_UiPreview : MonoBehaviour, ISignMenuHost, IPoolMenuHost
 {
+    public bool previewAsAdmin = true;          // pool menu: admin part shown (world style drop-down)
+    public bool startWithPoolMenu;              // Play opens the pool menu instead of the sign menu (P switches anyway)
+    static DTP_UiPreview _me;
+    PoolMenuView _pools;
+    string _world = "Tropical";
+    readonly List<PoolMenuEntry> _fakePools = new List<PoolMenuEntry>();
     public Texture2D atlas1, atlas2;            // UIAtlas1.png (woodpanel_settings), UIAtlas2.png (buttons, check boxes, fields)
     public TextAsset spriteTable;               // sprites.txt: name;atlas;x;y;w;h;borderL;borderB;borderR;borderT (from the AssetRipper .asset files)
     public Font[] fonts;                        // AveriaSerifLibre-Bold, Norsebold, Norse, NotoEmoji-Regular: referenced so they are loaded for UiKit
@@ -32,7 +38,30 @@ public class DTP_UiPreview : MonoBehaviour, ISignMenuHost
         _sign.style.position = UnityEngine.UIElements.Position.Absolute; _sign.style.left = 20; _sign.style.top = 10; _sign.style.fontSize = 34;
         _sign.enableRichText = true;
         root.Add(_sign);
-        Open();
+        _me = this;
+        MakeFakePools();
+        if (startWithPoolMenu) OpenPools(); else Open();
+    }
+
+    void MakeFakePools()
+    {
+        _fakePools.Clear();
+        var s1 = new SignStyle { Color = "#7FE0FF", Bold = true }; s1.Gradient(0, 7, "#7FE0FF", "#2E86FF");
+        _fakePools.Add(new PoolMenuEntry { Id = "1:101", Name = "Fishpond \U0001F41F", Style = s1.Serialize(), Pos = new Vector3(1366, 34, -3510), Portal = "Home", PortalDistance = 42f });
+        var s2 = new SignStyle { Color = "#FF5533", Italic = true, Upper = true };
+        _fakePools.Add(new PoolMenuEntry { Id = "1:102", Name = "Lava bath \U0001F525", Style = s2.Serialize(), Pos = new Vector3(-820, 51, 2304), Portal = "Ashlands camp", PortalDistance = 310f, MyStyle = "Ashlands" });
+        _fakePools.Add(new PoolMenuEntry { Id = "1:103", Name = "Tar works", Style = new SignStyle().Serialize(), Pos = new Vector3(4120, 40, -880), Portal = "", PortalDistance = 1250f });
+    }
+
+    /// Opens the pool menu (P in the preview; also callable from the editor).
+    public static string OpenPools()
+    {
+        if (_me == null) return "preview not running";
+        if (_me._view != null) _me.Close("switch to pool menu");
+        if (_me._pools != null) _me._pools.Window.RemoveFromHierarchy();
+        _me._pools = new PoolMenuView(_me);
+        UiKit.Root.Add(_me._pools.Window);
+        return "pool menu open";
     }
 
     void OnDisable()
@@ -44,7 +73,11 @@ public class DTP_UiPreview : MonoBehaviour, ISignMenuHost
 
     void Update()
     {
-        if (_view == null && Input.GetKeyDown(KeyCode.E)) Open();       // E opens it again after Save / Cancel
+        // this Unity project uses the Input System package (the old Input class throws)
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb == null) return;
+        if (_view == null && _pools == null && kb.eKey.wasPressedThisFrame) Open();       // E opens the sign menu again after Save / Cancel
+        if (kb.pKey.wasPressedThisFrame) OpenPools();                                    // P opens the pool menu
     }
 
     void Open()
@@ -147,8 +180,25 @@ public class DTP_UiPreview : MonoBehaviour, ISignMenuHost
     {
         if (_view != null) _view.Window.RemoveFromHierarchy();
         _view = null;
+        if (why != "switch to pool menu" && _pools != null) { _pools.Window.RemoveFromHierarchy(); _pools = null; }
         Debug.Log("[DTP UI] preview: closed (" + why + ") - press E to open it again");
     }
+
+    // --- IPoolMenuHost (fake data) --------------------------------------------------------------------------------------------
+    public string MenuKey { get { return "F9"; } }
+    public bool IsAdmin { get { return previewAsAdmin; } }
+    public string WorldStyle { get { return _world; } }
+    public string DefaultStyle { get { return _world.Length > 0 ? _world : "Game"; } }
+    public IList<string> Styles { get { return new[] { "Game", "Tropical", "Lake", "Ashlands" }; } }
+    public IList<PoolMenuEntry> Pools { get { return _fakePools; } }
+    public bool Waiting { get { return _fakePools.Count == 0; } }
+    public void SetWorldStyle(string style) { _world = style ?? ""; Debug.Log("[DTP UI] preview: world style '" + _world + "'"); if (_pools != null) _pools.Rebuild(); }
+    public void SetPoolStyle(string id, string style)
+    {
+        foreach (var p in _fakePools) if (p.Id == id) p.MyStyle = style;
+        Debug.Log("[DTP UI] preview: my style for " + id + " -> '" + style + "'");
+    }
+    public void Refresh() { Debug.Log("[DTP UI] preview: refresh"); if (_pools != null) _pools.Rebuild(); }
 
     string _pref;
     public int SavePreferred(SignStyle style) { _pref = style.Serialize(); return _pref.Length; }

@@ -133,6 +133,9 @@ namespace DrainTarPit
             MaterialFixer.Tick();                    // applies a changed [Visuals] HoseStyle / HoseOpacity (to hoses built from now on) on the main thread
             WaterEditor.Tick();                      // [Visuals] EditorKey opens / closes the live water editor
             Signs.PoolSignMenu.Tick();               // T-023: Escape / walking away closes the sign menu
+            Signs.PoolRegistry.Tick();               // T-023: pool list / world style RPCs, registered once per game session
+            Signs.PoolStyles.Tick();                 // T-023: an admin changed the world water style -> pools redraw
+            Signs.PoolMenu.Tick();                   // T-023: [Visuals] PoolMenuKey (F9) opens / closes the pool menu
         }
 
         void OnGUI()

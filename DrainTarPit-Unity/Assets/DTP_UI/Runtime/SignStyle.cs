@@ -200,6 +200,31 @@ namespace DrainTarPit.Signs
             return sb.ToString();
         }
 
+        /// The name for a UI Toolkit label (the pool menu): the same colours, bold, italic, underline, strike and upper case; alignment, letter
+        /// spacing and fonts are left out (UI Toolkit's rich text does not have them). '<' / '>' typed by a player become look-alike brackets.
+        public string RenderForUi(string name)
+        {
+            var sb = new StringBuilder();
+            if (Bold) sb.Append("<b>");
+            if (Italic) sb.Append("<i>");
+            if (Underline) sb.Append("<u>");
+            if (Strike) sb.Append("<s>");
+            sb.Append("<color=").Append(Color).Append('>');
+            var letters = SplitLetters(Upper ? (name ?? "").ToUpperInvariant() : name);
+            for (int i = 0; i < letters.Count; i++)
+            {
+                string letter = letters[i] == "<" ? "‹" : letters[i] == ">" ? "›" : letters[i], hex;
+                if (Letters.TryGetValue(i, out hex) && hex != Color) sb.Append("<color=").Append(hex).Append('>').Append(letter).Append("</color>");
+                else sb.Append(letter);
+            }
+            sb.Append("</color>");
+            if (Strike) sb.Append("</s>");
+            if (Underline) sb.Append("</u>");
+            if (Italic) sb.Append("</i>");
+            if (Bold) sb.Append("</b>");
+            return sb.ToString();
+        }
+
         static string Safe(string letter)
         {
             if (letter == "<") return "<noparse><</noparse>";

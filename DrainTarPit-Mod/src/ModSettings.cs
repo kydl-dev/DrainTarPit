@@ -76,6 +76,7 @@ internal static class ModSettings
     public static ConfigEntry<int> PoolMeshReach;
     public static ConfigEntry<bool> PoolFilmEvaporates;
     public static ConfigEntry<KeyCode> EditorKey;
+    public static ConfigEntry<KeyCode> PoolMenuKey;      // T-023 pool menu (ModSettingsDrain binds it)
 
     // [Pump]
     public static ConfigEntry<float> StaminaPerStroke;
