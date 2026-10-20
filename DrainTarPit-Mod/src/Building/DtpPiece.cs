@@ -50,27 +50,60 @@ namespace DrainTarPit.Building
             }
         }
 
-        // [Visuals] HoseStyle / HoseOpacity only decide the look of hoses built from now on. A hose is created from the prefab, which always has the CURRENT
-        // look, so the builder's client (the owner of a new piece) stamps that look into the ZDO once; every later load of the piece (restart, other
-        // clients, a changed config) puts the stamped look back. A piece without a stamp that this client does not own keeps the current look until its
-        // owner stamps it.
+        // [Build Time Hose Visuals] Build Hose Style / Opacity decide the look of hoses built from now on. A hose is created from the prefab, which always
+        // has the CURRENT build look, so the builder's client (the owner of a new piece) stamps that look into the ZDO once - the stamp is never written
+        // again by anything (user, 2026-10-20). Every load of the piece (restart, other clients) and every change of [World Hose Visuals] then shows it
+        // through ShowHoseLook. A piece without a stamp that this client does not own keeps the prefab look until its owner stamps it.
         void KeepHoseLook(ZNetView nv)
         {
             try
             {
                 var z = nv.GetZDO();
-                if (z == null) return;
-                int style = z.GetInt(ZHoseStyle, -1);
-                if (style < 0)
+                if (z == null) { ModLog.Verbose("Hose " + name + ": no ZDO, look not stamped"); return; }
+                if (z.GetInt(ZHoseStyle, -1) < 0 && nv.IsOwner())
                 {
-                    if (!nv.IsOwner()) return;
-                    z.Set(ZHoseStyle, (int)ModSettings.HoseStyle.Value);
-                    z.Set(ZHoseOpacity, ModSettings.HoseOpacity.Value);
-                    return;
+                    z.Set(ZHoseStyle, (int)ModSettings.BuildHoseStyle.Value);
+                    z.Set(ZHoseOpacity, ModSettings.BuildHoseOpacity.Value);
+                    ModLog.Verbose("Hose " + name + ": built with " + ModSettings.BuildHoseStyle.Value + " / opacity " + ModSettings.BuildHoseOpacity.Value.ToString("0.00") + " (stored for good)");
                 }
-                MaterialFixer.ApplyLook(gameObject, (HoseStyleOption)style, z.GetFloat(ZHoseOpacity, ModSettings.HoseOpacity.Value));
+                ShowHoseLook();
             }
             catch (System.Exception e) { ModLog.VerboseWarn("KeepHoseLook: " + e.Message); }
+        }
+
+        /// Shows this hose as [World Hose Visuals] says: Default = the look stored at build time, Transparent / Solid = that for every hose (World Hose
+        /// Opacity). Reads the stamp only, never writes it. Expected outcome: the look that was asked for was resolved (false = nothing to show yet).
+        internal bool ShowHoseLook()
+        {
+            if (Kind != DtpKind.Hose && Kind != DtpKind.Elbow) return Kind == DtpKind.Hose || Kind == DtpKind.Elbow;
+            var nv = GetComponent<ZNetView>();
+            var z = nv != null && nv.IsValid() ? nv.GetZDO() : null;
+            int stamped = z != null ? z.GetInt(ZHoseStyle, -1) : -1;
+            var world = ModSettings.WorldHoseStyle.Value;
+            HoseStyleOption style; float opacity; string why;
+            if (world == WorldHoseStyleOption.Transparent) { style = HoseStyleOption.Transparent; opacity = ModSettings.WorldHoseOpacity.Value; why = "World Hose Style Transparent"; }
+            else if (world == WorldHoseStyleOption.Solid) { style = HoseStyleOption.Solid; opacity = 1f; why = "World Hose Style Solid"; }
+            else if (stamped >= 0) { style = (HoseStyleOption)stamped; opacity = z.GetFloat(ZHoseOpacity, ModSettings.BuildHoseOpacity.Value); why = "its own build look"; }
+            else
+            {   // not stamped yet (its owner stamps it): show what the prefab gives, i.e. the current build look (also undoes an earlier World override)
+                style = ModSettings.BuildHoseStyle.Value; opacity = ModSettings.BuildHoseOpacity.Value; why = "no build look stored yet, current build look";
+            }
+            int changed = MaterialFixer.ApplyLook(gameObject, style, opacity);
+            ModLog.Verbose("Hose " + name + ": shown " + style + (style == HoseStyleOption.Transparent ? " " + opacity.ToString("0.00") : "") + " (" + why + ", " + changed + " renderer(s) changed)");
+            return changed >= 0;
+        }
+
+        /// [World Hose Visuals] changed: every loaded hose is shown again. Returns how many hoses were shown.
+        internal static int ShowAllHoseLooks()
+        {
+            int n = 0;
+            foreach (var p in All.ToArray())
+            {
+                if (p == null || (p.Kind != DtpKind.Hose && p.Kind != DtpKind.Elbow)) continue;
+                try { if (p.ShowHoseLook()) n++; }
+                catch (System.Exception e) { ModLog.VerboseWarn("ShowHoseLook " + p.name + ": " + e.Message); }
+            }
+            return n;
         }
 
         /// The liquid this strainer is locked to (strainers only). None = not locked yet: it was built on dry ground / before the water update.

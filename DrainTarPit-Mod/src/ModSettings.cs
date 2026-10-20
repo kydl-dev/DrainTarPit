@@ -16,8 +16,11 @@ internal static class ModSettings
     public static ConfigEntry<string> ShaderName;
     public static ConfigEntry<bool> UseMaskMap;
     public static ConfigEntry<float> AlbedoBrightness;
-    public static ConfigEntry<HoseStyleOption> HoseStyle;
-    public static ConfigEntry<float> HoseOpacity;
+    // [World Hose Visuals] / [Build Time Hose Visuals] (ModSettingsHose)
+    public static ConfigEntry<WorldHoseStyleOption> WorldHoseStyle;
+    public static ConfigEntry<float> WorldHoseOpacity;
+    public static ConfigEntry<HoseStyleOption> BuildHoseStyle;
+    public static ConfigEntry<float> BuildHoseOpacity;
     public static ConfigEntry<bool> TarFlow;
     public static ConfigEntry<float> TarFlowSpeed;
     public static ConfigEntry<float> TarSlugLength;
@@ -117,11 +120,7 @@ internal static class ModSettings
             new ConfigDescription(
                 "Brightens the colour textures of all pump / hose pieces (gamma lift). 1 = original, 1.6 = a bit brighter, 2.5 = much brighter.",
                 new AcceptableValueRange<float>(1f, 3f)));
-        HoseStyle = c.Bind("Visuals", "HoseStyle", HoseStyleOption.Solid,
-            "Look of the hose pieces (straight + elbow). Transparent = semi-transparent so the tar can be seen moving through them; Solid = the normal opaque texture. A change (config manager or editing the .cfg file while the game runs) applies right away to hoses you build from then on; hoses that are already built keep the look they were built with.");
-        HoseOpacity = c.Bind("Visuals", "HoseOpacity", 0.45f,
-            new ConfigDescription("How opaque the hoses are when HoseStyle = Transparent (1 = solid). Like HoseStyle it only applies to hoses built after the change.",
-                new AcceptableValueRange<float>(0.1f, 1f)));
+        ModSettingsHose.Bind(c);                                  // [World Hose Visuals] / [Build Time Hose Visuals]
         DebugLog = c.Bind("General", "DebugLog", false,
             "Verbose logging (bundle contents, shader properties, per-material fixes, drain/pump events). Turn off once everything works.");
         TestOutDir = c.Bind("General", "TestOutDir", "",
@@ -158,9 +157,9 @@ internal static class ModSettings
             "Off = the single pump_up recording from the start of the stroke (the sound before 2026-10-20).");
         WaterSplashSound = c.Bind("Effects", "WaterSplashSound", true,
             "Play a water splash where the pumped water comes down (pool, ground, anything it hits). Off = water pours silently.");
-        WaterSplashOffset = c.Bind("Effects", "WaterSplashOffset", 0f,
+        WaterSplashOffset = c.Bind("Effects", "WaterSplashOffset", -0.3f,
             new ConfigDescription("Seconds added to the moment the water splash plays (negative = earlier). The moment itself is worked out from the stream: " +
-                "the time the first droplets need to reach the water surface / ground. Use this only for fine tuning by ear.",
+                "the time the first droplets need to reach the water surface / ground. Default -0.3 = the value that sounded right in game (user, 2026-10-20).",
                 new AcceptableValueRange<float>(-1f, 1f)));
 
         PumpDroplets = c.Bind("Effects", "PumpDroplets", false,
@@ -207,8 +206,7 @@ internal static class ModSettings
         Migrate(c);
 
         // hoses: a change (config manager, file reload) is applied live, see MaterialFixer.Tick
-        HoseStyle.SettingChanged += (s, e) => MaterialFixer.RequestRefresh();
-        HoseOpacity.SettingChanged += (s, e) => MaterialFixer.RequestRefresh();
+        ModSettingsHose.Hook();
         WaterDepthLook.SettingChanged += (s, e) => PoolWater.RequestRefresh();
         PoolMeshFix.SettingChanged += (s, e) => PoolMesh.Refresh();
         PoolMeshReach.SettingChanged += (s, e) => PoolMesh.Refresh();
@@ -243,18 +241,22 @@ internal static class ModSettings
             // entries of removed options (DropTarItems / TarItemsPerCubicMeter / ClearHoses) are dropped from the file; the property is not public in every BepInEx build
             var orphans = typeof(ConfigFile).GetProperty("OrphanedEntries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
             var dict = orphans != null ? orphans.GetValue(c, null) as System.Collections.IDictionary : null;
+            // v4 (2026-10-20) is carried over BEFORE v3 on purpose: the old [Visuals] HoseStyle / HoseOpacity values become Build Hose Style / Opacity;
+            // v3 (ClearHoses = false of a very old file) then still wins over the saved HoseStyle, as it always did.
+            if (ConfigVersion.Value < 4) ModSettingsHose.CarryOld(dict);
             if (ConfigVersion.Value < 3)
             {
-                // 0.7.0: [Visuals] ClearHoses (true / false) became the HoseStyle dropdown; carry the old choice over once
+                // 0.7.0: [Visuals] ClearHoses (true / false) became the HoseStyle dropdown (today Build Hose Style); carry the old choice over once
                 if (dict != null)
                     foreach (System.Collections.DictionaryEntry e in dict)
                     {
                         var def = e.Key as ConfigDefinition;
                         if (def != null && def.Section == "Visuals" && def.Key == "ClearHoses" && string.Equals(e.Value as string, "false", System.StringComparison.OrdinalIgnoreCase))
-                            HoseStyle.Value = HoseStyleOption.Solid;
+                            BuildHoseStyle.Value = HoseStyleOption.Solid;
                     }
                 ConfigVersion.Value = 3;
             }
+            if (ConfigVersion.Value < 4) ConfigVersion.Value = 4;
             if (dict != null) dict.Clear();
             c.Save();
         }
@@ -266,3 +268,6 @@ internal static class ModSettings
 
 /// Entries of an enum config value show up as a drop-down menu in the config manager (and list their values in the .cfg file).
 internal enum HoseStyleOption { Transparent, Solid }
+
+/// [World Hose Visuals] World Hose Style: Default = every hose shows the look it was built with; Transparent / Solid = all hoses in the world, for now.
+internal enum WorldHoseStyleOption { Default, Transparent, Solid }

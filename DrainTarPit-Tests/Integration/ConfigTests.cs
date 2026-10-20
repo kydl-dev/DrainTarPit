@@ -18,7 +18,7 @@ namespace DrainTarPit.Tests.Integration
     public class ConfigTests
     {
         const string Settings = "DrainTarPit.ModSettings";
-        const int LatestConfigVersion = 3; // ModSettings.Migrate: raise this together with a new migration step and add a test for the step
+        const int LatestConfigVersion = 4; // ModSettings.Migrate: raise this together with a new migration step and add a test for the step
         string _dir, _path;
 
         [SetUp]
@@ -78,7 +78,7 @@ namespace DrainTarPit.Tests.Integration
             Assert.That(Value("PieceHealth"), Is.EqualTo(200f));
             Assert.That(Value("MaxChainPieces"), Is.EqualTo(24));
             Assert.That(Value("TiltKey"), Is.EqualTo(KeyCode.LeftAlt));
-            Assert.That(Value("HoseStyle").ToString(), Is.EqualTo("Solid"));
+            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
         }
 
         [Test]
@@ -161,11 +161,11 @@ namespace DrainTarPit.Tests.Integration
         }
 
         [Test]
-        public void Migrate_OrphanedClearHosesFalse_BecomesHoseStyleSolid()
+        public void Migrate_OrphanedClearHosesFalse_BecomesBuildHoseStyleSolid()
         {
             BindFile(Cfg("[General]", "ConfigVersion = 2", "[Visuals]", "ClearHoses = false", "HoseStyle = Transparent"));
 
-            Assert.That(Value("HoseStyle").ToString(), Is.EqualTo("Solid"));
+            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
         }
 
         [Test]
@@ -173,7 +173,39 @@ namespace DrainTarPit.Tests.Integration
         {
             BindFile(Cfg("[General]", "ConfigVersion = 3", "[Visuals]", "ClearHoses = false", "HoseStyle = Transparent"));
 
-            Assert.That(Value("HoseStyle").ToString(), Is.EqualTo("Transparent"));
+            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Transparent"));
+        }
+
+        [Test]
+        public void Migrate_Version3HoseLook_MovesToBuildTimeHoseVisuals()
+        {
+            BindFile(Cfg("[General]", "ConfigVersion = 3", "[Visuals]", "HoseStyle = Transparent", "HoseOpacity = 0,3"));
+
+            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Transparent"));
+            Assert.That((float)Value("BuildHoseOpacity"), Is.EqualTo(0.3f).Within(1e-6f), "decimal comma is accepted too");
+            Assert.That(Value("WorldHoseStyle").ToString(), Is.EqualTo("Default"), "the world style is new: it starts at Default (each hose its own look)");
+            var text = File.ReadAllText(_path);
+            Assert.That(text, Does.Contain("[Build Time Hose Visuals]"));
+            Assert.That(text, Does.Contain("[World Hose Visuals]"));
+            Assert.That(text, Does.Not.Match(@"(?m)^HoseStyle\s*="), "the old key is dropped from the saved file");
+        }
+
+        [Test]
+        public void Migrate_AlreadyAtVersion4_IgnoresAnOldHoseStyleLeftover()
+        {
+            BindFile(Cfg("[General]", "ConfigVersion = 4", "[Visuals]", "HoseStyle = Transparent"));
+
+            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
+        }
+
+        [Test]
+        public void Bind_NoFileYet_HoseVisualDefaults()
+        {
+            BindFile();
+
+            Assert.That(Value("WorldHoseStyle").ToString(), Is.EqualTo("Default"));
+            Assert.That((float)Value("WorldHoseOpacity"), Is.EqualTo(0.45f).Within(1e-6f));
+            Assert.That((float)Value("BuildHoseOpacity"), Is.EqualTo(0.45f).Within(1e-6f));
         }
 
         [Test]
@@ -205,11 +237,11 @@ namespace DrainTarPit.Tests.Integration
         }
 
         [Test]
-        public void Bind_UnknownEnumName_FallsBackToTheDefault()
+        public void Bind_UnknownOldHoseStyleName_KeepsTheBuildDefault()
         {
             BindFile(Cfg("[General]", "ConfigVersion = 3", "[Visuals]", "HoseStyle = Banana"));
 
-            Assert.That(Value("HoseStyle").ToString(), Is.EqualTo("Solid"));
+            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
         }
 
         [Test]
