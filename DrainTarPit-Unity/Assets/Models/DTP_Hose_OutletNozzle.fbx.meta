@@ -7,17 +7,17 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: TPD_IronDark
+      name: DTP_IronDark
     second: {fileID: 2100000, guid: 1ae0f24332825ad48870e4c5a271556c, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: TPD_LeatherTarred
+      name: DTP_LeatherTarred
     second: {fileID: 2100000, guid: 2c1a12266dabd8c418face695780002d, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: TPD_Rope
+      name: DTP_Rope
     second: {fileID: 2100000, guid: e4d489744670ffa4086a024f895619ad, type: 2}
   materials:
     materialImportMode: 1
