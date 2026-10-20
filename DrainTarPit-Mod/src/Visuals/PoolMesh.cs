@@ -23,6 +23,12 @@ namespace DrainTarPit.Visuals
     internal static class PoolMesh
     {
         static volatile bool _enabled = true;
+        // 2026-10-20 (user screenshots of a NEW, empty pool built inside an old runoff pool's grid: a thin sheet on the outer wall faces): a film
+        // thinner than this is drawn like dry ground (hidden). The game draws every wet point at least 0.1 m thick, so a few millimetres of film
+        // on a wall top or a slope looked like a sheet of water; and a film point on a wall top made the window below treat the ground outside the
+        // wall as "below the water plane" (sunk), which hung a curtain from the wall top down its outer face. Only liquid at least this deep is
+        // drawn as water and counts for the water plane.
+        const float DrawDepth = 0.05f;
         static volatile int _reach = 6;
 
         // the worker thread of a pool builds its mesh in PrebuildMesh: the map is made in the prefix and read by the CalcVertex postfix of the same call
@@ -49,7 +55,7 @@ namespace DrainTarPit.Visuals
             const float inf = float.PositiveInfinity;
 
             for (int i = 0; i < n; i++)
-                a[i] = d[i] >= 0.001f ? h[i] + (d[i] > 0.1f ? d[i] : 0.1f) : inf;      // the same surface height CalcVertex gives a wet point
+                a[i] = d[i] >= DrawDepth ? h[i] + (d[i] > 0.1f ? d[i] : 0.1f) : inf;      // the same surface height CalcVertex gives a wet point
 
             for (int y = 0; y < stride; y++)
             {
@@ -80,7 +86,7 @@ namespace DrainTarPit.Visuals
             // and is drawn by the game as before.
             for (int i = 0; i < n; i++)
             {
-                if (d[i] >= 0.001f) { _fix[i] = float.NaN; continue; }               // wet: the game's vertex is right
+                if (d[i] >= DrawDepth) { _fix[i] = float.NaN; continue; }            // water: the game's vertex is right
                 float win = a[i];
                 _fix[i] = win < inf ? (h[i] < win ? h[i] - 1f : win) : h[i] - 1f;
                 b[i] = win < inf && h[i] < win ? 1f : 0f;                            // 1 = dry point below the water plane (outside a barrier)
@@ -89,7 +95,7 @@ namespace DrainTarPit.Visuals
                 for (int x = 0; x < stride; x++)
                 {
                     int i = y * stride + x;
-                    if (d[i] >= 0.001f || b[i] > 0f || float.IsNaN(_fix[i])) continue;
+                    if (d[i] >= DrawDepth || b[i] > 0f || float.IsNaN(_fix[i])) continue;
                     float low = float.PositiveInfinity;
                     for (int dy = -1; dy <= 1; dy++)
                         for (int dx = -1; dx <= 1; dx++)
