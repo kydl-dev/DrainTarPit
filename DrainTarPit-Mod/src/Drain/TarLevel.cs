@@ -60,7 +60,7 @@ namespace DrainTarPit.Drain
             static void Prefix(LiquidSurface __instance)
             {
                 _inUpdate = false;                                  // the purge replays OnTriggerExit: its -10000 is an exit
-                try { TarPitTracking.PurgeStale(__instance); }
+                try { TarPitTracking.PurgeStale(__instance); TarPitTracking.AdoptSubmerged(__instance); }
                 catch (System.Exception e) { ModLog.VerboseWarn("PurgeStale: " + e.Message); }
                 _inUpdate = true;
             }

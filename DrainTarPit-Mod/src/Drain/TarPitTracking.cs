@@ -103,6 +103,36 @@ namespace DrainTarPit.Drain
         /// LiquidSurface.OnDestroy prefix: the bookkeeping of a destroyed surface goes with it (the game's own OnDestroy does the exits).
         internal static void Forget(LiquidSurface ls) { if (ls != null) Inside.Remove(ls); }
 
+        // --- characters deep under the surface (user, 2026-10-20: not swimming 5 m deep in the 6 m pump pool) --------------------------------
+        // The game's trigger is NOT the volume of the liquid: PrebuildMesh builds the MeshCollider from CalcVertex(..., true) over every 2nd grid
+        // point, i.e. a SHEET at the surface (m_physicsOffset -1 m below it), read from the IL of the AssetRipper copy. OnTriggerEnter fires only
+        // while the character's capsule touches that sheet; a character standing on the floor of a pool deeper than about 3 m never touches it
+        // (or leaves it when he sinks): not counted, not tracked, no water level -> he walks on the floor. Vanilla tar pits are shallow, so the game
+        // never needed more. For pump pools a character inside the grid whose feet are under the surface is entered here with the game's own
+        // enter (Increment + m_inWater), counted on his capsule collider like a real enter, so the later real enter / exit stay balanced.
+        static readonly FieldInfo FCharCollider = AccessTools.Field(typeof(Character), "m_collider");
+
+        internal static void AdoptSubmerged(LiquidSurface ls)
+        {
+            if (!Ours(ls) || FInWater == null) return;
+            var v = FLiquid.GetValue(ls) as LiquidVolume;
+            if (!IsPumpPool(v)) return;
+            var list = FInWater.GetValue(ls) as List<IWaterInteractable>;
+            if (list == null) return;
+            foreach (var c in Character.GetAllCharacters())
+            {
+                if (c == null) continue;
+                var p = c.transform.position;
+                if (!NearGrid(v, p, 0f) || list.Contains(c)) continue;
+                if (v.GetSurface(p) <= p.y) continue;                                     // dry cell or above the surface
+                var col = (FCharCollider != null ? FCharCollider.GetValue(c) as Collider : null) ?? c.GetComponent<Collider>();
+                if (col == null || !AllowEnter(ls, col)) continue;
+                ((IWaterInteractable)c).Increment(v.m_liquidType);
+                list.Add(c);
+                if (ModSettings.DebugLog.Value) ModLog.Info("Pit " + v.name + ": " + c.name + " is under the surface (below the trigger sheet) - entered");
+            }
+        }
+
         internal static void PurgeStale(LiquidSurface ls)
         {
             if (ls == null || FInWater == null || FLiquid == null) return;
