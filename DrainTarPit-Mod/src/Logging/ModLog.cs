@@ -58,10 +58,45 @@ namespace DrainTarPit.Logging
         public static void Warn(string message) { Write(LogLevel.Warning, message); }
         public static void Error(string message) { Write(LogLevel.Error, message); }
 
+        // ---- repeat filter (user standard, 2026-10-20): a line identical to one written less than RepeatWindow ago is not written again.
+        // Errors are always written. Measured with a Stopwatch (no Unity time), so it works before the game runs and in the unit tests.
+        const double RepeatWindowSeconds = 2.5;
+        static readonly System.Collections.Generic.Dictionary<string, double> LastWritten = new System.Collections.Generic.Dictionary<string, double>();
+        static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+        static readonly object RepeatLock = new object();
+
+        /// Test support: forget every line seen so far (a fresh game launch). Expected outcome: the table is empty afterwards.
+        internal static bool ResetRepeats() { lock (RepeatLock) { LastWritten.Clear(); return LastWritten.Count == 0; } }
+
+        /// Expected outcome: true exactly when the same level + text was written within the window (then it is skipped).
+        internal static bool IsRepeat(LogLevel level, string message)
+        {
+            if (level == LogLevel.Error) return false;
+            string key = (int)level + "|" + (message ?? "");
+            double now = Clock.Elapsed.TotalSeconds, last;
+            lock (RepeatLock)
+            {
+                bool repeat = LastWritten.TryGetValue(key, out last) && now - last < RepeatWindowSeconds;
+                if (!repeat) LastWritten[key] = now;
+                if (LastWritten.Count > 4000)                 // keep the table small: drop what is older than the window
+                {
+                    var old = new System.Collections.Generic.List<string>();
+                    foreach (var kv in LastWritten) if (now - kv.Value >= RepeatWindowSeconds) old.Add(kv.Key);
+                    foreach (var k in old) LastWritten.Remove(k);
+                }
+                return repeat;
+            }
+        }
+
         // The single line that actually writes. A failure while logging is swallowed: logging must never take the game down.
         static void Write(LogLevel level, string message)
         {
-            try { Source.Log(level, Line(message)); }
+            try
+            {
+                if (IsRepeat(level, message)) return;
+                Source.Log(level, Line(message));
+            }
+            catch (System.ObjectDisposedException) { }          // the BepInEx log is closed while the game shuts down
             catch { }
         }
 

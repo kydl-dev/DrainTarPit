@@ -3,6 +3,8 @@
 ## 1.0.0 (unreleased)
 The mod has not been released yet, so its version is 1.0.0 and stays 1.0.0 until the user says otherwise (`_agent/PROJECT_RULES.md`): new changes are added below under this heading, `Plugin.ModVersion` and `manifest.json` are not bumped. The 0.x headings further down are the development history from before the first release.
 
+- Debug tool: console command `dtp meshdump [radius]` (default 6 m) writes the pump pool you look at to `DrainTarPit.MeshDump.txt`: per grid point the ground, liquid depth, wall top, the game's vertex height and the height this mod draws, plus a map of walls / liquid and a map of drawn-minus-level in cm in the log. Built, NOT tested in game.
+- Log: the same line written again within 2.5 s is skipped (errors are always written). Built, NOT tested in game.
 - Rename (user): every "TPD" (the mod's earlier name) is now "DTP": world-save keys `DTP_pool`, `DTP_liquid`, `DTP_baseline`, `DTP_refillT`, `DTP_runoff`. Worlds saved before still load: the old `TPD_` keys are read when the new ones are missing and the new keys are written from then on (`src/Drain/ZdoKeys.cs`). Console help and build comments say DrainTarPit. Built, NOT tested in game.
 - Pool edges at a full pool: the surface carried into the walls stays 5 cm under the wall top (it lay on the wall top when the pool was full to the rim: jagged teeth). Built, NOT tested in game.
 - Pool edges: the liquid surface runs on level into the wall and ends hidden inside it (it used to slope down to the lowest nearby surface: saw-teeth that caught the sun and flickered). Built, NOT tested in game.

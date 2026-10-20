@@ -32,6 +32,7 @@ namespace DrainTarPit.Tests.Unit
             // ModLog keeps static state (source + "session started"): reset it so every test starts like a fresh game launch
             ModAssembly.SetStatic(LogType, "_source", null);
             ModAssembly.SetStatic(LogType, "_sessionStarted", false);
+            ModAssembly.Call(LogType, "ResetRepeats");
 
             _listener = new CaptureListener();
             _source = new ManualLogSource("DtpUnitTest");
@@ -118,6 +119,41 @@ namespace DrainTarPit.Tests.Unit
 
             Assert.That(_listener.Lines, Has.Count.EqualTo(2));
             Assert.That(TimestampedLine.Match(_listener.Lines[1]).Groups["msg"].Value, Is.EqualTo("a message"));
+        }
+
+        // ---- repeat filter (user standard 2026-10-20: an identical line within 2-3 s is not written again) ----
+
+        [Test]
+        public void Info_SameMessageTwiceAtOnce_IsWrittenOnce()
+        {
+            ModAssembly.Call(LogType, "Init", _source);
+
+            ModAssembly.Call(LogType, "Info", "same");
+            ModAssembly.Call(LogType, "Info", "same");
+
+            Assert.That(_listener.Lines, Has.Count.EqualTo(2), "session marker + one 'same'");
+        }
+
+        [Test]
+        public void Info_TwoDifferentMessages_AreBothWritten()
+        {
+            ModAssembly.Call(LogType, "Init", _source);
+
+            ModAssembly.Call(LogType, "Info", "one");
+            ModAssembly.Call(LogType, "Info", "two");
+
+            Assert.That(_listener.Lines, Has.Count.EqualTo(3));
+        }
+
+        [Test]
+        public void Error_SameMessageTwice_IsAlwaysWritten()
+        {
+            ModAssembly.Call(LogType, "Init", _source);
+
+            ModAssembly.Call(LogType, "Error", "boom");
+            ModAssembly.Call(LogType, "Error", "boom");
+
+            Assert.That(_listener.Lines, Has.Count.EqualTo(3));
         }
 
         [Test]

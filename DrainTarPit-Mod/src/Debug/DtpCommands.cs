@@ -16,7 +16,7 @@ namespace DrainTarPit.Debug
     {
         public override string Name { get { return "dtp"; } }
         public override bool IsCheat { get { return true; } }       // only with devcommands enabled
-        public override string Help { get { return "DrainTarPit test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp cleanpools [small [m3]] | dtp ptest <watch|pour|tank|matrix|rim|fields|out|stop> (water pool tests, see _agent/TESTLOG.md)"; } }
+        public override string Help { get { return "DrainTarPit test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp cleanpools [small [m3]] | dtp meshdump [radius] | dtp ptest <watch|pour|tank|matrix|rim|fields|out|stop> (water pool tests, see _agent/TESTLOG.md)"; } }
 
         public override void Run(string[] args)
         {
@@ -28,6 +28,7 @@ namespace DrainTarPit.Debug
                 case "anim": Anim(args.Length > 1 ? args[1].ToLowerInvariant() : ""); break;
                 case "pits": Pits(); break;
                 case "cleanpools": CleanPools(args); break;
+                case "meshdump": Print(MeshDump.Run(args.Length > 1 && int.TryParse(args[1], out var r) ? r : 6)); break;
                 case "state": State(); break;
                 case "ptest": PoolTests.Run(args.Skip(1).ToArray()); break;
                 case "clips": Print(PlayerPumpAnimations.Describe(Player.m_localPlayer)); break;

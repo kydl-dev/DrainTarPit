@@ -56,6 +56,18 @@ namespace DrainTarPit.Visuals
         }
 
         // min over a (2R+1) x (2R+1) window of the wet surface heights, done as two 1-D passes
+        /// Debugger (dtp meshdump): runs the same Build on the calling (main) thread and returns a copy of the y every grid point gets
+        /// (NaN = the game's own vertex). Expected outcome: one value per grid point; null when the pool has no usable grid.
+        internal static float[] Explain(LiquidVolume v, List<float> d, List<float> h)
+        {
+            Build(v, d, h);
+            int n = (v.m_width + 1) * (v.m_width + 1);
+            if (_fix == null || _fix.Length < n) return null;
+            var copy = new float[n];
+            System.Array.Copy(_fix, copy, n);
+            return copy;
+        }
+
         static void Build(LiquidVolume v, List<float> d, List<float> h)
         {
             int w = v.m_width, stride = w + 1, n = stride * stride;
