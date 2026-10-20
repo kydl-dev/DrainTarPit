@@ -19,7 +19,7 @@ namespace DrainTarPit.Drain
         {
             var g = ToGrid(v, p);
             var nv = Nview(v); var zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
-            string s = (zdo != null && zdo.GetBool(TarPool.ZPool, false) ? "[pump pool] " : "[vanilla] ") + "grid " + v.m_width + "x" + v.m_width + "@" + v.m_scale + "m, owner=" + (nv != null && nv.IsValid() && nv.IsOwner());
+            string s = (zdo != null && ZdoKeys.Bool(zdo, TarPool.ZPool, TarPool.ZPoolOld) ? "[pump pool] " : "[vanilla] ") + "grid " + v.m_width + "x" + v.m_width + "@" + v.m_scale + "m, owner=" + (nv != null && nv.IsValid() && nv.IsOwner());
             if (!InGrid(v, g)) return s + ", tracks you: " + Tracks(v, Player.m_localPlayer) + ", you are outside its grid";
             float dep; using (Hold(v)) { var d = Depths(v); dep = d != null && d.Count >= (v.m_width + 1) * (v.m_width + 1) ? DepthAt(v, d, g.x, g.y) : -1f; }
             return s + ", tracks you: " + Tracks(v, Player.m_localPlayer) + ", under you: depth " + dep.ToString("0.00") + " m, surface y " + v.GetSurface(p).ToString("0.00") + " (you y " + p.y.ToString("0.00") + ")";

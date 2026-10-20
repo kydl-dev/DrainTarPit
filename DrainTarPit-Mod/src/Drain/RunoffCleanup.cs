@@ -13,7 +13,7 @@ namespace DrainTarPit.Drain
     /// </summary>
     internal static class RunoffCleanup
     {
-        public const string ZRunoff = "TPD_runoff";       // ZDO flag: made by runoff, may be removed when (almost) empty
+        public const string ZRunoff = "DTP_runoff", ZRunoffOld = "TPD_runoff";       // ZDO flag: made by runoff, may be removed when (almost) empty
         public const float MinKeep = 1f;                  // m3: a runoff pool with less than this is removed
         public const float Grace = 60f;                   // s after the last deposit into it (the game spreads / settles the liquid first)
         const float CheckEvery = 5f;
@@ -41,7 +41,7 @@ namespace DrainTarPit.Drain
             if (NextCheck.TryGetValue(v, out next) && now < next) return;
             NextCheck[v] = now + CheckEvery;
             var nv = Nview(v);
-            if (nv == null || !nv.IsValid() || !nv.IsOwner() || nv.GetZDO() == null || !nv.GetZDO().GetBool(ZRunoff, false)) return;
+            if (nv == null || !nv.IsValid() || !nv.IsOwner() || nv.GetZDO() == null || !ZdoKeys.Bool(nv.GetZDO(), ZRunoff, ZRunoffOld)) return;
             float last;
             if (!LastTouched.TryGetValue(v, out last)) { LastTouched[v] = now; return; }     // loaded from the save: wait a full grace time
             if (now - last < Grace || !HeightsReady(v) || !TarPoolDiagnostics.GridIsValid(v)) return;

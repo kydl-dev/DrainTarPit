@@ -38,7 +38,7 @@ namespace DrainTarPit.Drain
         public const string LegacyTarPrefabName = "DTP_TarPool";         // 32x32 (16 m): pools saved by older versions keep loading with this one
         public const string WaterPrefabName = "DTP_WaterPool2";
         public const string LegacyWaterPrefabName = "DTP_WaterPool";      // 0.5 m cells, 48x48: pools saved by older versions keep loading with this one
-        public const string ZPool = "TPD_pool";                 // ZDO flag on our own volumes (no self-refill)
+        public const string ZPool = "DTP_pool", ZPoolOld = "TPD_pool";                 // ZDO flag on our own volumes (no self-refill)
         const int TarGridWidth = 48, LegacyTarGridWidth = 32;
         const float CellScale = 0.5f;
         const float MaxDepth = 12f;

@@ -12,7 +12,7 @@ namespace DrainTarPit.Drain
     /// </summary>
     internal static class TarPitDrain
     {
-        const string VarRefillTime = "TPD_refillT";  // world time (ms) of the last drain / refill step; lets refill catch up after unload
+        const string VarRefillTime = "DTP_refillT", VarRefillTimeOld = "TPD_refillT";  // world time (ms) of the last drain / refill step; lets refill catch up after unload
 
         /// Tar (m3) one stroke could pull from within radius of world point c (the pull is weighted, see Weight).
         public static float Available(LiquidVolume v, Vector3 c, float radius)
@@ -123,7 +123,8 @@ namespace DrainTarPit.Drain
                 var zdo = nv.GetZDO();
                 if (zdo != null)
                 {
-                    if (zdo.GetFloat(VarBaseline, 0f) <= 0f) zdo.Set(VarBaseline, TotalVolume(v));
+                    if (ZdoKeys.Float(zdo, VarBaseline, VarBaselineOld) <= 0f) zdo.Set(VarBaseline, TotalVolume(v));
+                    else if (zdo.GetFloat(VarBaseline, 0f) <= 0f) zdo.Set(VarBaseline, ZdoKeys.Float(zdo, VarBaseline, VarBaselineOld));   // carry the old key over
                     zdo.Set(VarRefillTime, NowMs()); SyncRevision(v);       // refill counts from the last drain
                 }
 
@@ -156,8 +157,8 @@ namespace DrainTarPit.Drain
             RefillTimers[v] = 0f;
 
             var zdo = nv.GetZDO();
-            if (zdo.GetBool(TarPool.ZPool, false)) return;      // pools made from pumped tar do not seep back on their own (that would create tar)
-            float baseline = zdo.GetFloat(VarBaseline, 0f);
+            if (ZdoKeys.Bool(zdo, TarPool.ZPool, TarPool.ZPoolOld)) return;      // pools made from pumped tar do not seep back on their own (that would create tar)
+            float baseline = ZdoKeys.Float(zdo, VarBaseline, VarBaselineOld);
             if (baseline <= 0f) return;                         // never drained
 
             var d = Depths(v);
@@ -169,7 +170,7 @@ namespace DrainTarPit.Drain
                 float deficit = baseline - depthSum * scale2;
                 if (deficit < 0.01f) return;                    // full again
 
-                long now = NowMs(), last = zdo.GetLong(VarRefillTime, 0L);
+                long now = NowMs(), last = ZdoKeys.Long(zdo, VarRefillTime, VarRefillTimeOld);
                 zdo.Set(VarRefillTime, now); SyncRevision(v);
                 if (last <= 0L || now <= last) return;
                 float add = Mathf.Min(deficit, baseline / (minutes * 60f) * ((now - last) / 1000f));

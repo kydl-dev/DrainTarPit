@@ -6,7 +6,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <!-- Folder with the game/BepInEx/Jotunn DLLs (your refs folder). Override: dotnet build -p:ValheimRefs=C:\path\refs -->
     <ValheimRefs Condition="'$(ValheimRefs)' == ''">$(MSBuildThisFileDirectory)ref</ValheimRefs>
-    <!-- Set to your BepInEx/plugins/TarPitDrain folder to auto-copy after build -->
+    <!-- Set to your BepInEx/plugins/DrainTarPit folder to auto-copy after build -->
     <DeployDir></DeployDir>
     <PackageId>DrainTarPit</PackageId>
   </PropertyGroup>
@@ -38,7 +38,7 @@
     <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(ValheimRefs)\UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <ItemGroup>
-    <!-- Copy the built bundle to TarPitDrain/Assets/draintarpit; it is embedded in the DLL. -->
+    <!-- Copy the built bundle to DrainTarPit/Assets/draintarpit; it is embedded in the DLL. -->
     <EmbeddedResource Include="Assets\draintarpit" LogicalName="draintarpit" Condition="Exists('Assets\draintarpit')" />
     <!-- Recorded sounds: used when the asset bundle does not contain them (assets/audio/*.ogg in the bundle win). -->
     <EmbeddedResource Include="audio\pump_up.ogg" LogicalName="pump_up.ogg" />

@@ -16,7 +16,7 @@ namespace DrainTarPit.Debug
     {
         public override string Name { get { return "dtp"; } }
         public override bool IsCheat { get { return true; } }       // only with devcommands enabled
-        public override string Help { get { return "TarPitDrain test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp cleanpools [small [m3]] | dtp ptest <watch|pour|tank|matrix|rim|fields|out|stop> (water pool tests, see _agent/TESTLOG.md)"; } }
+        public override string Help { get { return "DrainTarPit test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp cleanpools [small [m3]] | dtp ptest <watch|pour|tank|matrix|rim|fields|out|stop> (water pool tests, see _agent/TESTLOG.md)"; } }
 
         public override void Run(string[] args)
         {
@@ -80,7 +80,7 @@ namespace DrainTarPit.Debug
             foreach (var v in TarPits.All.Where(x => x != null).OrderBy(x => p != null ? Vector3.Distance(x.transform.position, p.transform.position) : 0f))
             {
                 var nv = TarPits.Nview(v); var zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
-                float baseline = zdo != null ? zdo.GetFloat(TarPits.VarBaseline, 0f) : 0f;
+                float baseline = zdo != null ? ZdoKeys.Float(zdo, TarPits.VarBaseline, TarPits.VarBaselineOld) : 0f;
                 Print("  " + v.name + " @ " + v.transform.position.ToString("0") + (p != null ? " (" + Vector3.Distance(v.transform.position, p.transform.position).ToString("0") + " m)" : "") +
                     ": " + TarPits.TotalVolume(v).ToString("0.0") + " m3" + (baseline > 0f ? " of " + baseline.ToString("0.0") + " (drained before)" : ""));
                 if (p != null) Print("      " + TarPitDebug.DescribeAt(v, p.transform.position) + ", InTar=" + PlayerInTar(p));

@@ -33,7 +33,7 @@ namespace DrainTarPit.Building
         }
 
         /// ZDO key on a strainer: the liquid it was locked to (PumpLiquid as int, 0 = not locked yet).
-        public const string ZLiquid = "TPD_liquid";
+        public const string ZLiquid = "DTP_liquid", ZLiquidOld = "TPD_liquid";      // old key: worlds saved before the rename (ZdoKeys)
 
         /// ZDO keys on a hose / elbow: the look it was built with (HoseStyleOption as int, HoseOpacity). Absent = not stamped yet.
         public const string ZHoseStyle = "DTP_hoseStyle";
@@ -80,7 +80,7 @@ namespace DrainTarPit.Building
             {
                 var nv = GetComponent<ZNetView>();
                 var z = nv != null && nv.IsValid() ? nv.GetZDO() : null;
-                return z != null ? (PumpLiquid)z.GetInt(ZLiquid, 0) : PumpLiquid.None;
+                return z != null ? (PumpLiquid)DrainTarPit.Drain.ZdoKeys.Int(z, ZLiquid, ZLiquidOld) : PumpLiquid.None;
             }
         }
 
@@ -92,7 +92,7 @@ namespace DrainTarPit.Building
             if (nv == null || !nv.IsValid()) return false;
             if (!nv.IsOwner()) nv.ClaimOwnership();
             var z = nv.GetZDO();
-            if (z == null || z.GetInt(ZLiquid, 0) != 0) return false;
+            if (z == null || DrainTarPit.Drain.ZdoKeys.Int(z, ZLiquid, ZLiquidOld) != 0) return false;
             z.Set(ZLiquid, (int)liquid);
             ModLog.Verbose("Strainer " + name + " locked to " + liquid);
             return true;
@@ -107,7 +107,7 @@ namespace DrainTarPit.Building
             {
                 if (!nv.IsOwner()) return;
                 var z = nv.GetZDO();
-                if (z == null || z.GetInt(ZLiquid, 0) != 0) return;
+                if (z == null || DrainTarPit.Drain.ZdoKeys.Int(z, ZLiquid, ZLiquidOld) != 0) return;
                 var found = Liquids.Detect(StrainerTip);
                 if (found != PumpLiquid.None) LockLiquid(found);
             }
