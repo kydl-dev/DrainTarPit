@@ -21,21 +21,90 @@ namespace DrainTarPit.Drain
         const float AboveSurface = 2f;          // a fish this far above the surface (a jump) still belongs to the pool
         const int RecheckEvery = 5;             // physics steps between two pool look-ups of one fish
 
-        sealed class State { public bool InPool; public float Surface = -10000f; public int Countdown; public string Pool = ""; }
+        const int LeaveAfter = 4;               // pool look-ups in a row that must miss before a fish counts as out of the pool
+        const float ReportEvery = 3f;           // s between two debug state lines of one fish in a pool
+
+        sealed class State
+        {
+            public bool InPool; public float Surface = -10000f; public int Countdown, Misses; public string Pool = "";
+            public float NextReport; public int LevelAsks, WaypointTries, WaypointOk; public string LastTry = "";
+        }
+
+        static readonly AccessTools.FieldRef<Fish, bool> HaveWaypoint = AccessTools.FieldRefAccess<Fish, bool>("m_haveWaypoint");
+        static readonly AccessTools.FieldRef<Fish, bool> IsJumping = AccessTools.FieldRefAccess<Fish, bool>("m_isJumping");
+        static readonly AccessTools.FieldRef<Fish, Vector3> Waypoint = AccessTools.FieldRefAccess<Fish, Vector3>("m_waypoint");
+        static readonly AccessTools.FieldRef<Fish, Vector3> SpawnPoint = AccessTools.FieldRefAccess<Fish, Vector3>("m_spawnPoint");
+        static readonly AccessTools.FieldRef<Fish, Rigidbody> Body = AccessTools.FieldRefAccess<Fish, Rigidbody>("m_body");
+
+        // T-43 debugger (user standard: track everything when DebugLog is on): what the fish is doing, every ReportEvery s while it is in a pool.
+        // LevelAsks = how often the game asked GetWaterLevel through our patch (0 = the call never reaches the patch), WaypointTries / Ok = swim targets.
+        static void Report(Fish f, State st)
+        {
+            var b = Body(f);
+            ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " in " + st.Pool + ": y " + f.transform.position.y.ToString("0.00") + ", water " + st.Surface.ToString("0.00") +
+                ", gravity " + (b != null && b.useGravity) + ", speed " + (b != null ? b.linearVelocity.magnitude.ToString("0.00") : "?") + ", jumping " + IsJumping(f) +
+                ", waypoint " + (HaveWaypoint(f) ? Waypoint(f).ToString("0.0") : "none") + ", spawn " + SpawnPoint(f).ToString("0.0") + ", minDepth " + f.m_minDepth.ToString("0.0") +
+                ", swimRange " + f.m_swimRange.ToString("0") + " | water level asks " + st.LevelAsks + ", swim targets " + st.WaypointOk + " of " + st.WaypointTries + " tries" +
+                (st.LastTry.Length > 0 ? ", last refused: " + st.LastTry : ""));
+            st.LevelAsks = 0; st.WaypointTries = 0; st.WaypointOk = 0; st.LastTry = "";
+        }
+
+        [HarmonyPatch(typeof(Fish), "RandomizeWaypoint")]
+        static class Patch_RandomizeWaypoint
+        {
+            static void Postfix(Fish __instance, bool __result)
+            {
+                try
+                {
+                    State st;
+                    if (__instance == null || !States.TryGetValue(__instance, out st) || !st.InPool) return;
+                    st.WaypointTries++;
+                    if (__result) { st.WaypointOk++; return; }
+                    var w = Waypoint(__instance);
+                    float s; string pool; float solid = float.NaN;
+                    bool wet = PoolSurface(new Vector3(w.x, st.Surface, w.z), out s, out pool);
+                    bool floor = ZoneSystem.instance != null && ZoneSystem.instance.GetSolidHeight(w, out solid, 1000);
+                    if (!floor) solid = float.NaN;
+                    st.LastTry = "target " + w.ToString("0.0") + (wet ? " over the pool, depth " + (s - solid).ToString("0.00") : " outside the pool's water");
+                }
+                catch (System.Exception e) { ModLog.VerboseWarn("PoolFish waypoint: " + e.Message); }
+            }
+        }
         static readonly ConditionalWeakTable<Fish, State> States = new ConditionalWeakTable<Fish, State>();
 
         static readonly AccessTools.FieldRef<Fish, float> InWater = AccessTools.FieldRefAccess<Fish, float>("m_inWater");
         static readonly AccessTools.FieldRef<Fish, WaterVolume> WaterVol = AccessTools.FieldRefAccess<Fish, WaterVolume>("m_waterVolume");
 
         /// The pool surface over world point p, if p is over a pump water pool with water. Expected outcome: true exactly when a surface was found.
+        /// T-43: TarPits.TrySample picks the pool with the MOST water at that x/z, which near two overlapping pools (here: a pool and the lower runoff
+        /// pool next to it, log 19:42) can be a pool far below the fish. Now only pools whose surface is not under the fish (by more than the fish's
+        /// own height) count, and of those the lowest surface wins (the water the fish is really in).
         internal static bool PoolSurface(Vector3 p, out float surface, out string pool)
         {
             surface = -10000f; pool = "";
-            LiquidVolume v; float depth, s;
-            if (!TarPits.TrySample(p, out v, out depth, out s, LiquidType.Water)) return false;
-            bool found = v != null && TarPits.IsPumpPool(v) && depth >= MinWater && s > -9999f && p.y <= s + AboveSurface;
-            if (found) { surface = s; pool = v.name; }
-            return found;
+            LiquidVolume best = null, jump = null; float bestS = float.MaxValue, jumpS = float.MinValue;
+            foreach (var v in TarPits.All)
+            {
+                if (v == null || v.m_liquidType != LiquidType.Water || !TarPits.IsPumpPool(v)) continue;
+                var g = TarPits.ToGrid(v, p);
+                if (!TarPits.InGrid(v, g)) continue;
+                float depth;
+                using (TarPits.Hold(v))
+                {
+                    var d = TarPits.Depths(v);
+                    if (d == null || d.Count < (v.m_width + 1) * (v.m_width + 1)) continue;
+                    depth = TarPits.DepthAt(v, d, g.x, g.y);
+                }
+                if (depth < MinWater) continue;
+                float s = v.GetSurface(p);
+                if (s < -9999f || s > p.y + 50f) continue;                            // no surface here, or far above (a pool on a higher floor)
+                if (s >= p.y - 0.4f) { if (s < bestS) { bestS = s; best = v; } }       // the fish is in this water: the lowest such surface wins
+                else if (s >= p.y - AboveSurface && s > jumpS) { jumpS = s; jump = v; } // the fish is a little above this surface (a jump)
+            }
+            if (best == null && jump != null) { best = jump; bestS = jumpS; }
+            if (best == null) return best != null;
+            surface = bestS; pool = best.name;
+            return best != null;
         }
 
         [HarmonyPatch(typeof(Fish), nameof(Fish.CustomFixedUpdate))]
@@ -52,6 +121,9 @@ namespace DrainTarPit.Drain
                         st.Countdown = RecheckEvery;
                         float surface; string pool;
                         bool inPool = PoolSurface(__instance.transform.position, out surface, out pool);
+                        // T-43: a fish touching a wall / the floor edge is briefly over a dry grid point; it only leaves after LeaveAfter misses in a row
+                        if (!inPool && st.InPool && ++st.Misses < LeaveAfter) { inPool = true; surface = st.Surface; pool = st.Pool; }
+                        else if (inPool) st.Misses = 0;
                         if (inPool != st.InPool)
                             ModLog.Verbose("Fish " + __instance.name + (inPool ? " is in pump pool " + pool + ", water level " + surface.ToString("0.00") : " left pump pool " + st.Pool + ", handed back to the game") +
                                 " at " + __instance.transform.position.ToString("0.0"));
@@ -59,6 +131,7 @@ namespace DrainTarPit.Drain
                         st.InPool = inPool; st.Surface = surface; st.Pool = pool;
                     }
                     if (st.InPool) InWater(__instance) = st.Surface;
+                    if (st.InPool && Time.time >= st.NextReport) { st.NextReport = Time.time + ReportEvery; Report(__instance, st); }
                 }
                 catch (System.MissingFieldException e) { ModLog.Warn("PoolFish: a Fish field is missing in this game version (" + e.Message + "), fish in pools are not helped"); }
                 catch (System.Exception e) { ModLog.VerboseWarn("PoolFish: " + e.Message); }
@@ -75,6 +148,7 @@ namespace DrainTarPit.Drain
                     if (__instance == null || WaterVol(__instance) != null) return;
                     State st;
                     if (!States.TryGetValue(__instance, out st) || !st.InPool) return;     // only fish we know are in a pool ask the pools
+                    st.LevelAsks++;
                     float surface; string pool;
                     var probe = new Vector3(point.x, st.Surface, point.z);                  // waypoints carry a made-up y: test at the surface height
                     __result = PoolSurface(probe, out surface, out pool) ? surface : -10000f; // outside the pool's water = dry (the fish does not swim there)
