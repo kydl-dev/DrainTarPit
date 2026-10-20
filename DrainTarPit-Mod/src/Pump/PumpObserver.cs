@@ -46,7 +46,13 @@ namespace DrainTarPit.Pump
             var liquid = (PumpLiquid)z.GetInt(PumpZdo.Liquid, (int)PumpLiquid.Tar);
             int st = z.GetInt(PumpZdo.Strokes, 0);
             if (_seenStrokes == -1) _seenStrokes = st;
-            else if (st != _seenStrokes) { _seenStrokes = st; PumpFx.Stroke(_fxPoint); TarFlow.Stroke(_piece, true, liquid); }
+            else if (st != _seenStrokes)
+            {
+                _seenStrokes = st;
+                // the stroke counter of a continuous loop is raised shortly before that loop starts (PumpController CycleLead 0.1 s); a tap starts at once
+                var timing = RemotePhase == PumpPhase.Cycle ? PumpClips.CycleTiming(0.1f) : PumpClips.TapTiming();
+                PumpFx.Stroke(_fxPoint, timing); TarFlow.Stroke(_piece, true, liquid);
+            }
             int sp = z.GetInt(PumpZdo.SplashSeq, 0);
             if (_seenSplash == -1) _seenSplash = sp;
             else if (sp != _seenSplash)

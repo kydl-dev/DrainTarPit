@@ -33,17 +33,65 @@ namespace DrainTarPit.Effects
         static bool _disabled;      // set after an error; runtime only, the config file is left alone
         static bool Enabled { get { return !_disabled && ModSettings.Effects.Value && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
 
-        public static void Stroke(Transform at)
+        /// When the piston moves during one stroke, from the moment PumpFx.Stroke is called: it starts rising after StartIn seconds, rises for Up
+        /// seconds (lever pushed down: Push clip / first part of a Cycle loop), then falls for Down seconds (Pull / rest of the loop) and is at its
+        /// lowest (lever at its highest) at StartIn + Up + Down. Measured from the pump's own clips (DTP_Pump_Push / Pull / Cycle, PistonRod y).
+        internal struct StrokeTiming
         {
-            if (!Enabled || at == null) return;
+            public float StartIn, Up, Down;
+            public float BottomAt { get { return StartIn + Up + Down; } }
+            public override string ToString() { return "start in " + StartIn.ToString("0.00") + " s, up " + Up.ToString("0.00") + " s, down " + Down.ToString("0.00") + " s"; }
+        }
+
+        const float HitLead = 0.08f;            // the pump_up hit is started this long before its loudest moment, so that moment lands on the bottom
+        const float MinSpeed = 0.85f, MaxSpeed = 1.25f;   // how far a scratch may be sped up / slowed down to fit its half of the stroke
+
+        /// One stroke. With [Effects] ScratchSounds (default on): the 'up' scratch while the piston rises, the 'down' scratch while it falls, and the
+        /// pump_up hit exactly when it reaches the bottom (user, 2026-10-20). Off: the old single pump_up recording from the start of the stroke.
+        public static void Stroke(Transform at, StrokeTiming timing)
+        {
+            if (!Enabled || at == null) { ModLog.Verbose("Pump sound: stroke not played (" + (at == null ? "no fx point" : "effects off") + ")"); return; }
             try
             {
                 if (ModSettings.PumpDroplets.Value) Droplets(at.position, Vector3.up, 8, 0.6f);   // off by default: it looked like oil dripping at the pump outlet / first hose joint
                 var clip = Clip(PumpUp);               // pump_up: the lever being pressed
                 if (clip == null && !Loading(PumpUp)) clip = _stroke != null ? _stroke : (_stroke = MakeStroke());   // fallback: synthesised
-                Sound(at.position, clip, 1f, ModSettings.SoundTailSeconds.Value);
+                var pos = at.position;
+                if (!ModSettings.ScratchSounds.Value)
+                {
+                    ModLog.Verbose("Pump sound: single pump_up recording (ScratchSounds off)");
+                    RunAfter(timing.StartIn, () => Sound(pos, clip, 1f, ModSettings.SoundTailSeconds.Value));
+                    return;
+                }
+                ModLog.Verbose("Pump sound: stroke " + timing);
+                Scratch(pos, ScratchUp, timing.StartIn, timing.Up);
+                Scratch(pos, ScratchDown, timing.StartIn + timing.Up, timing.Down);
+                float peak = clip != null ? PeakTime(clip) : -1f;
+                if (clip == null) { ModLog.Verbose("Pump sound: pump_up not loaded yet, no hit this stroke"); return; }
+                if (peak < 0f)
+                {   // loudest moment unknown (synthesised fallback / unreadable clip): start it at the bottom
+                    RunAfter(timing.BottomAt, () => Sound(pos, clip, 1f, ModSettings.SoundTailSeconds.Value));
+                    return;
+                }
+                float from = Mathf.Max(0f, peak - HitLead);
+                var span = Span.Whole; span.StartAt = from;
+                RunAfter(Mathf.Max(0f, timing.BottomAt - (peak - from)), () => Sound(pos, clip, 1f, ModSettings.SoundTailSeconds.Value, false, span));
             }
             catch (System.Exception e) { Fail(e); }
+        }
+
+        /// One half of the scratching recording, fitted into `seconds`: sped up / slowed down within MinSpeed..MaxSpeed, the rest faded out at the end.
+        static void Scratch(Vector3 pos, string key, float startIn, float seconds)
+        {
+            var clip = Clip(key);
+            if (clip == null) { ModLog.Verbose("Pump sound: '" + key + "' " + (Loading(key) ? "still loading" : "not available") + ", skipped"); return; }
+            if (seconds < 0.05f) { ModLog.Verbose("Pump sound: '" + key + "' skipped, its part of the stroke is only " + seconds.ToString("0.00") + " s"); return; }
+            var span = Span.Whole;
+            span.StartAt = 0f;
+            span.Pitch = Mathf.Clamp(clip.length / seconds, MinSpeed, MaxSpeed);
+            span.EndAt = seconds * span.Pitch;                // clip time reached when this part of the stroke is over
+            span.Fade = Mathf.Min(0.06f, seconds * 0.3f);
+            RunAfter(startIn, () => Sound(pos, clip, 1f, 0f, false, span));
         }
 
         /// The liquid coming out at the nozzle. `volume` = m3 that really left the pit with this stroke (scales length and thickness).
@@ -80,9 +128,24 @@ namespace DrainTarPit.Effects
             {
                 float frac = Mathf.Clamp01(volume / Mathf.Max(0.01f, ModSettings.VolumePerStroke.Value));
                 float amount = ModSettings.NozzleFlowAmount.Value;
-                if (amount > 0.001f) Stream(pos, dir, frac, amount, liquid);
+                if (amount <= 0.001f) { ModLog.Verbose("Pour: NozzleFlowAmount is 0, no stream (and no splash)"); return; }
+                Vector3 land; float fall;
+                Stream(pos, dir, frac, amount, liquid, out land, out fall);
+                if (liquid == Drain.PumpLiquid.Water) WaterSplashAt(land, fall, frac);
             }
             catch (System.Exception e) { Fail(e); }
+        }
+
+        // User, 2026-10-20: the recorded water splash when the water out of the nozzle hits something (the pool, the ground, a wall), played where
+        // and when the first droplets come down. It replaces the silence of water pours; the synthesised splash stays removed. Tar keeps oil_pumped.
+        static void WaterSplashAt(Vector3 land, float fall, float frac)
+        {
+            if (!ModSettings.WaterSplashSound.Value) { ModLog.Verbose("Pour: water splash off ([Effects] WaterSplashSound)"); return; }
+            var clip = Clip(WaterSplash);
+            if (clip == null) { ModLog.Verbose("Pour: water_splash " + (Loading(WaterSplash) ? "still loading" : "not available") + ", no splash sound"); return; }
+            float gain = Mathf.Lerp(0.6f, 1f, frac);                    // a stroke that brought up less water splashes a bit softer
+            ModLog.Verbose("Pour: water splash at " + land.ToString("0.0") + " in " + fall.ToString("0.00") + " s, gain " + gain.ToString("0.00"));
+            RunAfter(fall, () => Sound(land, clip, gain, 0f, true));
         }
 
         static void PourSound(Vector3 pos, Drain.PumpLiquid liquid)
@@ -90,8 +153,9 @@ namespace DrainTarPit.Effects
             if (!Enabled) return;
             try
             {
-                // Water pours SILENTLY. The synthesised splash that used to play here (and as the oil fallback) was removed on purpose - never bring it back.
-                if (liquid == Drain.PumpLiquid.Water) return;
+                // No sound AT THE NOZZLE for water: its sound is the recorded water_splash where the stream lands (WaterSplashAt, user 2026-10-20).
+                // The synthesised splash that used to play here (and as the oil fallback) was removed on purpose - never bring it back.
+                if (liquid == Drain.PumpLiquid.Water) { ModLog.Verbose("Pour: no nozzle sound for water (the splash plays where it lands)"); return; }
                 var clip = Clip(OilPumped);            // oil_pumped: the liquid coming out of the outlet pipe
                 if (clip == null) return;              // no recording available: no sound (there is no synthesised fallback)
                 Sound(pos, clip, 1f, 0f, true);
@@ -103,7 +167,7 @@ namespace DrainTarPit.Effects
         public static void Preload()
         {
             if (!Enabled) return;
-            Clip(PumpUp); Clip(OilPumped);
+            Clip(PumpUp); Clip(OilPumped); Clip(ScratchUp); Clip(ScratchDown); Clip(WaterSplash);
         }
 
         static bool _failed;

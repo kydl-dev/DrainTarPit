@@ -38,6 +38,8 @@ internal static class ModSettings
     public static ConfigEntry<float> EffectsVolume;
     public static ConfigEntry<float> SoundTailSeconds;
     public static ConfigEntry<bool> DrySound;
+    public static ConfigEntry<bool> ScratchSounds;
+    public static ConfigEntry<bool> WaterSplashSound;
     public static ConfigEntry<bool> PumpDroplets;
 
     // [Drain]
@@ -150,6 +152,11 @@ internal static class ModSettings
             "Play the pump sounds without the game's outdoor reverb. The game's SFX mixer adds a strong reverb outdoors that turned every lever hit into an echo " +
             "(measured in a recording: an attenuated copy of the hit about 0.3 s later). On = the sounds go to the game's Effects group (no reverb) and still follow " +
             "the game's sound-effects volume. Off = routed like vanilla sound effects (with that reverb).");
+        ScratchSounds = c.Bind("Effects", "ScratchSounds", true,
+            "Pump stroke sound in three parts: a scratch while the piston rises, a scratch while it falls, and the lever hit (pump_up) when it reaches the bottom. " +
+            "Off = the single pump_up recording from the start of the stroke (the sound before 2026-10-20).");
+        WaterSplashSound = c.Bind("Effects", "WaterSplashSound", true,
+            "Play a water splash where the pumped water comes down (pool, ground, anything it hits). Off = water pours silently.");
 
         PumpDroplets = c.Bind("Effects", "PumpDroplets", false,
             "Puff of tar droplets at the pump's outlet on every stroke. Off by default: the outlet is always fitted with a hose, so the droplets showed up as oil dripping between the pump's top pipe and the first hose (the tar is already shown moving through the hoses, see TarFlow).");

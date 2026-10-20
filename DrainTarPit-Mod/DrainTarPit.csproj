@@ -43,6 +43,10 @@
     <!-- Recorded sounds: used when the asset bundle does not contain them (assets/audio/*.ogg in the bundle win). -->
     <EmbeddedResource Include="audio\pump_up.ogg" LogicalName="pump_up.ogg" />
     <EmbeddedResource Include="audio\oil_pumped.ogg" LogicalName="oil_pumped.ogg" />
+    <!-- cut from audio\source\pump-scratching.ogg (first half = piston going down, second half = going up) and water-splash.mp3 -->
+    <EmbeddedResource Include="audio\pump_scratch_down.ogg" LogicalName="pump_scratch_down.ogg" />
+    <EmbeddedResource Include="audio\pump_scratch_up.ogg" LogicalName="pump_scratch_up.ogg" />
+    <EmbeddedResource Include="audio\water_splash.ogg" LogicalName="water_splash.ogg" />
   </ItemGroup>
   <Target Name="Deploy" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(DeployDir)" />

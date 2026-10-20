@@ -16,6 +16,8 @@ namespace DrainTarPit.Effects
     internal static class PumpFxSound
     {
         internal const string PumpUp = "pump_up", OilPumped = "oil_pumped";
+        // user, 2026-10-20 (audio/source/pump-scratching.ogg cut at 0.98 s: first half = piston going down, second half = going up; water-splash.mp3)
+        internal const string ScratchDown = "pump_scratch_down", ScratchUp = "pump_scratch_up", WaterSplash = "water_splash";
         static AudioMixerGroup _group;
         static bool _groupResolved;
 
@@ -174,10 +176,25 @@ namespace DrainTarPit.Effects
 
         internal static float PeakTime(AudioClip clip) { return Analyze(clip).x; }
 
+        /// The pieces of one played sound beyond the basics: where in the clip to start, how fast, and where (clip time) it must be faded out by.
+        internal struct Span
+        {
+            public float StartAt;       // clip time (s) to start from; < 0 = from 0 (or the first audible sample with skipLead)
+            public float Pitch;         // playback speed (1 = as recorded); also shifts the pitch, keep it near 1
+            public float EndAt;         // clip time (s) by which the sound is faded out; <= 0 = no limit
+            public float Fade;          // real seconds of that fade
+            public static Span Whole { get { return new Span { StartAt = -1f, Pitch = 1f, EndAt = -1f, Fade = 0.06f }; } }
+        }
+
         // skipLead: start the clip at its first audible sample (see Analyze) instead of at 0
         internal static void Sound(Vector3 pos, AudioClip clip, float gain, float tailSeconds, bool skipLead = false)
         {
-            if (clip == null) return;
+            Sound(pos, clip, gain, tailSeconds, skipLead, Span.Whole);
+        }
+
+        internal static void Sound(Vector3 pos, AudioClip clip, float gain, float tailSeconds, bool skipLead, Span span)
+        {
+            if (clip == null) { ModLog.Verbose("Sound: nothing played, the clip is not loaded (yet)"); return; }
             SfxVoice old;
             if (Voices.TryGetValue(clip, out old)) { if (old != null && old.Src != null && (old.PeakT < 0f || old.Src.time >= old.PeakT)) old.FadeOut(0.08f); Voices.Remove(clip); }   // only a copy that is already past its main hit is faded; one still building up to it plays on
             var go = new GameObject("DTP_sfx");
@@ -202,14 +219,24 @@ namespace DrainTarPit.Effects
             voice.Src = a; voice.Volume = vol;
             float peak = PeakTime(clip); voice.PeakT = peak;
             if (tailSeconds > 0.01f && peak >= 0f) { voice.FadeEnd = peak + tailSeconds; voice.FadeStart = peak + tailSeconds * 0.35f; }
-            if (skipLead)
-            {
-                float on = Analyze(clip).y;
-                if (on > 0.005f) { try { a.timeSamples = Mathf.Clamp((int)(on * clip.frequency), 0, Mathf.Max(0, clip.samples - 1)); } catch { } }
+            float pitch = Mathf.Clamp(span.Pitch <= 0f ? 1f : span.Pitch, 0.5f, 2f);
+            a.pitch = pitch;
+            if (span.EndAt > 0f && (voice.FadeEnd <= 0f || span.EndAt < voice.FadeEnd))
+            {   // the sound must be gone by EndAt (clip time): the next part of the stroke starts there
+                voice.FadeEnd = span.EndAt;
+                voice.FadeStart = Mathf.Max(0f, span.EndAt - Mathf.Max(0.01f, span.Fade) * pitch);
             }
+            float from = span.StartAt >= 0f ? span.StartAt : skipLead ? Analyze(clip).y : 0f;
+            if (from > 0.005f)
+            {
+                try { a.timeSamples = Mathf.Clamp((int)(from * clip.frequency), 0, Mathf.Max(0, clip.samples - 1)); }
+                catch (System.ArgumentException e) { ModLog.VerboseWarn("Sound '" + clip.name + "': start at " + from.ToString("0.00") + " s refused (" + e.Message + "), plays from 0"); from = 0f; }
+            }
+            if (span.StartAt >= 0f || span.EndAt > 0f || pitch != 1f)
+                ModLog.Verbose("Sound '" + clip.name + "': clip time " + from.ToString("0.00") + " - " + (voice.FadeEnd > 0f ? voice.FadeEnd.ToString("0.00") : clip.length.ToString("0.00")) + " s at speed " + pitch.ToString("0.00"));
             Voices[clip] = voice;
             a.Play();
-            Object.Destroy(go, clip.length + 0.2f);
+            Object.Destroy(go, (clip.length - from) / pitch + 0.2f);
         }
 
         /// Drives the volume of one sound: tail fade-out and the quick fade when a newer copy takes over.

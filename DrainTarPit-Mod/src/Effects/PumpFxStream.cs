@@ -59,11 +59,13 @@ namespace DrainTarPit.Effects
         // A pressurised spurt (stretched droplets shot out of the nozzle along its axis, then falling in an arc), the splashes where it hits
         // the ground and a puddle that spreads and fades. One spurt per press: it starts hard, fades out within NozzleFlowSeconds and the
         // landing point is worked out from the exit speed, so the splashes / puddle appear where the stream really comes down.
-        internal static void Stream(Vector3 pos, Vector3 dir, float frac, float amount, Drain.PumpLiquid liquid)
+        /// `landAt` / `fallSeconds`: where and how long after the start the first droplets come down (the water splash sound plays there, then).
+        internal static void Stream(Vector3 pos, Vector3 dir, float frac, float amount, Drain.PumpLiquid liquid, out Vector3 landAt, out float fallSeconds)
         {
+            landAt = pos; fallSeconds = 0f;
             bool water = liquid == Drain.PumpLiquid.Water;
             Color dark = water ? WaterDark : TarDark, light = water ? WaterLight : TarLight, puddle = water ? WaterPuddle : TarPuddle;
-            var mat = Mat(); if (mat == null) return;
+            var mat = Mat(); if (mat == null) { ModLog.Verbose("Pour stream: no particle material, nothing shown"); return; }
             if (dir.sqrMagnitude < 0.01f) dir = Vector3.down;
             dir.Normalize();
             const float g = 9.81f;
@@ -82,6 +84,7 @@ namespace DrainTarPit.Effects
                 if (!sideways) break;
                 groundY = GroundBelow(new Vector3(land.x, Mathf.Max(pos.y, groundY + 1.5f), land.z));
             }
+            landAt = new Vector3(land.x, groundY, land.z); fallSeconds = fall;
             float dur = Mathf.Max(0.1f, ModSettings.NozzleFlowSeconds.Value * (0.75f + 0.5f * frac));   // how long this press keeps spurting
 
             // 1) the spurt: fast start, then fades out (not a constant flow)

@@ -274,7 +274,7 @@ namespace DrainTarPit.Pump
         }
 
         // --- player clip state machine --------------------------------------------------------------------------------
-        public void StartCycle() { if (_hasUser && _phase == PumpPhase.Idle && TryStroke(_user) && !_lastDry) SetPhase(PumpPhase.Cycle); }
+        public void StartCycle() { if (_hasUser && _phase == PumpPhase.Idle && TryStroke(_user, PumpClips.CycleTiming(0f)) && !_lastDry) SetPhase(PumpPhase.Cycle); }
         public void StopCycle() { _wantCycle = false; _blockCycle = true; }
 
         void SetPhase(PumpPhase p) { _phase = p; _phaseStarted = false; }
@@ -342,7 +342,7 @@ namespace DrainTarPit.Pump
             if (_phaseStarted && _phase == PumpPhase.Cycle && !_cycleStopping && Time.time >= _cycleCheckAt)
             {
                 bool go = _wantCycle && !_exitRequested;
-                if (go && (!TryStroke(_user) || _lastDry)) { go = false; _wantCycle = false; _blockCycle = true; }   // message was shown
+                if (go && (!TryStroke(_user, PumpClips.CycleTiming(CycleLead)) || _lastDry)) { go = false; _wantCycle = false; _blockCycle = true; }   // message was shown
                 if (go) _cycleCheckAt += _cycleLen;
                 else { _cycleStopping = true; SetPumping(false); _phaseEnd = _cycleCheckAt + CycleLead; }
             }
@@ -360,7 +360,7 @@ namespace DrainTarPit.Pump
             if (_phase == PumpPhase.Idle)       // ready for the next thing; whatever is picked starts in this same frame
             {
                 if (_exitRequested) SetPhase(PumpPhase.Exit);
-                else if (_wantCycle) { if (TryStroke(_user) && !_lastDry) SetPhase(PumpPhase.Cycle); else { _wantCycle = false; _blockCycle = true; } }
+                else if (_wantCycle) { if (TryStroke(_user, PumpClips.CycleTiming(0f)) && !_lastDry) SetPhase(PumpPhase.Cycle); else { _wantCycle = false; _blockCycle = true; } }
                 else if (Time.time < _queuedUntil) { _queuedUntil = 0f; if (TryStroke(_user)) SetPhase(PumpPhase.Push); }
             }
 
@@ -395,26 +395,29 @@ namespace DrainTarPit.Pump
         // --- pumping --------------------------------------------------------------------------------------------------
         // One stroke: stamina, validate hoses + pit, ask the pit owner to remove tar (the tar pours out at the nozzle when the
         // owner confirms), count it. false = nothing happened (no stamina / invalid setup, the reason is shown).
-        bool TryStroke(Humanoid user)
+        bool TryStroke(Humanoid user) { return TryStroke(user, PumpClips.TapTiming()); }
+
+        bool TryStroke(Humanoid user, PumpFx.StrokeTiming soundTiming)
         {
-            if (_piece == null || _nview == null || !_nview.IsValid()) return true;     // nothing to validate (should not happen)
+            if (_piece == null || _nview == null || !_nview.IsValid()) { ModLog.Verbose("Pump: stroke not validated (no piece / ZNetView)"); return _piece == null || _nview == null || !_nview.IsValid(); }   // nothing to validate (should not happen): goes ahead
             var player = user as Player;
             float cost = ModSettings.StaminaPerStroke.Value;
-            if (player != null && cost > 0f && !player.HaveStamina(cost)) { Tell(user, Loc.T("dtp_msg_tired")); return false; }
+            if (player != null && cost > 0f && !player.HaveStamina(cost)) { Tell(user, Loc.T("dtp_msg_tired")); ModLog.Verbose("Pump: stroke refused, not enough stamina"); return player.HaveStamina(cost); }
 
             if (!_nview.IsOwner()) _nview.ClaimOwnership();          // the stroke counter + nozzle pour live in the pump's ZDO
             var r = DrainService.Stroke(_piece, _nview);
             _lastDry = false;
-            if (!r.Valid) { Tell(user, r.Message); return false; }
+            if (!r.Valid) { Tell(user, r.Message); ModLog.Verbose("Pump: stroke refused: " + r.Message); return r.Valid; }
 
             if (player != null && cost > 0f) player.UseStamina(cost);
             var zdo = _nview.GetZDO();
             if (zdo != null) zdo.Set(PumpZdo.Strokes, zdo.GetInt(PumpZdo.Strokes, 0) + 1);
             _lastDry = r.Dry;
-            PumpFx.Stroke(_fxPoint);
+            PumpFx.Stroke(_fxPoint, soundTiming);
             if (!r.SlugStarted) TarFlow.Stroke(_piece, false);      // dry stroke: the slug is shown, no pour follows it (a stroke that takes tar started its slug in DrainService.Stroke)
             if (r.Dry) Tell(user, r.Message);
-            return true;
+            ModLog.Verbose("Pump: stroke counted (" + (r.Dry ? "dry" : "takes liquid") + "), sound " + soundTiming);
+            return r.Valid;
         }
 
         internal static void Tell(Humanoid user, string msg)
