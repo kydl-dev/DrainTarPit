@@ -25,6 +25,7 @@ namespace DrainTarPit.Drain
             public float LastDeposit = -999f, NextSeries, LastTotal = float.NaN;
             public readonly List<KeyValuePair<float, string>> Lines = new List<KeyValuePair<float, string>>();
             public int Strokes, Unbalanced; public double Poured, Kept, MaxAbsResidual, Drift;
+            public readonly Dictionary<string, double> StageDelta = new Dictionary<string, double>();   // sum of (after - before) per checkpoint stage
         }
         internal static readonly Dictionary<LiquidVolume, Book> Books = new Dictionary<LiquidVolume, Book>();
 
@@ -57,6 +58,7 @@ namespace DrainTarPit.Drain
         {
             var b = Of(v);
             b.LastTotal = after;
+            double d; b.StageDelta.TryGetValue(stage, out d); b.StageDelta[stage] = d + (after - before);
             Add(v, "CHECKPOINT " + stage + " total " + F(before) + " -> " + F(after) + " (delta " + F(after - before) + ")" + (string.IsNullOrEmpty(note) ? "" : " " + note));
         }
 
@@ -82,6 +84,13 @@ namespace DrainTarPit.Drain
         }
 
         /// Patch_Update: the total of an active pool every SeriesSeconds (step 10, the planned TotalVolume time series).
+        /// Sum of the volume changes booked by one stage ("wall", "shed", ...) so far; 0 when the stage never ran.
+        internal static double StageDelta(LiquidVolume v, string stage)
+        {
+            Book b; double d;
+            return v != null && Books.TryGetValue(v, out b) && b.StageDelta.TryGetValue(stage, out d) ? d : 0.0;
+        }
+
         internal static void Tick(LiquidVolume v)
         {
             Book b;

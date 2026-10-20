@@ -166,6 +166,7 @@ namespace DrainTarPit.Debug
                 yield return new WaitForSeconds(3f);
                 float before = TarPits.TotalVolume(v);
                 var b0 = Copy(TarPitDebug.BudgetFor(v));
+                double wall0 = TarPitLedger.StageDelta(v, "wall");
                 var block = new Dictionary<int, float>();
                 int half = kind == "open" ? 1 : 4;
                 float top = kind == "submerged" ? tank.Floor + 0.3f : kind == "full" ? tank.Top + 1f : tank.Floor + 1.5f;
@@ -184,14 +185,18 @@ namespace DrainTarPit.Debug
                 using (TarPitDebug.Lock(v)) { var d = TarPitDebug.DepthList(v); foreach (var kv in block) if (kv.Key < n) onBlock += d[kv.Key]; }
                 onBlock *= v.m_scale * v.m_scale;
                 foreach (var l in TarPitLedger.LinesSince(v, t0)) Out("LEDGER " + l);
+                float wallDelta = (float)(TarPitLedger.StageDelta(v, "wall") - wall0);
                 var why = new List<string>();
-                if (Mathf.Abs(after - before) > 0.02f) why.Add("total changed " + F(after - before) + " m3");
+                if (Mathf.Abs(wallDelta) > 0.02f) why.Add("the wall pass changed the total by " + F(wallDelta) + " m3");
+                // full: the whole grid is a piece and a 4 cm film lies on it - no basin anywhere. The game's own simulation of that film drifts after the pass
+                // (T-17R: -0.21 m3 in 6 s, the only DRIFT in a log with a 60 s real-pool hold and 20 enclosed runs), so only the wall pass is judged (user, D-026).
+                if (kind != "full" && Mathf.Abs(after - before) > 0.02f) why.Add("total changed " + F(after - before) + " m3");
                 if (later > 0.02f) why.Add(F2(later) + " m3 moved again after the first pass (should settle)");
                 if (b.WallRepeat > 0.02f) why.Add(F2(b.WallRepeat) + " m3 moved again from the same cells");
                 if (kind == "full" && b.WallLost <= 0f) why.Add("no open cell anywhere, yet nothing was reported as staying");
                 if (kind == "submerged" && onBlock <= 0.01f) why.Add("the water above the submerged piece was pushed away");
                 if ((kind == "open" || kind == "thick") && firstPushed <= 0.01f) why.Add("the piece displaced nothing");
-                res.Summary = label + ": " + (why.Count == 0 ? "PASS" : "FAIL (" + string.Join("; ", why.ToArray()) + ")") + " - total " + F(before) + " -> " + F(after) + " m3, displaced at the first pass " + F2(firstPushed) +
+                res.Summary = label + ": " + (why.Count == 0 ? "PASS" : "FAIL (" + string.Join("; ", why.ToArray()) + ")") + " - total " + F(before) + " -> " + F(after) + " m3 (wall pass " + F(wallDelta) + (kind == "full" ? "; the rest is the game's drift of a film with no basin, info only" : "") + "), displaced at the first pass " + F2(firstPushed) +
                     ", later " + F2(later) + ", repeat " + F2(b.WallRepeat) + ", no open cell (stayed) " + F2(b.WallLost) + ", standing on the piece " + F2(onBlock) + ", wall passes " + b.WallPasses;
                 Out("WALLS RESULT " + res.Summary);
             }
