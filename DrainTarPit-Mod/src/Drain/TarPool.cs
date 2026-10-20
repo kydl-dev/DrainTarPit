@@ -33,11 +33,12 @@ namespace DrainTarPit.Drain
     /// </summary>
     internal static class TarPool
     {
-        public const string PrefabName = "DTP_TarPool";
+        public const string PrefabName = "DTP_TarPool2";                 // 48x48 cells of 0.5 m = 24 m, as wide as a water pool (user, 2026-10-20)
+        public const string LegacyTarPrefabName = "DTP_TarPool";         // 32x32 (16 m): pools saved by older versions keep loading with this one
         public const string WaterPrefabName = "DTP_WaterPool2";
         public const string LegacyWaterPrefabName = "DTP_WaterPool";      // 0.5 m cells, 48x48: pools saved by older versions keep loading with this one
         public const string ZPool = "TPD_pool";                 // ZDO flag on our own volumes (no self-refill)
-        const int TarGridWidth = 32;
+        const int TarGridWidth = 48, LegacyTarGridWidth = 32;
         const float CellScale = 0.5f;
         const float MaxDepth = 12f;
         public const int MaxRunoffHops = 6;                     // pools in a row that one stroke may continue into
@@ -48,7 +49,7 @@ namespace DrainTarPit.Drain
 
         static GameObject _prefab;          // the tar clone (lives in an inactive container, survives scene changes)
         static GameObject _waterPrefab;     // the water clone
-        static GameObject _legacyWaterPrefab;   // the water clone older worlds were saved with (see LegacyWaterPrefabName)
+        static GameObject _legacyWaterPrefab, _legacyTarPrefab;   // the clones older worlds were saved with (Legacy*PrefabName)
         static GameObject _container;
 
         static GameObject Get(PumpLiquid liquid) { return liquid == PumpLiquid.Water ? _waterPrefab : _prefab; }
@@ -70,7 +71,8 @@ namespace DrainTarPit.Drain
                 if (named == null) { ModLog.Warn("TarPool: ZNetScene.m_namedPrefabs not found - the pumped liquid cannot be deposited."); return; }
                 RegisterOne(scene, named, PumpLiquid.Tar);
                 RegisterOne(scene, named, PumpLiquid.Water);
-                RegisterLegacyWater(scene, named);
+                RegisterLegacy(scene, named, PumpLiquid.Water);
+                RegisterLegacy(scene, named, PumpLiquid.Tar);
             }
             catch (System.Exception e) { ModLog.Error("TarPool.RegisterIn failed: " + e); }
         }
@@ -89,10 +91,12 @@ namespace DrainTarPit.Drain
             ModLog.Verbose("TarPool: '" + go.name + "' registered in the ZNetScene.");
         }
 
-        static void RegisterLegacyWater(ZNetScene scene, Dictionary<int, GameObject> named)
+        static void RegisterLegacy(ZNetScene scene, Dictionary<int, GameObject> named, PumpLiquid liquid)
         {
-            if (_legacyWaterPrefab == null) _legacyWaterPrefab = BuildPrefab(scene, PumpLiquid.Water, true);
-            var go = _legacyWaterPrefab;
+            bool water = liquid == PumpLiquid.Water;
+            if (water && _legacyWaterPrefab == null) _legacyWaterPrefab = BuildPrefab(scene, liquid, true);
+            if (!water && _legacyTarPrefab == null) _legacyTarPrefab = BuildPrefab(scene, liquid, true);
+            var go = water ? _legacyWaterPrefab : _legacyTarPrefab;
             if (go == null) return;
             if (!scene.m_prefabs.Contains(go)) scene.m_prefabs.Add(go);
             named[go.name.GetStableHashCode()] = go;
@@ -115,11 +119,11 @@ namespace DrainTarPit.Drain
                 Object.DontDestroyOnLoad(_container);
             }
             var go = Object.Instantiate(source, _container.transform, false);
-            go.name = water ? (legacy ? LegacyWaterPrefabName : WaterPrefabName) : PrefabName;
+            go.name = water ? (legacy ? LegacyWaterPrefabName : WaterPrefabName) : legacy ? LegacyTarPrefabName : PrefabName;
             var lv = go.GetComponentInChildren<LiquidVolume>(true);
             // water pools use finer cells: the surface mesh ends at a grid point, so the gap between the liquid and a wall is up to one cell wide
-            float cell = legacy ? CellScale : water ? ModSettings.WaterCellSize.Value : CellScale;
-            int width = legacy ? 48 : water ? Mathf.Clamp(Mathf.RoundToInt(ModSettings.WaterPoolSize.Value / cell), 16, 128) : TarGridWidth;
+            float cell = water && !legacy ? ModSettings.WaterCellSize.Value : CellScale;
+            int width = !water ? (legacy ? LegacyTarGridWidth : TarGridWidth) : legacy ? 48 : Mathf.Clamp(Mathf.RoundToInt(ModSettings.WaterPoolSize.Value / cell), 16, 128);
             Set(lv, "m_width", width);
             Set(lv, "m_scale", cell);
             Set(lv, "m_maxDepth", MaxDepth);
@@ -232,7 +236,7 @@ namespace DrainTarPit.Drain
                 if (p == null) continue;
                 var lv = p.GetComponentInChildren<LiquidVolume>(true);
                 if (lv == null || lv.m_liquidType != LiquidType.Tar || p.GetComponent<ZNetView>() == null) continue;
-                if (p.name == PrefabName || p.name == WaterPrefabName || p.name == LegacyWaterPrefabName) continue;       // our own clones (a second ZNetScene.Awake)
+                if (p.name == PrefabName || p.name == LegacyTarPrefabName || p.name == WaterPrefabName || p.name == LegacyWaterPrefabName) continue;       // our own clones (a second ZNetScene.Awake)
                 ModLog.Verbose("TarPool: tar volume prefab candidate '" + p.name + "'");
                 if (p.name == VanillaPitName) return p;
                 if (best == null) best = p;
@@ -322,26 +326,7 @@ namespace DrainTarPit.Drain
             catch (System.Exception e) { ModLog.Warn("TarPool deposit failed: " + e.Message); }
         }
 
-        // An existing volume of this liquid with the point well inside its grid; the closest centre wins.
-        // Water is special: only pools marked with this mod's ZDO flag may receive pumped water. Older test runs
-        // left many empty, unflagged DTP_WaterPool2 instances overlapping the real pool; picking one silently made
-        // a pour disappear from the pool the user expected to measure. Tar may still be deposited into vanilla tar pits.
-        internal static LiquidVolume FindVolume(Vector3 p, PumpLiquid liquid)
-        {
-            LiquidVolume best = null; float bd = float.MaxValue;
-            foreach (var v in TarPits.All)
-            {
-                if (v == null || TarPits.LiquidOf(v) != liquid) continue;
-                if (!TarPoolDiagnostics.HasUsableGridGeometry(v)) continue;
-                var g = TarPits.ToGrid(v, p);
-                if (!TarPits.InGrid(v, g) || !TarPits.Contains(v, p, 1.5f)) continue;
-                if (liquid == PumpLiquid.Water && !TarPits.IsPumpPool(v)) continue;
-                if (!TarPits.IsPumpPool(v) && !PoolTarget.HasTarNear(v, p)) continue;      // a vanilla pit only when poured INTO its tar (see HasTarNear)
-                float d = (v.transform.position - p).sqrMagnitude;
-                if (d < bd) { bd = d; best = v; }
-            }
-            return best;
-        }
+        internal static LiquidVolume FindVolume(Vector3 p, PumpLiquid liquid) { return PoolTarget.Find(p, liquid); }
 
         /// Test button of the live editor: pours `volume` m3 of `liquid` at a world point exactly like a stroke would (into the pool around it, or a new pool).
         internal static string DebugPour(Vector3 land, float volume, PumpLiquid liquid)

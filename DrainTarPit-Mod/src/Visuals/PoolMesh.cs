@@ -23,6 +23,11 @@ namespace DrainTarPit.Visuals
     internal static class PoolMesh
     {
         static volatile bool _enabled = true;
+        // Tar pump pools get the same mesh fix as water (user, 2026-10-20: tar 'climbed' the marble walls of a tar pool). Vanilla tar pits do not.
+        // Filled on the main thread (MarkPumpPool from LiquidVolume.Update); read by the mesh worker thread, hence a concurrent map.
+        static readonly System.Collections.Concurrent.ConcurrentDictionary<LiquidVolume, byte> PumpPools = new System.Collections.Concurrent.ConcurrentDictionary<LiquidVolume, byte>();
+        internal static void MarkPumpPool(LiquidVolume v) { if (v != null && v.m_liquidType == LiquidType.Tar) PumpPools.TryAdd(v, 0); }
+        internal static void Forget(LiquidVolume v) { byte b; if (v != null) PumpPools.TryRemove(v, out b); }
         // 2026-10-20 (user screenshots of a NEW, empty pool built inside an old runoff pool's grid: a thin sheet on the outer wall faces): a film
         // thinner than this is drawn like dry ground (hidden). The game draws every wet point at least 0.1 m thick, so a few millimetres of film
         // on a wall top or a slope looked like a sheet of water; and a film point on a wall top made the window below treat the ground outside the
@@ -123,7 +128,7 @@ namespace DrainTarPit.Visuals
             static void Prefix(LiquidVolume __instance, List<float> ___m_depths, List<float> ___m_heights)
             {
                 _fixFor = null;
-                if (!_enabled || __instance.m_liquidType != LiquidType.Water) return;
+                if (!_enabled || (__instance.m_liquidType != LiquidType.Water && !PumpPools.ContainsKey(__instance))) return;
                 try { _fixFor = __instance; Build(__instance, ___m_depths, ___m_heights); }
                 catch (System.Exception) { _fixFor = null; }                 // never log from the worker thread; the game's own mesh is used
             }
