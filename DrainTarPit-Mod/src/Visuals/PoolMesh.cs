@@ -38,6 +38,7 @@ namespace DrainTarPit.Visuals
         // with the wall top, so the surface carried into the wall lay ON the wall top (z-fighting saw-teeth along the inner edge). A surface point
         // carried into a wall / bank stays this far under that wall's top.
         const float UnderTop = 0.05f;
+        const float DeepDraw = 0.1f;        // liquid at least this deep sets the surface level for the edge rule below
         const int EdgeReach = 3;            // grid points the level surface runs on into a wall / bank (hidden inside it)
         static volatile int _reach = 6;
 
@@ -125,32 +126,37 @@ namespace DrainTarPit.Visuals
                         }
                     if (low < _fix[i]) _fix[i] = low;
                 }
-            // User, 2026-10-20 (tar pool from above: golden saw-teeth and flicker along the walls): a dry point next to the liquid took the LOWEST
-            // drawn surface in its window, so the last quads sloped down from the real surface (ripples, the higher surface at the pour point) and
-            // caught the sun; the window minimum also changed every rebuild = flicker. A dry point that touches drawn liquid and is not lower than it
-            // (a wall / bank point) now takes the highest surface of the liquid points touching it: the surface runs on LEVEL into the wall (one
-            // cell, hidden inside it) and ends there - no slope, no visible edge.
+            // The edge along walls / pieces (user, 2026-10-20, four rounds of screenshots). What is wanted: ONE flat liquid surface that ends
+            // exactly at the pieces. History: (1) a dry wall point took the lowest surface nearby -> sloped strip, flicker; (2) the wall pass marks
+            // points up to 0.2 m in front of a face as wall -> the strip started in front of the face; (3) at the rim the carried surface lay on
+            // the wall top; (4) the last round: jagged whenever the liquid reaches the edge of ANY piece (also the steps inside the pool). The game
+            // lets a few cm of liquid lie ON those piece edges and draws every wet point at least 0.1 m thick, so the edge cells stood 10 cm proud
+            // of the piece top in a grid staircase. Rule now, within EdgeReach points of DEEP liquid (>= 0.1 m; its surface 'level' is the true
+            // h + d): a point whose ground is below the level is drawn AT the level (also a thin wet one); a point whose ground is at / above the
+            // level (a piece or bank top) goes under its own top by UnderTop, never above the level - so the surface meets every piece at the
+            // piece's real edge. A point touching lower dry ground (outside an outer face) is left as it is.
             for (int y = 0; y < stride; y++)
                 for (int x = 0; x < stride; x++)
                 {
                     int i = y * stride + x;
-                    if (d[i] >= DrawDepth) continue;
-                    // 2026-10-20 second look (still golden teeth): the wall pass marks grid points up to 0.2 m IN FRONT of a wall face as wall
-                    // (sphere cast), so one cell of level surface ended in front of the face and the slope behind it was visible. The level now
-                    // runs EdgeReach cells (0.75 m at 0.25 m cells) into the wall. A point that touches lower dry ground (outside the wall) is
-                    // left alone, so nothing is drawn level in front of an OUTER face.
-                    float top = float.NegativeInfinity;
+                    if (d[i] >= DeepDraw) continue;                                  // deep liquid: the game's vertex (= its true surface)
+                    float level = float.NegativeInfinity;
                     for (int dy = -EdgeReach; dy <= EdgeReach; dy++)
                         for (int dx = -EdgeReach; dx <= EdgeReach; dx++)
                         {
                             int xx = x + dx, yy = y + dy;
                             if (xx < 0 || yy < 0 || xx > w || yy > w) continue;
                             int j = yy * stride + xx;
-                            if (d[j] < DrawDepth) continue;
-                            float sj = h[j] + (d[j] > 0.1f ? d[j] : 0.1f);
-                            if (sj > top) top = sj;
+                            if (d[j] < DeepDraw) continue;
+                            float sj = h[j] + d[j];
+                            if (sj > level) level = sj;
                         }
-                    if (top == float.NegativeInfinity || h[i] < top) continue;
+                    if (level == float.NegativeInfinity) continue;
+                    if (h[i] < level - UnderTop)
+                    {
+                        if (d[i] >= 0.001f) _fix[i] = level;                          // thin liquid on submerged ground: part of the flat surface
+                        continue;                                                     // dry and lower: outside a barrier, stays hidden
+                    }
                     bool outerFace = false;
                     for (int dy = -1; dy <= 1 && !outerFace; dy++)
                         for (int dx = -1; dx <= 1; dx++)
@@ -158,9 +164,9 @@ namespace DrainTarPit.Visuals
                             int xx = x + dx, yy = y + dy;
                             if (xx < 0 || yy < 0 || xx > w || yy > w) continue;
                             int j = yy * stride + xx;
-                            if (d[j] < DrawDepth && h[j] < top) { outerFace = true; break; }
+                            if (d[j] < 0.001f && h[j] < level - UnderTop) { outerFace = true; break; }
                         }
-                    if (!outerFace) _fix[i] = Mathf.Min(top, h[i] - UnderTop);
+                    if (!outerFace) _fix[i] = Mathf.Min(level, h[i] - UnderTop);
                 }
         }
 
