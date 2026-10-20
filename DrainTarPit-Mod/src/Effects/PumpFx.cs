@@ -144,8 +144,10 @@ namespace DrainTarPit.Effects
             var clip = Clip(WaterSplash);
             if (clip == null) { ModLog.Verbose("Pour: water_splash " + (Loading(WaterSplash) ? "still loading" : "not available") + ", no splash sound"); return; }
             float gain = Mathf.Lerp(0.6f, 1f, frac);                    // a stroke that brought up less water splashes a bit softer
-            ModLog.Verbose("Pour: water splash at " + land.ToString("0.0") + " in " + fall.ToString("0.00") + " s, gain " + gain.ToString("0.00"));
-            RunAfter(fall, () => Sound(land, clip, gain, 0f, true));
+            float at = Mathf.Max(0f, fall + ModSettings.WaterSplashOffset.Value);   // fine tuning by ear (T-40)
+            ModLog.Verbose("Pour: water splash at " + land.ToString("0.0") + " in " + at.ToString("0.00") + " s (fall " + fall.ToString("0.00") + " s, offset " +
+                ModSettings.WaterSplashOffset.Value.ToString("0.00") + " s), gain " + gain.ToString("0.00"));
+            RunAfter(at, () => Sound(land, clip, gain, 0f, true));
         }
 
         static void PourSound(Vector3 pos, Drain.PumpLiquid liquid)

@@ -56,6 +56,26 @@ namespace DrainTarPit.Effects
             return pos.y - 0.6f;
         }
 
+        // T-40 (user: "water splash is too late, by like 0.3 sec"): the stream was followed down to the GROUND under the nozzle, which in a filled pool
+        // is the pool floor; the liquid surface it really hits first is higher, so the splash (sound and particles) came too late and too low. Now the
+        // stream stops at whatever is higher: the ground, the surface of a pool (pump pool or vanilla tar pit, any liquid) or the sea / a lake.
+        internal static float HitHeight(Vector3 p, float groundY)
+        {
+            float hit = groundY; string what = "ground";
+            try
+            {
+                LiquidVolume vol; float depth, surface;
+                if (Drain.TarPits.TrySample(p, out vol, out depth, out surface, LiquidType.All) && depth > 0.02f && surface > hit && surface < p.y + 0.5f)
+                { hit = surface; what = "surface of " + vol.name + " (" + depth.ToString("0.00") + " m deep)"; }
+                float sea;
+                if (Drain.Liquids.WaterDepthAt(p, out depth, out sea) && sea > hit && sea < p.y + 0.5f) { hit = sea; what = "sea / lake surface"; }
+            }
+            catch (System.NullReferenceException e) { ModLog.VerboseWarn("HitHeight: a pool was being unloaded (" + e.Message + "), ground used"); hit = groundY; what = "ground"; }
+            catch (System.Exception e) { ModLog.VerboseWarn("HitHeight: liquid lookup failed (" + e.Message + "), ground used"); hit = groundY; what = "ground"; }
+            ModLog.Verbose("Pour stream: hits the " + what + " at y " + hit.ToString("0.00") + (hit > groundY + 0.01f ? " (" + (hit - groundY).ToString("0.00") + " m above the ground)" : ""));
+            return hit;
+        }
+
         // A pressurised spurt (stretched droplets shot out of the nozzle along its axis, then falling in an arc), the splashes where it hits
         // the ground and a puddle that spreads and fades. One spurt per press: it starts hard, fades out within NozzleFlowSeconds and the
         // landing point is worked out from the exit speed, so the splashes / puddle appear where the stream really comes down.
@@ -73,7 +93,7 @@ namespace DrainTarPit.Effects
             Vector3 v = dir * speed;
 
             // where does it come down? the ground at the landing point can be higher / lower than under the nozzle, so refine a few times
-            float groundY = GroundBelow(pos), fall = 0.15f;
+            float groundY = HitHeight(pos, GroundBelow(pos)), fall = 0.15f;
             Vector3 land = new Vector3(pos.x, groundY, pos.z);
             bool sideways = v.x * v.x + v.z * v.z > 0.04f;
             for (int i = 0; i < 3; i++)
@@ -82,7 +102,8 @@ namespace DrainTarPit.Effects
                 fall = Mathf.Clamp((v.y + Mathf.Sqrt(v.y * v.y + 2f * g * h)) / g, 0.1f, 3f);
                 land = new Vector3(pos.x + v.x * fall, groundY, pos.z + v.z * fall);
                 if (!sideways) break;
-                groundY = GroundBelow(new Vector3(land.x, Mathf.Max(pos.y, groundY + 1.5f), land.z));
+                var probe = new Vector3(land.x, Mathf.Max(pos.y, groundY + 1.5f), land.z);
+                groundY = HitHeight(probe, GroundBelow(probe));
             }
             landAt = new Vector3(land.x, groundY, land.z); fallSeconds = fall;
             float dur = Mathf.Max(0.1f, ModSettings.NozzleFlowSeconds.Value * (0.75f + 0.5f * frac));   // how long this press keeps spurting

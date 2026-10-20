@@ -40,6 +40,7 @@ internal static class ModSettings
     public static ConfigEntry<bool> DrySound;
     public static ConfigEntry<bool> ScratchSounds;
     public static ConfigEntry<bool> WaterSplashSound;
+    public static ConfigEntry<float> WaterSplashOffset;
     public static ConfigEntry<bool> PumpDroplets;
 
     // [Drain]
@@ -157,6 +158,10 @@ internal static class ModSettings
             "Off = the single pump_up recording from the start of the stroke (the sound before 2026-10-20).");
         WaterSplashSound = c.Bind("Effects", "WaterSplashSound", true,
             "Play a water splash where the pumped water comes down (pool, ground, anything it hits). Off = water pours silently.");
+        WaterSplashOffset = c.Bind("Effects", "WaterSplashOffset", 0f,
+            new ConfigDescription("Seconds added to the moment the water splash plays (negative = earlier). The moment itself is worked out from the stream: " +
+                "the time the first droplets need to reach the water surface / ground. Use this only for fine tuning by ear.",
+                new AcceptableValueRange<float>(-1f, 1f)));
 
         PumpDroplets = c.Bind("Effects", "PumpDroplets", false,
             "Puff of tar droplets at the pump's outlet on every stroke. Off by default: the outlet is always fitted with a hose, so the droplets showed up as oil dripping between the pump's top pipe and the first hose (the tar is already shown moving through the hoses, see TarFlow).");
