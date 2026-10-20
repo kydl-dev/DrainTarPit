@@ -120,6 +120,29 @@ namespace DrainTarPit.Visuals
                         }
                     if (low < _fix[i]) _fix[i] = low;
                 }
+            // User, 2026-10-20 (tar pool from above: golden saw-teeth and flicker along the walls): a dry point next to the liquid took the LOWEST
+            // drawn surface in its window, so the last quads sloped down from the real surface (ripples, the higher surface at the pour point) and
+            // caught the sun; the window minimum also changed every rebuild = flicker. A dry point that touches drawn liquid and is not lower than it
+            // (a wall / bank point) now takes the highest surface of the liquid points touching it: the surface runs on LEVEL into the wall (one
+            // cell, hidden inside it) and ends there - no slope, no visible edge.
+            for (int y = 0; y < stride; y++)
+                for (int x = 0; x < stride; x++)
+                {
+                    int i = y * stride + x;
+                    if (d[i] >= DrawDepth) continue;
+                    float top = float.NegativeInfinity;
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int xx = x + dx, yy = y + dy;
+                            if (xx < 0 || yy < 0 || xx > w || yy > w) continue;
+                            int j = yy * stride + xx;
+                            if (d[j] < DrawDepth) continue;
+                            float sj = h[j] + (d[j] > 0.1f ? d[j] : 0.1f);
+                            if (sj > top) top = sj;
+                        }
+                    if (top > float.NegativeInfinity && h[i] >= top) _fix[i] = top;
+                }
         }
 
         [HarmonyPatch(typeof(LiquidVolume), "PrebuildMesh")]
