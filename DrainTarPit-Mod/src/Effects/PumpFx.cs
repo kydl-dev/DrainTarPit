@@ -112,7 +112,7 @@ namespace DrainTarPit.Effects
             float delay = ModSettings.SyncPour.Value ? TarFlow.ClaimArrival(pump) : -1f;
             float tVisual = Mathf.Max(0f, delay);
             float tSound = Mathf.Max(0f, tVisual + ModSettings.PourSoundOffset.Value);
-            WaterStyleOption? style = liquid == Drain.PumpLiquid.Water ? WaterTint.ForPump(pump, pos) : (WaterStyleOption?)null;     // T-60: the pump's pool style, as this player sees it
+            WaterColour? style = liquid == Drain.PumpLiquid.Water ? PoolHooks.ColourFor(pump, null, pos) : (WaterColour?)null;     // T-60 / T-069: the pump's pool style, as this player sees it (WaterAndTarPools)
             RunAfter(tVisual, () => { PourVisual(pos, dir, volume, liquid, style); if (atNozzle != null) atNozzle(); });
             RunAfter(tSound, () => PourSound(pos, liquid));
             ModLog.Verbose("Pour: " + (delay >= 0f ? "follows the tar slug, reaches the nozzle in " + delay.ToString("0.00") + " s" : "no slug to follow, right away"));
@@ -123,7 +123,7 @@ namespace DrainTarPit.Effects
             if (seconds <= 0.001f) what(); else TarFlow.Schedule(seconds, what);
         }
 
-        static void PourVisual(Vector3 pos, Vector3 dir, float volume, Drain.PumpLiquid liquid, WaterStyleOption? style = null)
+        static void PourVisual(Vector3 pos, Vector3 dir, float volume, Drain.PumpLiquid liquid, WaterColour? style = null)
         {
             if (!Enabled) return;
             try
@@ -149,7 +149,7 @@ namespace DrainTarPit.Effects
             float at = Mathf.Max(0f, fall + ModSettings.WaterSplashOffset.Value);   // fine tuning by ear (T-40)
             ModLog.Verbose("Pour: water splash at " + land.ToString("0.0") + " in " + at.ToString("0.00") + " s (fall " + fall.ToString("0.00") + " s, offset " +
                 ModSettings.WaterSplashOffset.Value.ToString("0.00") + " s), gain " + gain.ToString("0.00"));
-            RunAfter(at, () => Sound(land, clip, gain, 0f, true));
+            RunAfter(at, () => SoundWithVolume(land, clip, ModSettings.WaterSplashVolume.Value, gain, 0f, true));   // T-069: its own volume (WaterAndTarPools)
         }
 
         static void PourSound(Vector3 pos, Drain.PumpLiquid liquid)

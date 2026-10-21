@@ -3,6 +3,7 @@
 ## 1.0.0 (unreleased)
 The mod has not been released yet, so its version is 1.0.0 and stays 1.0.0 until the user says otherwise (`_agent/PROJECT_RULES.md`): new changes are added below under this heading, `Plugin.ModVersion` and `manifest.json` are not bumped. The 0.x headings further down are the development history from before the first release.
 
+- Split (user): the pools for pumped tar and water, water pumping, water styles, pool signs, the pool menu, fish in pools and the jump boost are the separate add-on mod WaterAndTarPools (needs DrainTarPit). Without it, pumped tar pours out visually only. Built, NOT tested in game.
 - Config cleaned up (user review): only the settings a player should change are in the file; tuned values are fixed in the mod. New [General] EnableAll (switch the mod off while playing), [Effects] SoundEffects (all sounds), TarSplashSound, TarSlugFlow / WaterSlugFlow, LiquidFlowSpeed; [Pools] LiquidCellSize. VolumePerStroke 5 - 30, RefillMinutes 10 - 120, MaxChainPieces 40. Piece health 400 (pump 800). Built, NOT tested in game.
 - Build menu (user): every piece of the mod is in its own category `KY-Items` (was Misc). Colour picker: the Red / Green / Blue sliders can be dragged. Built, NOT tested in game.
 - Pool signs: one sign per pool (a second one on the same pool is refused). Getting out of pump pools (user): `[Drain] PoolJumpBoost` (on): at the edge of a pump pool, pressing Jump `PoolJumpPresses` (3) times within 3 s lifts you `PoolJumpHeight` (2 m) up and onto the edge. Built, NOT tested in game.

@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
-using DrainTarPit.Signs;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace DrainTarPit.Ui
+using DrainTarPit.Ui;
+using WaterAndTarPools.Signs;
+
+namespace WaterAndTarPools.Ui
 {
     /// <summary>One named pool in the pool menu.</summary>
     public sealed class PoolMenuEntry

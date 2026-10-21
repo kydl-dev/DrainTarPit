@@ -192,6 +192,19 @@ namespace DrainTarPit.Effects
             Sound(pos, clip, gain, tailSeconds, skipLead, Span.Whole);
         }
 
+        // T-069: the water splash has its own volume (WaterAndTarPools [Effects] EffectsVolume); -1 = [Effects] EffectsVolume of DrainTarPit
+        static float _volumeOverride = -1f;
+
+        /// Like Sound, with `volume` instead of [Effects] EffectsVolume. Returns the volume used.
+        internal static float SoundWithVolume(Vector3 pos, AudioClip clip, float volume, float gain, float tailSeconds, bool skipLead)
+        {
+            _volumeOverride = Mathf.Clamp01(volume);
+            try { Sound(pos, clip, gain, tailSeconds, skipLead, Span.Whole); }
+            finally { _volumeOverride = -1f; }
+            ModLog.Verbose("Sound: '" + (clip != null ? clip.name : "?") + "' with its own volume " + volume.ToString("0.00"));
+            return volume;
+        }
+
         internal static void Sound(Vector3 pos, AudioClip clip, float gain, float tailSeconds, bool skipLead, Span span)
         {
             if (clip == null) { ModLog.Verbose("Sound: nothing played, the clip is not loaded (yet)"); return; }
@@ -202,7 +215,7 @@ namespace DrainTarPit.Effects
             var go = new GameObject("DTP_sfx");
             go.transform.position = pos;
             var a = go.AddComponent<AudioSource>();
-            float vol = Mathf.Clamp01(ModSettings.EffectsVolume.Value * gain);
+            float vol = Mathf.Clamp01((_volumeOverride >= 0f ? _volumeOverride : ModSettings.EffectsVolume.Value) * gain);
             a.clip = clip;
             a.spatialBlend = 1f; a.minDistance = 2f; a.maxDistance = 30f; a.rolloffMode = AudioRolloffMode.Linear;
             a.dopplerLevel = 0f; a.playOnAwake = false;

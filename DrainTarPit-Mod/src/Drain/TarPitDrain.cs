@@ -159,7 +159,7 @@ namespace DrainTarPit.Drain
             RefillTimers[v] = 0f;
 
             var zdo = nv.GetZDO();
-            if (ZdoKeys.Bool(zdo, TarPool.ZPool, TarPool.ZPoolOld)) return;      // pools made from pumped tar do not seep back on their own (that would create tar)
+            if (ZdoKeys.Bool(zdo, TarPits.ZPool, TarPits.ZPoolOld)) return;      // pools made from pumped tar do not seep back on their own (that would create tar)
             float baseline = ZdoKeys.Float(zdo, VarBaseline, VarBaselineOld);
             if (baseline <= 0f) return;                         // never drained
 

@@ -4,16 +4,14 @@ using HarmonyLib;
 using UnityEngine;
 using static DrainTarPit.Drain.TarPits;
 using static DrainTarPit.Drain.TarPitDrain;
-using static DrainTarPit.Drain.TarPitDeposit;
 using static DrainTarPit.Drain.TarPitFlow;
 using static DrainTarPit.Drain.TarPitSettle;
-using static DrainTarPit.Drain.TarPitWalls;
-using static DrainTarPit.Drain.TarPitStats;
 
 namespace DrainTarPit.Drain
 {
     /// <summary>
-    /// Harmony hooks on LiquidVolume (Awake / Update / OnDestroy / UpdateHeights / GetSurface) and the RPC registration.
+    /// Harmony hooks on LiquidVolume (Awake / Update / OnDestroy / GetSurface) and the RPC registration. T-069: what the pools need (deposits,
+    /// walls, films, runoff, mesh) is done by the WaterAndTarPools mod through PoolHooks (VolumeRegister / VolumeUpdate / VolumeDestroyed).
     /// </summary>
     internal static class TarPitHooks
     {
@@ -38,8 +36,8 @@ namespace DrainTarPit.Drain
             Registered.Add(vol);
             nv.Register<ZPackage>(RpcDrain, (sender, pkg) => OnDrainRequest(vol, sender, pkg));
             nv.Register<ZPackage>(RpcDrained, (sender, pkg) => OnDrained(vol, sender, pkg));
-            nv.Register<ZPackage>(RpcDeposit, (sender, pkg) => OnDepositRequest(vol, sender, pkg));
-            ModLog.Verbose("TarPits: RPCs registered on '" + vol.name + "' @ " + vol.transform.position.ToString("0"));
+            int more = PoolHooks.RaiseRegister(vol, nv);                     // WaterAndTarPools: the deposit RPC
+            ModLog.Verbose("TarPits: RPCs registered on '" + vol.name + "' @ " + vol.transform.position.ToString("0") + (more > 0 ? " (+ " + more + " pool handler(s))" : ""));
         }
 
         // LiquidVolume.GetSurface clamps the point to the grid (GetDepth / GetHeight clamp), so an object that the volume's trigger still tracks while it is
@@ -52,42 +50,6 @@ namespace DrainTarPit.Drain
             {
                 if (!IsLiquid(__instance)) return;
                 if (!InGrid(__instance, ToGrid(__instance, p))) __result = -10000f;
-            }
-        }
-
-        [HarmonyPatch(typeof(LiquidVolume), "UpdateHeights")]
-        static class Patch_UpdateHeights
-        {
-            // The game rewrites every ground height here (walls drop back to terrain) while the pool's worker thread keeps stepping the simulation. Between that
-            // write and our wall pass one step could run over the rim and carry a lot of liquid out through every wall cell (a step moves up to half the height
-            // difference). The pool's lock is held from before the game's write until the wall pass is done (Monitor, same thread: prefix and finalizer).
-            static void Prefix(LiquidVolume __instance, out object __state)
-            {
-                __state = null;
-                try { if (ModSettings.PoolWalls.Value && IsLiquid(__instance) && IsPumpPool(__instance)) __state = Hold(__instance); }
-                catch (System.Exception e) { ModLog.VerboseWarn("UpdateHeights lock: " + e.Message); }
-            }
-
-            static void Finalizer(object __state)
-            {
-                var held = __state as System.IDisposable;
-                if (held != null) held.Dispose();
-            }
-
-            static void Postfix(LiquidVolume __instance)
-            {
-                try { FixMissedHeights(__instance); }
-                catch (System.Exception e) { ModLog.VerboseWarn("FixMissedHeights: " + e.Message); }
-                // A synthetic test tank (dtp ptest tank / shape / walls) owns its heights: real colliders under it are not walls unless the test asks
-                // for them (INVESTIGATION fix queue 7; a base or a bush under the tank made the old tank results depend on where it was run).
-                bool synthetic = DrainTarPit.Debug.PoolTankTests.IsSynthetic(__instance, out bool realWalls);
-                if (!synthetic || realWalls)
-                {
-                    try { ApplyWalls(__instance); }
-                    catch (System.Exception e) { ModLog.VerboseWarn("ApplyWalls: " + e.Message); }
-                }
-                try { DrainTarPit.Debug.PoolTankTests.ApplySynthetic(__instance); }
-                catch (System.Exception e) { ModLog.VerboseWarn("PoolTankTests.ApplySynthetic: " + e.Message); }
             }
         }
 
@@ -105,7 +67,7 @@ namespace DrainTarPit.Drain
         [HarmonyPatch(typeof(LiquidVolume), "OnDestroy")]
         static class Patch_OnDestroy
         {
-            static void Prefix(LiquidVolume __instance) { All.Remove(__instance); Registered.Remove(__instance); RefillTimers.Remove(__instance); Memos.Remove(__instance); PendingDeposits.Remove(__instance); SettleTimers.Remove(__instance); ShedTimers.Remove(__instance); Budgets.Remove(__instance); UnboostIfDone(__instance, true); TarPitLedger.Destroyed(__instance); RunoffCleanup.Forget(__instance); DrainTarPit.Visuals.PoolMesh.Forget(__instance); }
+            static void Prefix(LiquidVolume __instance) { All.Remove(__instance); Registered.Remove(__instance); RefillTimers.Remove(__instance); SettleTimers.Remove(__instance); UnboostIfDone(__instance, true); PoolHooks.RaiseDestroyed(__instance); }
         }
 
         [HarmonyPatch(typeof(LiquidVolume), "Update")]
@@ -116,20 +78,10 @@ namespace DrainTarPit.Drain
                 if (!IsLiquid(__instance)) return;
                 EnsureRegistered(__instance);
                 if (Boosted.Count > 0) UnboostIfDone(__instance, false);
-                if (PendingDeposits.Count > 0) FlushDeposits(__instance);
                 RefillTick(__instance, Time.deltaTime);
-                if (TarPitLedger.Books.Count > 0) TarPitLedger.Tick(__instance);
-                if (ZNetScene.instance != null) RunoffCleanup.Tick(__instance);
-                if (__instance.m_liquidType == LiquidType.Tar && IsPumpPool(__instance)) DrainTarPit.Visuals.PoolMesh.MarkPumpPool(__instance);
                 float next; SettleTimers.TryGetValue(__instance, out next);
                 if (Time.time >= next) { SettleTimers[__instance] = Time.time + 1f; SettleFloaters(__instance); }
-                float shedAt; ShedTimers.TryGetValue(__instance, out shedAt);
-                if (Time.time >= shedAt)
-                {
-                    float dt = shedAt > 0f ? Mathf.Min(ShedInterval * 4f, Time.time - (shedAt - ShedInterval)) : ShedInterval;
-                    ShedTimers[__instance] = Time.time + ShedInterval;
-                    ShedFilms(__instance, dt);
-                }
+                PoolHooks.RaiseUpdate(__instance);                               // WaterAndTarPools: deposits, runoff, films, mesh
             }
         }
     }

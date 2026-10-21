@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
-using DrainTarPit.Signs;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace DrainTarPit.Ui
+using DrainTarPit.Ui;
+using WaterAndTarPools.Signs;
+
+namespace WaterAndTarPools.Ui
 {
     /// <summary>What the sign menu needs from the outside: the game (PoolSignMenu in the mod) or the Unity preview (DTP_UiPreview).</summary>
     public interface ISignMenuHost

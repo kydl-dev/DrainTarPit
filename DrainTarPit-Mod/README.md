@@ -2,11 +2,11 @@
 
 Drain tar pits and move water with a hand pump and hoses. Build a pump, run an intake hose with a strainer into the pit (or the water) and an outlet hose with a nozzle to dry ground, then work the lever: the level drops and the liquid pours out of the nozzle. Only the liquid is removed: Tar items, meat or anything else lying in the pit stay where they are, so you can walk in and pick them up once it is drained.
 
-## Tar or water
+## Pools and water: WaterAndTarPools
 
-A strainer is locked to what its tip sits in **when you build it** - tar or water - and its whole pipe system only ever pumps that. Tar behaves as described below. Water: the world's water never runs dry, so a water pump has an endless supply; the water pours out of the nozzle (blue stream, splashes, puddle) and runs away - it is not deposited anywhere yet. A strainer built on dry ground locks on its first real stroke. `[Drain] AllowWater` / `MinWaterDepth` in the config.
+On its own DrainTarPit pumps **tar out of tar pits**; what comes out of the nozzle pours out and is gone. Install the add-on **WaterAndTarPools** to keep it: the pumped liquid fills real pools (dug holes, moats, walled basins), strainers in the sea / lakes pump **water**, plus water styles, pool signs and the pool menu.
 
-## Pieces (Hammer > Misc)
+## Pieces (Hammer > KY-Items)
 
 | Piece | Notes |
 |---|---|

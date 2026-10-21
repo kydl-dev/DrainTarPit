@@ -42,22 +42,13 @@ namespace DrainTarPit
 
             PumpFx.Preload();                       // pump_up / oil_pumped sounds (no-op on a dedicated server)
             PrefabManager.OnVanillaPrefabsAvailable += PieceRegistrar.RegisterAll;
-            PrefabManager.OnVanillaPrefabsAvailable += RegisterSign;    // T-023 pool sign (cloned from the game's sign, so it needs the vanilla prefabs)
-            // the pool that holds the pumped tar is registered from a ZNetScene.Awake patch (TarPool), not here: this event fires in the main menu, before any ZNetScene exists
             CommandManager.Instance.AddConsoleCommand(new DtpCommands());
             new Harmony(ModGuid).PatchAll(Assembly.GetExecutingAssembly());
-            WaterEditor.Install();                  // live water editor ([Visuals] EditorKey): input blocking patches, made by hand so a missing game method cannot break PatchAll
             Ui.UiLog.VerboseSink = s => ModLog.Verbose(s);     // the shared UI code (Unity project) logs through the mod's log, debug lines only with DebugLog
             Ui.UiLog.WarnSink = s => ModLog.Warn(s);
             Ui.UiLog.ErrorSink = s => ModLog.Error(s);
-            Ui.UiInputLock.Install();               // T-023: the character does not move while a DrainTarPit menu (UI Toolkit) is open
-        }
-
-        static void RegisterSign()
-        {
-            PrefabManager.OnVanillaPrefabsAvailable -= RegisterSign;
-            Signs.PoolSignPiece.Register();
-            Signs.PoolSignPlacement.LogTargets();
+            Ui.UiInputLock.Install();               // T-023: the character does not move while a menu of the user's mods (UI Toolkit) is open
+            ModLog.Info("WaterAndTarPools " + (PoolHooks.PoolsInstalled ? "is loaded (" + PoolHooks.PoolsMod + ")" : "is loaded after this mod or not installed (pools / water come with it)"));
         }
 
         // 1) embedded resource (read fully into memory: LoadFromStream needs the stream to stay open, which breaks
@@ -132,17 +123,6 @@ namespace DrainTarPit
         {
             TickConfigReload();
             MaterialFixer.Tick();                    // applies a changed [Visuals] HoseStyle / HoseOpacity (to hoses built from now on) on the main thread
-            WaterEditor.Tick();                      // [Visuals] EditorKey opens / closes the live water editor
-            Signs.PoolRegistry.Tick();               // T-023: pool list / world style RPCs, registered once per game session
-            Signs.PoolStyles.Tick();                 // T-023: an admin changed the world water style -> pools redraw
-            if (!ModSettings.On) { Signs.PoolSignMenu.Shut("mod switched off"); Signs.PoolMenu.Shut("mod switched off"); return; }   // T-068: inert, menus closed
-            Signs.PoolSignMenu.Tick();               // T-023: Escape / walking away closes the sign menu
-            Signs.PoolMenu.Tick();                   // T-023: [Visuals] PoolMenuKey (F9) opens / closes the pool menu
-        }
-
-        void OnGUI()
-        {
-            WaterEditor.Draw();
         }
 
         internal void RunCoroutine(System.Collections.IEnumerator routine) { StartCoroutine(routine); }

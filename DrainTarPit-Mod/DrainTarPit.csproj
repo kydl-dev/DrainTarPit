@@ -58,8 +58,6 @@
     <EmbeddedResource Include="audio\pump_scratch_down.ogg" LogicalName="pump_scratch_down.ogg" />
     <EmbeddedResource Include="audio\pump_scratch_up.ogg" LogicalName="pump_scratch_up.ogg" />
     <EmbeddedResource Include="audio\water_splash.ogg" LogicalName="water_splash.ogg" />
-    <!-- T-012 step 1: the user's saved water look ("clearly blue") is the built-in look of the pools (WaterLook.BuiltInResource) -->
-    <EmbeddedResource Include="docs\DrainTarPit.WaterLook.txt" LogicalName="DrainTarPit.WaterLook.txt" />
   </ItemGroup>
   <Target Name="Deploy" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(DeployDir)" />

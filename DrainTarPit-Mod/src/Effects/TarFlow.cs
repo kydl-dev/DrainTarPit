@@ -50,7 +50,7 @@ namespace DrainTarPit.Effects
         static readonly List<Slug> Slugs = new();
         static GameObject _host;
         static Material _mat;
-        static readonly Dictionary<WaterStyleOption, Material> WaterMats = new();       // T-60: one hose water material per water style
+        static readonly Dictionary<string, Material> WaterMats = new();       // T-60: one hose water material per water style
 
         // Bug #3: an error used to set ModSettings.TarSlugFlow.Value = false, which BepInEx saved into the config file (the switch stayed off after a restart).
         // It is now a runtime-only switch like PumpFx._disabled: the config file is never touched, the next game launch tries again.
@@ -145,7 +145,7 @@ namespace DrainTarPit.Effects
                 go.transform.SetParent(_host.transform, false);
                 var mr = go.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = liquid == PumpLiquid.Water
-                    ? WaterMat(WaterTint.StyleFor(intake != null ? intake.Pts[0] : (Vector3?)null, outlet != null ? outlet.Pts[outlet.Pts.Count - 1] : (Vector3?)null))
+                    ? WaterMat(PoolHooks.ColourFor(pump, intake != null ? intake.Pts[0] : (Vector3?)null, outlet != null ? outlet.Pts[outlet.Pts.Count - 1] : (Vector3?)null))
                     : Mat(liquid);
                 mr.shadowCastingMode = ShadowCastingMode.Off; mr.receiveShadows = false;
                 mesh = new Mesh { name = "DTP_slug" }; mesh.MarkDynamic();
@@ -193,7 +193,7 @@ namespace DrainTarPit.Effects
 
         static Material Mat(PumpLiquid liquid = PumpLiquid.Tar)
         {
-            if (liquid == PumpLiquid.Water) return WaterMat(PoolWater.StyleInUse);
+            if (liquid == PumpLiquid.Water) return WaterMat(PoolHooks.ColourFor(null, null, null));
             if (_mat != null) return _mat;
             Shader sh = Shader.Find("Standard") ?? Shader.Find("Custom/Piece") ?? Shader.Find("Sprites/Default");
             _mat = new Material(sh) { name = "DTP_TarLiquid" };
@@ -208,10 +208,11 @@ namespace DrainTarPit.Effects
         // the colour follows the pool water style in use, re-checked on every stroke (style switched live, F8 tuning, reset).
         // T-60 (user: "water in pipe does not follow the user's style"): one material per style, the style of the pool this pump moves water
         // from / to as this player sees it (WaterTint.StyleFor), so two pumps next to differently styled pools each show their own colour.
-        static readonly Dictionary<WaterStyleOption, string> WaterLookKeys = new();
+        static readonly Dictionary<string, string> WaterLookKeys = new();
 
-        static Material WaterMat(WaterStyleOption style)
+        static Material WaterMat(WaterColour look)
         {
+            string style = look.Key;
             Material m;
             if (!WaterMats.TryGetValue(style, out m) || m == null)
             {
@@ -224,7 +225,7 @@ namespace DrainTarPit.Effects
                 ModLog.Verbose("TarFlow: hose water material for the " + style + " style made (shader '" + sh.name + "')");
             }
             Color col, glow;
-            var from = WaterTint.Current(style, out col, out glow);
+            col = look.Body; glow = look.Glow; var from = look.Key;
             string key = from + " " + col + " " + glow, was;
             if (WaterLookKeys.TryGetValue(style, out was) && was == key) return m;
             WaterLookKeys[style] = key;

@@ -9,8 +9,8 @@ namespace DrainTarPit;
 /// <summary>
 /// All settings in one place. T-068 (user, config review 2026-10-21): what a player may change is a BepInEx config entry (bound once from
 /// Plugin.Awake); everything else is a Tunable with the value the user chose: not in the config file, changeable at runtime only from the
-/// user's own KydlTools mod. Split over partial files: ModSettingsDrain ([Drain]), ModSettingsPools (pools / water, moving to WaterAndTarPools),
-/// ModSettingsPump ([Pump]), ModSettingsHose (the two hose categories).
+/// user's own KydlTools mod. Split over partial files: ModSettingsDrain ([Drain]), ModSettingsPump ([Pump]), ModSettingsHose (the two hose categories).
+/// T-069: the water / pool settings are in the WaterAndTarPools mod's config; it sets the water Tunables below (AllowWater, MinWaterDepth, ...).
 /// </summary>
 internal static partial class ModSettings
 {
@@ -83,8 +83,20 @@ internal static partial class ModSettings
         "While a pit is pumped its tar flows towards the hole faster: multiplies the pit's viscosity value (9 = about 3x faster).");
     public static readonly Tunable<float> PitFlowBoostSeconds = new("Drain", "PitFlowBoostSeconds", 20f,
         "How long (s) after the last stroke a pit keeps PitFlowBoost.");
-    public static readonly Tunable<KeyCode> EditorKey = new("Visuals", "EditorKey", KeyCode.F8,
-        "Opens / closes the live water editor.");
+
+    // T-069: set by WaterAndTarPools from its config (without that mod: no water pumping, AllowWater stays off)
+    public static readonly Tunable<bool> AllowWater = new("Pools", "AllowWater", false,
+        "Strainers built in water pump water (sea / lake / a pump pool). On while WaterAndTarPools is installed.");
+    public static readonly Tunable<float> MinWaterDepth = new("Pools", "MinWaterDepth", 0.3f,
+        "Minimum water depth (m) at the strainer tip for it to count as 'in water' (WaterAndTarPools config).");
+    public static readonly Tunable<bool> WaterSplashSound = new("Effects", "WaterSplashSound", true,
+        "Water splash where the pumped water comes down (WaterAndTarPools config).");
+    public static readonly Tunable<float> WaterSplashVolume = new("Effects", "WaterSplashVolume", 0.6f,
+        "Volume of the water splash (WaterAndTarPools config).");
+    public static readonly Tunable<float> WaterSplashOffset = new("Effects", "WaterSplashOffset", -0.3f,
+        "Seconds added to the moment the water splash plays (negative = earlier).");
+    public static readonly Tunable<bool> WaterSlugFlow = new("Effects", "WaterSlugFlow", true,
+        "Slug of water travelling through see-through hoses (WaterAndTarPools config).");
 
     public static void Bind(ConfigFile c)
     {
@@ -138,7 +150,6 @@ internal static partial class ModSettings
                 new AcceptableValueRange<float>(-0.5f, 0.5f)));
 
         BindDrain(c);
-        BindPools(c);
         BindPump(c);
 
         ModSettingsCommaFix.Apply(c, savedLines);       // after every Bind: "3,5" typed by hand means 3.5, not 35
@@ -146,9 +157,7 @@ internal static partial class ModSettings
 
         // hoses: a change (config manager, file reload) is applied live, see MaterialFixer.Tick
         ModSettingsHose.Hook();
-        HookPools();
         EnableAll.SettingChanged += (s, e) => ModLog.Info("Config: EnableAll = " + EnableAll.Value + (EnableAll.Value ? ", the mod is on" : ", the mod is inert (no pumping, effects or menus)"));
-        PoolMesh.Refresh();
         ModLog.Verbose("Config: bound (EnableAll " + EnableAll.Value + ", debug log " + DebugLog.Value + ")");
     }
 

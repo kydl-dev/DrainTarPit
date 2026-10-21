@@ -26,8 +26,9 @@ namespace DrainTarPit.Drain
     {
         public const string RpcDrain = "DTP_Drain";        // client -> pit owner: remove tar
         public const string RpcDrained = "DTP_Drained";    // pit owner -> requesting client: how much was really removed
+        public const string ZPool = "DTP_pool", ZPoolOld = "TPD_pool";   // ZDO flag on the pools the pump made (WaterAndTarPools; no self-refill)
         public const string RpcDeposit = "DTP_Deposit";    // client -> pit owner: pour tar INTO a tar volume (fills the basin around the point)
-        // WORLD KEYS: VarBaseline, VarRefillTime (in TarPitDrain), TarPool.ZPool, DtpPiece.ZLiquid and RunoffCleanup.ZRunoff use the "DTP_" prefix; worlds saved
+        // WORLD KEYS: VarBaseline, VarRefillTime (in TarPitDrain), TarPits.ZPool, DtpPiece.ZLiquid and RunoffCleanup.ZRunoff use the "DTP_" prefix; worlds saved
         // before the rename hold "TPD_" keys, which are still read (ZdoKeys: read new, fall back to old; write new).
         internal const string VarBaseline = "DTP_baseline", VarBaselineOld = "TPD_baseline";   // total volume (m3) before the first drain; used by refill
 
@@ -163,7 +164,7 @@ namespace DrainTarPit.Drain
         {
             var nv = Nview(v);
             if (nv == null || !nv.IsValid()) return;
-            nv.GetZDO().Set(TarPool.ZPool, true);
+            nv.GetZDO().Set(TarPits.ZPool, true);
             SyncRevision(v);
         }
 
@@ -178,7 +179,7 @@ namespace DrainTarPit.Drain
         internal static bool IsPumpPool(LiquidVolume v)
         {
             var nv = Nview(v);
-            return nv != null && nv.IsValid() && nv.GetZDO() != null && ZdoKeys.Bool(nv.GetZDO(), TarPool.ZPool, TarPool.ZPoolOld);
+            return nv != null && nv.IsValid() && nv.GetZDO() != null && ZdoKeys.Bool(nv.GetZDO(), TarPits.ZPool, TarPits.ZPoolOld);
         }
     }
 }

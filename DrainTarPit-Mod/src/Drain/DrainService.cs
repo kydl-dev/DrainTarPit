@@ -172,7 +172,7 @@ namespace DrainTarPit.Drain
         /// deposited where the stream lands NOT now but when the slug of this stroke has travelled through the hoses and reaches the nozzle
         /// (PumpFx.PourWhenArrives); the pit owner's answer only says how much came out. The pour is also written to the pump's ZDO (counter +
         /// position + volume) right away, so every other client that has the pump loaded shows it too, lined up with its own copy of the slug
-        /// (PumpObserver.Update). The liquid - tar or water - is deposited into a real LiquidVolume where the stream lands (TarPool).
+        /// (PumpObserver.Update). With WaterAndTarPools the liquid is deposited into a real pool where the stream lands (PoolHooks.Deposit).
         public static void Poured(ZNetView pumpView, Vector3 nozzleTip, float volume, PumpLiquid liquid = PumpLiquid.Tar)
         {
             if (volume <= 0f) return;
@@ -185,9 +185,10 @@ namespace DrainTarPit.Drain
             }
             var at = nozzleTip + dir * 0.2f;                         // start the spurt in FRONT of the nozzle's open end (the stretched droplets trail back along the stream)
             // the liquid lands where the stream lands and fills the hole / basin / moat there
+            // T-069: only with WaterAndTarPools (PoolHooks.Deposit); without it the liquid just pours out visually
             System.Action deposit = null;
-            if (liquid == PumpLiquid.Tar) deposit = () => { if (ModSettings.DepositTar.Value) TarPool.DepositAtNozzle(at, dir, volume, PumpLiquid.Tar); };
-            else if (liquid == PumpLiquid.Water) deposit = () => { if (ModSettings.DepositWater.Value) TarPool.DepositAtNozzle(at, dir, volume, PumpLiquid.Water); };
+            if (PoolHooks.Deposit != null && (liquid == PumpLiquid.Tar || liquid == PumpLiquid.Water)) deposit = () => PoolHooks.Deposit(at, dir, volume, liquid);
+            else ModLog.Verbose("Pour: " + volume.ToString("0.00") + " m3 of " + liquid + " pours out visually only (" + (PoolHooks.Deposit == null ? "WaterAndTarPools not installed" : "nothing to deposit") + ")");
             PumpFx.PourWhenArrives(piece, at, dir, volume, deposit, liquid);
             if (pumpView == null || !pumpView.IsValid()) return;
             if (!pumpView.IsOwner()) return;                        // someone else took over the pump meanwhile; they cannot hear this stroke

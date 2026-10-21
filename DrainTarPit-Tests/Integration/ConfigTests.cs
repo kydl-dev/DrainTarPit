@@ -59,7 +59,7 @@ namespace DrainTarPit.Tests.Integration
 
             var text = File.ReadAllText(_path);
             Assert.That(File.Exists(_path), Is.True);
-            foreach (var section in new[] { "[General]", "[DebugLog]", "[Visuals]", "[Effects]", "[Building]", "[Drain]", "[Pools]", "[Pump]" })
+            foreach (var section in new[] { "[General]", "[DebugLog]", "[Effects]", "[Building]", "[Drain]", "[Pump]" })
                 Assert.That(text, Does.Contain(section));
         }
 
@@ -115,14 +115,6 @@ namespace DrainTarPit.Tests.Integration
         // ---------------------------------------------------------------- T-068 config review (user, 2026-10-21)
 
         [Test]
-        public void Bind_NoFileYet_PoolRimDisappearIsOn()
-        {
-            BindFile();
-
-            Assert.That((bool)Value("PoolRimDisappear"), Is.EqualTo(true));
-        }
-
-        [Test]
         public void Bind_NoFileYet_HoseVisualDefaults()
         {
             BindFile();
@@ -142,7 +134,8 @@ namespace DrainTarPit.Tests.Integration
             foreach (var key in new[] { "AlbedoBrightness", "ShaderName", "UseMaskMap", "PoolMeshFix", "PoolMeshReach", "SignBoardBrightness", "SignTextBrightness",
                                         "WaterStyle", "EditorKey", "PieceHealth", "DrySound", "PumpDroplets", "SoundTailSeconds", "SyncPour", "TarSlugLength",
                                         "WaterSplashOffset", "AllowWater", "PitFlowBoost", "PoolFilmDepth", "AttachBool", "AttachClipOverride", "StaminaPerStroke",
-                                        "HandIK", "MaxAutoStep", "TestOutDir", "ConfigVersion", "TarFlowSpeed", "WaterCellSize" })
+                                        "HandIK", "MaxAutoStep", "TestOutDir", "ConfigVersion", "TarFlowSpeed", "WaterCellSize",
+                                        "DepositTar", "DepositWater", "PoolWalls", "PoolMenuKey", "WaterDepthLook", "LiquidCellSize", "WaterSplashSound" })
                 Assert.That(text, Does.Not.Match(@"(?m)^" + key + @"\s*="), key + " must not be in the player's config");
         }
 
@@ -153,9 +146,7 @@ namespace DrainTarPit.Tests.Integration
 
             Assert.That(Fixed("AlbedoBrightness"), Is.EqualTo(1.5f));
             Assert.That(Fixed("PieceHealth"), Is.EqualTo(400f));
-            Assert.That(Fixed("SignBoardBrightness"), Is.EqualTo(1.5f));
-            Assert.That(Fixed("SignTextBrightness"), Is.EqualTo(1.2f));
-            Assert.That(Fixed("PoolMeshReach"), Is.EqualTo(6));
+            Assert.That(Fixed("AllowWater"), Is.EqualTo(false), "water pumping comes with WaterAndTarPools");
             Assert.That(Fixed("SoundTailSeconds"), Is.EqualTo(0.3f));
             Assert.That(Fixed("TarSlugLength"), Is.EqualTo(2f));
             Assert.That(Fixed("WaterSplashOffset"), Is.EqualTo(-0.3f));

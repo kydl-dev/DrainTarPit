@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace DrainTarPit.Signs
+namespace WaterAndTarPools.Signs
 {
     /// <summary>
     /// T-023 (user, 2026-10-20): how the name on a pool sign looks. The same for everyone (stored in the world with the sign, user answer).

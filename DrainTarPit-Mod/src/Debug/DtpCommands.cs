@@ -16,7 +16,7 @@ namespace DrainTarPit.Debug
     {
         public override string Name { get { return "dtp"; } }
         public override bool IsCheat { get { return true; } }       // only with devcommands enabled
-        public override string Help { get { return "DrainTarPit test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp cleanpools [small [m3]] | dtp meshdump [radius] | dtp hosecheck | dtp ptest <watch|pour|tank|matrix|rim|fields|out|stop> (water pool tests, see _agent/TESTLOG.md)"; } }
+        public override string Help { get { return "DrainTarPit test: dtp info | dtp spawn [prefab] | dtp anim <active|pump|off> | dtp pits | dtp clips | dtp state | dtp hosecheck"; } }
 
         public override void Run(string[] args)
         {
@@ -27,17 +27,18 @@ namespace DrainTarPit.Debug
                 case "spawn": Spawn(args.Length > 1 ? args[1] : "DTP_Pump_Manual"); break;
                 case "anim": Anim(args.Length > 1 ? args[1].ToLowerInvariant() : ""); break;
                 case "pits": Pits(); break;
-                case "cleanpools": CleanPools(args); break;
                 case "hosecheck": Print(HoseCheck.Run()); break;
-                case "meshdump": Print(MeshDump.Run(args.Length > 1 && int.TryParse(args[1], out var r) ? r : 6)); break;
                 case "state": State(); break;
-                case "ptest": PoolTests.Run(args.Skip(1).ToArray()); break;
                 case "clips": Print(PlayerPumpAnimations.Describe(Player.m_localPlayer)); break;
-                default: Print(Help); break;
+                default:
+                    // T-069: WaterAndTarPools adds its own sub-commands (ptest, meshdump, cleanpools)
+                    if (PoolHooks.Commands.TryGetValue(sub, out var extra)) { ModLog.Verbose("dtp " + sub + ": handled by WaterAndTarPools"); extra(args.Skip(1).ToArray()); }
+                    else Print(Help + (PoolHooks.Commands.Count > 0 ? " | " + string.Join(" | ", PoolHooks.Commands.Keys) : ""));
+                    break;
             }
         }
 
-        static void Print(string s) { Console.instance.Print(s); ModLog.Info(s); }
+        internal static void Print(string s) { Console.instance.Print(s); ModLog.Info(s); }
 
         static void Info()
         {
@@ -62,15 +63,6 @@ namespace DrainTarPit.Debug
             var pos = p.transform.position + p.transform.forward * 3f + Vector3.up * 0.5f;
             var go = Object.Instantiate(prefab, pos, Quaternion.Euler(0f, p.transform.eulerAngles.y + 180f, 0f));
             Print(go != null && go.name.StartsWith(name) ? "Spawned " + name + " at " + pos.ToString("0.0") : "Spawn of " + name + " did not produce the expected object");
-        }
-
-        static void CleanPools(string[] args)
-        {
-            float max = 1f;
-            bool small = args.Length > 1 && args[1].ToLowerInvariant() == "small";
-            if (small && args.Length > 2 && !float.TryParse(args[2].Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out max)) max = 1f;
-            var report = small ? TarPitDebug.RemoveSmallPumpPools(Mathf.Max(0.01f, max)) : TarPitDebug.RemoveJunkPools();
-            foreach (var line in report) Print(line);
         }
 
         static void Pits()
