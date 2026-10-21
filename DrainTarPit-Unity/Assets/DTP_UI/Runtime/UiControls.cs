@@ -275,13 +275,15 @@ namespace DrainTarPit.Ui
             var sliders = new VisualElement(); sliders.style.flexShrink = 0;
             box.Add(sliders);
             TextField field = null;
-            bool quiet = false;
 
             void Apply(bool fromField)
             {
                 string h = "#" + ColorUtility.ToHtmlStringRGB(c);
                 preview.style.backgroundColor = c;
-                if (!fromField && field != null) { quiet = true; field.value = h; quiet = false; }
+                // T-65 (user: the Red / Green / Blue sliders did not slide like the spacing one): `field.value = h` inside a drag sends its change
+                // event LATER (UI Toolkit queues events sent while one is handled), so the hex box rebuilt the sliders
+                // and the slider being dragged was thrown away after the first step. SetValueWithoutNotify sends nothing.
+                if (!fromField && field != null) field.SetValueWithoutNotify(h);
                 changed?.Invoke(h);
             }
             void RebuildSliders()
@@ -304,15 +306,17 @@ namespace DrainTarPit.Ui
             field = TextField("#" + ColorUtility.ToHtmlStringRGB(c), 7, v =>
             {
                 Color p;
-                if (quiet || v.TrimStart('#').Length != 6 || !ColorUtility.TryParseHtmlString(v.StartsWith("#") ? v : "#" + v, out p)) return;
+                if (v.TrimStart('#').Length != 6 || !ColorUtility.TryParseHtmlString(v.StartsWith("#") ? v : "#" + v, out p)) return;
+                if (ColorUtility.ToHtmlStringRGB(p) == ColorUtility.ToHtmlStringRGB(c)) { UiLog.Verbose("Ui: colour hex " + v + " = current colour, sliders kept"); return; }
                 c = p; RebuildSliders(); Apply(true);
+                UiLog.Verbose("Ui: colour typed " + v + ", sliders set");
             });
             field.style.width = 130; field.style.flexGrow = 0;
             var hexRow = Row("Hex", field); field.style.flexGrow = 0;
             box.Add(hexRow);
             RebuildSliders();
             preview.style.backgroundColor = c;
-            set = h => { Color p; if (ColorUtility.TryParseHtmlString(h, out p)) { c = p; RebuildSliders(); quiet = true; field.value = h; quiet = false; preview.style.backgroundColor = c; } };
+            set = h => { Color p; if (ColorUtility.TryParseHtmlString(h, out p)) { c = p; RebuildSliders(); field.SetValueWithoutNotify(h); preview.style.backgroundColor = c; } };
             return box;
         }
     }
