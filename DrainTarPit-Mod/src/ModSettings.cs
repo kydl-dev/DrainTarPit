@@ -85,18 +85,18 @@ internal static partial class ModSettings
         "How long (s) after the last stroke a pit keeps PitFlowBoost.");
 
     // T-069: set by WaterAndTarPools from its config (without that mod: no water pumping, AllowWater stays off)
-    public static readonly Tunable<bool> AllowWater = new("Pools", "AllowWater", false,
-        "Strainers built in water pump water (sea / lake / a pump pool). On while WaterAndTarPools is installed.");
-    public static readonly Tunable<float> MinWaterDepth = new("Pools", "MinWaterDepth", 0.3f,
-        "Minimum water depth (m) at the strainer tip for it to count as 'in water' (WaterAndTarPools config).");
-    public static readonly Tunable<bool> WaterSplashSound = new("Effects", "WaterSplashSound", true,
-        "Water splash where the pumped water comes down (WaterAndTarPools config).");
-    public static readonly Tunable<float> WaterSplashVolume = new("Effects", "WaterSplashVolume", 0.6f,
-        "Volume of the water splash (WaterAndTarPools config).");
+    public static readonly Tunable<bool> AllowWater = new Tunable<bool>("Pools", "AllowWater", false,
+        "Strainers built in water pump water (sea / lake / a pump pool). On while WaterAndTarPools is installed.").SetFromConfigOf("WaterAndTarPools");
+    public static readonly Tunable<float> MinWaterDepth = new Tunable<float>("Pools", "MinWaterDepth", 0.3f,
+        "Minimum water depth (m) at the strainer tip for it to count as 'in water' (WaterAndTarPools config).").SetFromConfigOf("WaterAndTarPools");
+    public static readonly Tunable<bool> WaterSplashSound = new Tunable<bool>("Effects", "WaterSplashSound", true,
+        "Water splash where the pumped water comes down (WaterAndTarPools config).").SetFromConfigOf("WaterAndTarPools");
+    public static readonly Tunable<float> WaterSplashVolume = new Tunable<float>("Effects", "WaterSplashVolume", 0.6f,
+        "Volume of the water splash (WaterAndTarPools config).").SetFromConfigOf("WaterAndTarPools");
     public static readonly Tunable<float> WaterSplashOffset = new("Effects", "WaterSplashOffset", -0.3f,
         "Seconds added to the moment the water splash plays (negative = earlier).");
-    public static readonly Tunable<bool> WaterSlugFlow = new("Effects", "WaterSlugFlow", true,
-        "Slug of water travelling through see-through hoses (WaterAndTarPools config).");
+    public static readonly Tunable<bool> WaterSlugFlow = new Tunable<bool>("Effects", "WaterSlugFlow", true,
+        "Slug of water travelling through see-through hoses (WaterAndTarPools config).").SetFromConfigOf("WaterAndTarPools");
 
     public static void Bind(ConfigFile c)
     {

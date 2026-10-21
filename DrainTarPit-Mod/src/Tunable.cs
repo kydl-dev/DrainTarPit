@@ -17,11 +17,21 @@ public sealed class Tunable<T>
     public string Section { get; }
     public string Description { get; }
     public T Default { get { return _fixed; } }
+    /// Set from another mod's config (WaterAndTarPools sets DrainTarPit's water values): KydlTools leaves it alone.
+    public bool External { get; private set; }
 
     public Tunable(string section, string name, T value, string description = "")
     {
         Section = section; Name = name; Description = description ?? "";
         _fixed = value; _value = value;
+    }
+
+    /// Marks the value as set from another mod's config (External). Returns this Tunable.
+    public Tunable<T> SetFromConfigOf(string mod)
+    {
+        External = true;
+        ModLog.Verbose("Tunable: " + Section + "." + Name + " is set from the config of " + mod);
+        return this;
     }
 
     public T Value
