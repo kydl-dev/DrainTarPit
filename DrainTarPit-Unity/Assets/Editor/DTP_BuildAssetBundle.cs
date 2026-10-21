@@ -1,8 +1,8 @@
 using UnityEditor;
 using UnityEngine;
 
-/// Menu: DTP / Build AssetBundle. Builds 'draintarpit' (prefabs, materials+textures, player clips) and, T-069, 'waterandtarpools' (the pool water
-/// shader + style materials of the WaterAndTarPools mod) to Deliverables/AssetBundles and copies each into its mod's Assets folder (embedded in the DLL).
+/// Menu: DTP / Build AssetBundle. Builds 'draintarpit' (prefabs, materials+textures, player clips) to Deliverables/AssetBundles and copies it to
+/// DrainTarPit-Mod/Assets (embedded in the DLL). T-071: the water assets are in WaterAndTarPools' own Unity project (WaterAndTarPools-Unity).
 public static class DTP_BuildAssetBundle
 {
     [MenuItem("DTP/Build AssetBundle")]
@@ -18,9 +18,8 @@ public static class DTP_BuildAssetBundle
         Debug.Log("[DTP] AssetBundle built: " + outDir);
         Debug.Log("[DTP] AssetBundle built2: " + outDir2);
 
-        // each mod's csproj embeds <Mod>/Assets/<bundle> into its DLL: keep those copies identical to the real bundles in DrainTarPit-Mod/build
+        // DrainTarPit.csproj embeds DrainTarPit-Mod/Assets/draintarpit into the DLL: keep that copy identical to the real bundle in DrainTarPit-Mod/build
         CopyTo(outDir2, "draintarpit", System.IO.Path.GetFullPath(System.IO.Path.Combine(root, "../DrainTarPit-Mod/Assets")));
-        CopyTo(outDir2, "waterandtarpools", "E:/Projects/Valheim/WaterAndTarPools/WaterAndTarPools-Mod/Assets");
     }
 
     static void CopyTo(string builtDir, string bundle, string modAssets)
