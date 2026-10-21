@@ -61,6 +61,12 @@ internal static class ModSettingsDrain
             "Liquid poured where there is no pool (flat ground, a slope, a dent shallower than 0.15 m) just runs downhill in both modes. Trees, rocks, pillars and bushes are obstacles the liquid flows around; a closed ring of anything high enough holds it.");
         PoolFishStayIn = c.Bind("Drain", "PoolFishStayIn", true,
             "Fish in a water pool the pump made stay in its water: a fish swimming into a wall stops there (fish go through the walls of built pieces), and a fish that jumps keeps its jump but cannot land outside the pool. Off = the game's own movement (fish can end up outside the pool). Fish in the sea / lakes are never touched.");
+        PoolJumpBoost = c.Bind("Drain", "PoolJumpBoost", true,
+            "Getting out of a pool the pump made (water or tar): close to its edge (within 2 m), pressing Jump PoolJumpPresses times within 3 seconds lifts you PoolJumpHeight m up and towards the edge. Off = only the game's own jump.");
+        PoolJumpPresses = c.Bind("Drain", "PoolJumpPresses", 3,
+            new ConfigDescription("Jump presses within 3 seconds at the edge of a pump pool that give the lift (PoolJumpBoost).", new AcceptableValueRange<int>(1, 6)));
+        PoolJumpHeight = c.Bind("Drain", "PoolJumpHeight", 2f,
+            new ConfigDescription("How high (m) the lift out of a pump pool takes your feet (PoolJumpBoost).", new AcceptableValueRange<float>(0.5f, 5f)));
         AllowWater = c.Bind("Drain", "AllowWater", true,
             "Strainers built in water pump water, from the sea / a lake (endless) or from a water pool the pump made (finite). A strainer is locked to what its tip sits in when it is built (tar or water) and its whole pipe system only ever moves that. The water is poured into a real water volume where the stream lands (see DepositWater). Off = strainers in water do nothing (tar is unaffected).");
         MinWaterDepth = c.Bind("Drain", "MinWaterDepth", 0.3f,

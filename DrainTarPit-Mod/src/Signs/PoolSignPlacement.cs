@@ -10,6 +10,8 @@ namespace DrainTarPit.Signs
     /// T-60 (user: "allow crafting pool signs only when close to a pool, preferably on top of it, but being within 5m of a pool is accepted"):
     /// the pool sign's build ghost turns red (placement Invalid) when no pool (pump pool or tar pit, PoolFinder) is under it or within
     /// PoolFinder.Reach; trying to place it then tells why. Every other piece is left alone.
+    /// T-62 (user: "limit signs at 1 per pool"): also refused when that pool already has a pool sign (a loaded one; signs stand next to their
+    /// pool, so they are loaded with it).
     /// </summary>
     internal static class PoolSignPlacement
     {
@@ -19,7 +21,8 @@ namespace DrainTarPit.Signs
         const int StatusValid = 0, StatusInvalid = 1;              // Player.PlacementStatus.Valid / Invalid
         static Vector3 _lastAt = new(float.MaxValue, 0f, 0f);
         static float _lastDist = -1f;
-        static int _blocked;
+        static int _blocked;                                         // 0 = buildable, 1 = no pool near, 2 = the pool has a sign already
+        static PoolSign _taken;
 
         /// After the game placed the ghost: a pool sign without a pool near is refused. Returns 1 when this frame's placement was refused.
         internal static int Check(Player p)
@@ -33,24 +36,28 @@ namespace DrainTarPit.Signs
             {
                 _lastAt = at;
                 float before = _lastDist;
-                PoolFinder.Find(at, PoolFinder.Reach, out _lastDist);
-                if ((before >= 0f) != (_lastDist >= 0f))
-                    ModLog.Verbose("PoolSignPlacement: ghost at " + at.ToString("0.0") + (_lastDist >= 0f ? " - pool " + (_lastDist <= 0f ? "under it" : _lastDist.ToString("0.0") + " m away") + ", can be built" : " - no pool within " + PoolFinder.Reach + " m, refused"));
+                var before2 = _taken;
+                var v = PoolFinder.Find(at, PoolFinder.Reach, out _lastDist);
+                _taken = v != null ? PoolSign.SignOn(v) : null;
+                if ((before >= 0f) != (_lastDist >= 0f) || before2 != _taken)
+                    ModLog.Verbose("PoolSignPlacement: ghost at " + at.ToString("0.0") + (_lastDist < 0f ? " - no pool within " + PoolFinder.Reach + " m, refused"
+                        : " - pool " + (_lastDist <= 0f ? "under it" : _lastDist.ToString("0.0") + " m away") + (_taken != null ? ", it has a sign already ('" + _taken.SignName + "' at " + _taken.transform.position.ToString("0.0") + "), refused" : ", can be built")));
             }
-            if (_lastDist >= 0f) { _blocked = 0; return 0; }
+            int reason = _lastDist < 0f ? 1 : _taken != null ? 2 : 0;
+            if (reason == 0) { _blocked = 0; return 0; }
             FStatus.SetValue(p, System.Enum.ToObject(FStatus.FieldType, StatusInvalid));
             if (MGhostValid != null) MGhostValid.Invoke(p, new object[] { false });
-            _blocked = 1;
-            return 1;
+            _blocked = reason;
+            return reason;
         }
 
         /// Before the game tries to place a piece: says why a pool sign is refused (the game itself only says "invalid placement").
         /// Returns 1 when the message was shown.
         internal static int Tell(Player p, Piece piece)
         {
-            if (_blocked != 1 || p == null || p != Player.m_localPlayer || piece == null || piece.GetComponent<PoolSign>() == null) return 0;
-            p.Message(MessageHud.MessageType.TopLeft, Loc.T("dtp_sign_need_pool", PoolFinder.Reach.ToString("0")));
-            ModLog.Verbose("PoolSignPlacement: pool sign not placed at " + _lastAt.ToString("0.0") + ", no pool within " + PoolFinder.Reach + " m");
+            if (_blocked == 0 || p == null || p != Player.m_localPlayer || piece == null || piece.GetComponent<PoolSign>() == null) return 0;
+            p.Message(MessageHud.MessageType.TopLeft, _blocked == 2 ? Loc.T("dtp_sign_pool_taken") : Loc.T("dtp_sign_need_pool", PoolFinder.Reach.ToString("0")));
+            ModLog.Verbose("PoolSignPlacement: pool sign not placed at " + _lastAt.ToString("0.0") + (_blocked == 2 ? ", the pool has a sign already" : ", no pool within " + PoolFinder.Reach + " m"));
             return 1;
         }
 

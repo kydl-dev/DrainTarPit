@@ -202,6 +202,14 @@ namespace DrainTarPit.Signs
             return string.Concat(letters);
         }
 
+        /// T-62: the loaded pool sign that names pool `v` (null = none): one sign per pool.
+        internal static PoolSign SignOn(LiquidVolume v)
+        {
+            if (v == null) return null;
+            foreach (var s in Loaded) if (s != null && s.Pool() == v) return s;
+            return null;
+        }
+
         /// The pool under / next to the sign: a pump pool (water or tar) or a tar pit (PoolFinder; null = none within PoolReach).
         internal LiquidVolume Pool() { LookForPool(); return _pool; }
 

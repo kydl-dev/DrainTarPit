@@ -62,6 +62,9 @@ internal static class ModSettings
     public static ConfigEntry<bool> PoolOverflow;
     public static ConfigEntry<bool> PoolRimDisappear;
     public static ConfigEntry<bool> PoolFishStayIn;
+    public static ConfigEntry<bool> PoolJumpBoost;
+    public static ConfigEntry<int> PoolJumpPresses;
+    public static ConfigEntry<float> PoolJumpHeight;
     public static ConfigEntry<bool> AllowWater;
     public static ConfigEntry<float> MinWaterDepth;
     public static ConfigEntry<bool> DepositWater;

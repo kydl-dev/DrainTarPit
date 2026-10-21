@@ -66,6 +66,7 @@ namespace DrainTarPit.TextLocal
             // T-023 pool sign + its menu
             { "dtp_piece_sign", "Pool sign" },
             { "dtp_piece_sign_desc", "A sign post for a pool. Build it on a pool (or within 5 m of one): a pool the pump made or a tar pit. Give the pool a name (E). Named pools are listed in the pool menu." },
+            { "dtp_sign_pool_taken", "This pool has a sign already (one sign per pool)" },
             { "dtp_sign_need_pool", "A pool sign has to stand on a pool or within {0} m of one (pump pool or tar pit)" },
             { "dtp_sign_unnamed", "Unnamed pool sign" },
             { "dtp_sign_pool_ok", "Names the pool here" }, { "dtp_sign_pool_none", "No pool within 5 m" },
@@ -122,6 +123,7 @@ namespace DrainTarPit.TextLocal
             { "dtp_h_too_long", "Die Schlauchkette am {0} ist zu lang" },
             { "dtp_piece_sign", "Beckenschild" },
             { "dtp_piece_sign_desc", "Ein Schildpfosten für ein Becken. Auf ein Becken bauen (oder höchstens 5 m daneben): ein von der Pumpe gefülltes Becken oder eine Teergrube. Dem Becken einen Namen geben (E). Benannte Becken stehen im Beckenmenü." },
+            { "dtp_sign_pool_taken", "Dieses Becken hat schon ein Schild (ein Schild pro Becken)" },
             { "dtp_sign_need_pool", "Ein Beckenschild muss auf einem Becken stehen oder höchstens {0} m daneben (Pumpenbecken oder Teergrube)" },
             { "dtp_sign_unnamed", "Unbenanntes Beckenschild" },
             { "dtp_sign_pool_ok", "Benennt das Becken hier" }, { "dtp_sign_pool_none", "Kein Becken im Umkreis von 5 m" },
