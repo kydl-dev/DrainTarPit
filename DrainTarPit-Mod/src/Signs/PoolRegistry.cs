@@ -22,7 +22,7 @@ namespace DrainTarPit.Signs
 
         internal sealed class Entry
         {
-            public string Id = "", Name = "", Style = "", Portal = "";
+            public string Id = "", Name = "", Style = "", Portal = "", Liquid = "";      // Liquid (T-60): "tar" / "water" / "" (not known yet)
             public Vector3 Pos;
             public float PortalDistance = -1f;              // -1 = no portal in the world
         }
@@ -82,7 +82,7 @@ namespace DrainTarPit.Signs
             Received.Clear();
             int n = pkg.ReadInt();
             for (int i = 0; i < n; i++)
-                Received.Add(new Entry { Id = pkg.ReadString(), Name = pkg.ReadString(), Style = pkg.ReadString(), Pos = pkg.ReadVector3(), Portal = pkg.ReadString(), PortalDistance = pkg.ReadSingle() });
+                Received.Add(new Entry { Id = pkg.ReadString(), Name = pkg.ReadString(), Style = pkg.ReadString(), Pos = pkg.ReadVector3(), Portal = pkg.ReadString(), PortalDistance = pkg.ReadSingle(), Liquid = pkg.ReadString() });
             Version++;
             ModLog.Verbose("PoolRegistry: " + n + " named pool(s) received from the server");
         }
@@ -94,7 +94,7 @@ namespace DrainTarPit.Signs
             if (Time.unscaledTime - _cacheAt > CacheSeconds) Build();
             var pkg = new ZPackage();
             pkg.Write(Cache.Count);
-            foreach (var e in Cache) { pkg.Write(e.Id); pkg.Write(e.Name); pkg.Write(e.Style); pkg.Write(e.Pos); pkg.Write(e.Portal); pkg.Write(e.PortalDistance); }
+            foreach (var e in Cache) { pkg.Write(e.Id); pkg.Write(e.Name); pkg.Write(e.Style); pkg.Write(e.Pos); pkg.Write(e.Portal); pkg.Write(e.PortalDistance); pkg.Write(e.Liquid); }
             ZRoutedRpc.instance.InvokeRoutedRPC(sender, RpcList, pkg);
             ModLog.Verbose("PoolRegistry: sent " + Cache.Count + " named pool(s) to peer " + sender);
         }
@@ -111,7 +111,7 @@ namespace DrainTarPit.Signs
             {
                 string name = z.GetString(PoolSign.KeyName, "");
                 if (string.IsNullOrEmpty(name)) continue;                     // user: "if a pool has no sign with name set then it is not displayed"
-                var e = new Entry { Id = z.m_uid.ToString(), Name = name, Style = z.GetString(PoolSign.KeyStyle, ""), Pos = z.GetPosition() };
+                var e = new Entry { Id = PoolSign.KeyOf(z), Name = name, Style = z.GetString(PoolSign.KeyStyle, ""), Pos = z.GetPosition(), Liquid = z.GetString(PoolSign.KeyLiquid, "") };   // T-60: the kept key, not the ZDOID
                 float best = float.MaxValue;
                 foreach (var p in portals)
                 {

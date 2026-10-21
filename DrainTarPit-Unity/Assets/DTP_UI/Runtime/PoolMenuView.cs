@@ -12,6 +12,7 @@ namespace DrainTarPit.Ui
         public Vector3 Pos;
         public float PortalDistance = -1f;                              // -1 = no portal in the world
         public string MyStyle = "";                                     // this player's choice, "" = the default
+        public bool Tar;                                                // T-60: a tar pool: no water styles, the style drop-down is greyed out
     }
 
     /// <summary>What the pool menu needs from the outside: the game (PoolMenu in the mod) or the Unity preview.</summary>
@@ -105,7 +106,10 @@ namespace DrainTarPit.Ui
             var opts = new List<string> { "" }; opts.AddRange(_host.Styles);
             string def = _host.T("dtp_ui_style_default", StyleName(_host.DefaultStyle));
             string id = p.Id;
-            card.Add(UiControls.Row(_host.T("dtp_ui_my_style"), UiControls.Dropdown(opts, p.MyStyle, s => s.Length == 0 ? def : StyleName(s), s => _host.SetPoolStyle(id, s))));
+            var pick = UiControls.Dropdown(opts, p.MyStyle, s => p.Tar ? _host.T("dtp_ui_tar_pool") : s.Length == 0 ? def : StyleName(s), s => _host.SetPoolStyle(id, s));
+            if (p.Tar) { pick.SetEnabled(false); pick.style.opacity = 0.5f; }       // user: tar pools have no styles, the drop-down is disabled
+            card.Add(UiControls.Row(_host.T("dtp_ui_my_style"), pick));
+            UiLog.Verbose("PoolMenuView: card '" + p.Name + "' (" + (p.Tar ? "tar, style drop-down disabled" : "water, my style '" + p.MyStyle + "'") + ")");
             return card;
         }
 

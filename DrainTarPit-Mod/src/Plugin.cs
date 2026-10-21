@@ -57,6 +57,7 @@ namespace DrainTarPit
         {
             PrefabManager.OnVanillaPrefabsAvailable -= RegisterSign;
             Signs.PoolSignPiece.Register();
+            Signs.PoolSignPlacement.LogTargets();
         }
 
         // 1) embedded resource (read fully into memory: LoadFromStream needs the stream to stay open, which breaks

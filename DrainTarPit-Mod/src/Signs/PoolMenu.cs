@@ -56,7 +56,7 @@ namespace DrainTarPit.Signs
             foreach (var e in PoolRegistry.Received)
             {
                 var mine = PoolStyles.MineFor(e.Id);
-                _pools.Add(new PoolMenuEntry { Id = e.Id, Name = e.Name, Style = e.Style, Pos = e.Pos, Portal = e.Portal, PortalDistance = e.PortalDistance, MyStyle = mine.HasValue ? mine.Value.ToString() : "" });
+                _pools.Add(new PoolMenuEntry { Id = e.Id, Name = e.Name, Style = e.Style, Pos = e.Pos, Portal = e.Portal, PortalDistance = e.PortalDistance, Tar = e.Liquid == "tar", MyStyle = mine.HasValue ? mine.Value.ToString() : "" });
             }
             _shownVersion = PoolRegistry.Version;
         }

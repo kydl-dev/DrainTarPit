@@ -37,7 +37,7 @@ namespace DrainTarPit.Ui
             { "dtp_ui_pools_loading", "Asking the server..." },
             { "dtp_ui_pools_none", "No pool has a named sign yet. Build a pool sign at a pool and name it (E)." },
             { "dtp_ui_pool_pos", "Position {0}, {1} (height {2})" }, { "dtp_ui_pool_portal", "Closest portal: {0} ({1} m)" },
-            { "dtp_ui_pool_noportal", "No portal in this world" }, { "dtp_ui_pool_portal_unnamed", "(no name)" }, { "dtp_ui_my_style", "My style" },            { "dtp_ui_save", "Save" }, { "dtp_ui_cancel", "Cancel" }, { "dtp_ui_esc_close", "Esc to close" },
+            { "dtp_ui_pool_noportal", "No portal in this world" }, { "dtp_ui_pool_portal_unnamed", "(no name)" }, { "dtp_ui_my_style", "My style" }, { "dtp_ui_tar_pool", "Tar pool (no water styles)" },            { "dtp_ui_save", "Save" }, { "dtp_ui_cancel", "Cancel" }, { "dtp_ui_esc_close", "Esc to close" },
         };
 
         public static readonly Dictionary<string, string> De = new Dictionary<string, string>
@@ -69,7 +69,7 @@ namespace DrainTarPit.Ui
             { "dtp_ui_pools_loading", "Frage den Server..." },
             { "dtp_ui_pools_none", "Noch kein Becken hat ein benanntes Schild. Baue ein Beckenschild an ein Becken und benenne es (E)." },
             { "dtp_ui_pool_pos", "Position {0}, {1} (Höhe {2})" }, { "dtp_ui_pool_portal", "Nächstes Portal: {0} ({1} m)" },
-            { "dtp_ui_pool_noportal", "Kein Portal in dieser Welt" }, { "dtp_ui_pool_portal_unnamed", "(ohne Namen)" }, { "dtp_ui_my_style", "Mein Stil" },            { "dtp_ui_save", "Speichern" }, { "dtp_ui_cancel", "Abbrechen" }, { "dtp_ui_esc_close", "Esc zum Schließen" },
+            { "dtp_ui_pool_noportal", "Kein Portal in dieser Welt" }, { "dtp_ui_pool_portal_unnamed", "(ohne Namen)" }, { "dtp_ui_my_style", "Mein Stil" }, { "dtp_ui_tar_pool", "Teerbecken (keine Wasserstile)" },            { "dtp_ui_save", "Speichern" }, { "dtp_ui_cancel", "Abbrechen" }, { "dtp_ui_esc_close", "Esc zum Schließen" },
         };
 
         /// English text with {0} {1} ... filled in (the Unity preview; the game uses its own localization).

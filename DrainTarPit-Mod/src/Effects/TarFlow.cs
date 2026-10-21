@@ -49,7 +49,8 @@ namespace DrainTarPit.Effects
 
         static readonly List<Slug> Slugs = new();
         static GameObject _host;
-        static Material _mat, _matWater;
+        static Material _mat;
+        static readonly Dictionary<WaterStyleOption, Material> WaterMats = new();       // T-60: one hose water material per water style
 
         // Bug #3: an error used to set ModSettings.TarFlow.Value = false, which BepInEx saved into the config file (the switch stayed off after a restart).
         // It is now a runtime-only switch like PumpFx._disabled: the config file is never touched, the next game launch tries again.
@@ -140,7 +141,9 @@ namespace DrainTarPit.Effects
                 go = new GameObject("slug");
                 go.transform.SetParent(_host.transform, false);
                 var mr = go.AddComponent<MeshRenderer>();
-                mr.sharedMaterial = Mat(liquid);
+                mr.sharedMaterial = liquid == PumpLiquid.Water
+                    ? WaterMat(WaterTint.StyleFor(intake != null ? intake.Pts[0] : (Vector3?)null, outlet != null ? outlet.Pts[outlet.Pts.Count - 1] : (Vector3?)null))
+                    : Mat(liquid);
                 mr.shadowCastingMode = ShadowCastingMode.Off; mr.receiveShadows = false;
                 mesh = new Mesh { name = "DTP_slug" }; mesh.MarkDynamic();
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -187,7 +190,7 @@ namespace DrainTarPit.Effects
 
         static Material Mat(PumpLiquid liquid = PumpLiquid.Tar)
         {
-            if (liquid == PumpLiquid.Water) return WaterMat();
+            if (liquid == PumpLiquid.Water) return WaterMat(PoolWater.StyleInUse);
             if (_mat != null) return _mat;
             Shader sh = Shader.Find("Standard") ?? Shader.Find("Custom/Piece") ?? Shader.Find("Sprites/Default");
             _mat = new Material(sh) { name = "DTP_TarLiquid" };
@@ -200,33 +203,38 @@ namespace DrainTarPit.Effects
 
         // water in the hoses: lighter and glossy so it reads as water against the dark tar. T-053 (user: blue hose water next to a red Ashlands pool):
         // the colour follows the pool water style in use, re-checked on every stroke (style switched live, F8 tuning, reset).
-        static string _waterLookKey = "";
+        // T-60 (user: "water in pipe does not follow the user's style"): one material per style, the style of the pool this pump moves water
+        // from / to as this player sees it (WaterTint.StyleFor), so two pumps next to differently styled pools each show their own colour.
+        static readonly Dictionary<WaterStyleOption, string> WaterLookKeys = new();
 
-        static Material WaterMat()
+        static Material WaterMat(WaterStyleOption style)
         {
-            if (_matWater == null)
+            Material m;
+            if (!WaterMats.TryGetValue(style, out m) || m == null)
             {
                 Shader sh = Shader.Find("Standard") ?? Shader.Find("Custom/Piece") ?? Shader.Find("Sprites/Default");
-                _matWater = new Material(sh) { name = "DTP_WaterLiquid" };
-                if (_matWater.HasProperty("_Glossiness")) _matWater.SetFloat("_Glossiness", 0.95f);
-                if (_matWater.HasProperty("_Metallic")) _matWater.SetFloat("_Metallic", 0f);
-                ModLog.Verbose("TarFlow: hose water material made (shader '" + sh.name + "')");
+                m = new Material(sh) { name = "DTP_WaterLiquid_" + style };
+                if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", 0.95f);
+                if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0f);
+                WaterMats[style] = m;
+                WaterLookKeys.Remove(style);
+                ModLog.Verbose("TarFlow: hose water material for the " + style + " style made (shader '" + sh.name + "')");
             }
             Color col, glow;
-            var from = WaterTint.Current(out col, out glow);
-            string key = from + " " + col + " " + glow;
-            if (key == _waterLookKey) return _matWater;
-            _waterLookKey = key;
-            _matWater.color = col;
-            if (_matWater.HasProperty("_EmissionColor"))
+            var from = WaterTint.Current(style, out col, out glow);
+            string key = from + " " + col + " " + glow, was;
+            if (WaterLookKeys.TryGetValue(style, out was) && was == key) return m;
+            WaterLookKeys[style] = key;
+            m.color = col;
+            if (m.HasProperty("_EmissionColor"))
             {
                 int lit = glow.maxColorComponent > 0.001f ? 1 : 0;
-                if (lit == 1) { _matWater.EnableKeyword("_EMISSION"); _matWater.SetColor("_EmissionColor", glow); }
-                else { _matWater.DisableKeyword("_EMISSION"); _matWater.SetColor("_EmissionColor", Color.black); }
+                if (lit == 1) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", glow); }
+                else { m.DisableKeyword("_EMISSION"); m.SetColor("_EmissionColor", Color.black); }
             }
             ModLog.Verbose("TarFlow: hose water colour set from the " + from + " water style" +
                 ": colour " + col + ", glow " + glow);
-            return _matWater;
+            return m;
         }
 
         // --- path tracing -------------------------------------------------------------------------------------------------

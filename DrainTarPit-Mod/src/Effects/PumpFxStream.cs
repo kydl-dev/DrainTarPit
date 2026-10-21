@@ -81,12 +81,13 @@ namespace DrainTarPit.Effects
         // the ground and a puddle that spreads and fades. One spurt per press: it starts hard, fades out within NozzleFlowSeconds and the
         // landing point is worked out from the exit speed, so the splashes / puddle appear where the stream really comes down.
         /// `landAt` / `fallSeconds`: where and how long after the start the first droplets come down (the water splash sound plays there, then).
-        internal static void Stream(Vector3 pos, Vector3 dir, float frac, float amount, Drain.PumpLiquid liquid, out Vector3 landAt, out float fallSeconds)
+        /// `style` (T-60): the water style of this pump's pool (WaterTint.ForPump); null = the pool under the nozzle, else the default.
+        internal static void Stream(Vector3 pos, Vector3 dir, float frac, float amount, Drain.PumpLiquid liquid, out Vector3 landAt, out float fallSeconds, WaterStyleOption? style = null)
         {
             landAt = pos; fallSeconds = 0f;
             bool water = liquid == Drain.PumpLiquid.Water;
             Color dark = water ? WaterDark : TarDark, light = water ? WaterLight : TarLight, puddle = water ? WaterPuddle : TarPuddle;
-            if (water) StyleColours(ref dark, ref light, ref puddle);
+            if (water) StyleColours(style ?? WaterTint.StyleFor(null, pos), ref dark, ref light, ref puddle);
             var mat = Mat(); if (mat == null) { ModLog.Verbose("Pour stream: no particle material, nothing shown"); return; }
             if (dir.sqrMagnitude < 0.01f) dir = Vector3.down;
             dir.Normalize();
@@ -181,10 +182,10 @@ namespace DrainTarPit.Effects
 
         // T-054 (user: the stream out of the nozzle stayed blue while the hose water and the Ashlands pool were red): with a pool water style
         // in use the spurt / splash / puddle colours come from it (WaterTint, same as the hose water); the Game style keeps the blue above.
-        static void StyleColours(ref Color dark, ref Color light, ref Color puddle)
+        static void StyleColours(WaterStyleOption style, ref Color dark, ref Color light, ref Color puddle)
         {
             Color body, glow;
-            var from = WaterTint.Current(out body, out glow);
+            var from = WaterTint.Current(style, out body, out glow);
             if (from == WaterStyleOption.Game) { ModLog.Verbose("Pour stream: Game water style, blue droplets"); return; }
             Color lit = body + glow;                                          // unlit particles: the glow is added to the colour itself
             dark = new Color(lit.r * 0.85f, lit.g * 0.85f, lit.b * 0.85f, WaterDark.a);

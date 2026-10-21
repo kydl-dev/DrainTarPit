@@ -15,8 +15,10 @@ namespace DrainTarPit.Signs
     public class PoolSign : MonoBehaviour, Hoverable, Interactable
     {
         internal const string KeyName = "DTP_signName", KeyStyle = "DTP_signStyle";
+        /// T-60: the sign's own key (written once, never changes) and the liquid of its pool ("tar" / "water").
+        internal const string KeyId = "DTP_signKey", KeyLiquid = "DTP_signLiquid";
         internal const int MaxName = 40;
-        const float PoolReach = 2.5f;
+        const float PoolReach = PoolFinder.Reach;
 
         internal static readonly List<PoolSign> Loaded = new();
         /// Bumped when a sign loads, unloads or gets another name: PoolStyles finds the pools' signs again, the pools redraw.
@@ -24,8 +26,53 @@ namespace DrainTarPit.Signs
 
         static void Changed(string why) { Generation++; Visuals.PoolWater.RequestRefresh(); ModLog.Verbose("PoolSign: " + why + " -> pools look for their sign again"); }
 
-        /// The sign's world id ("user:id", kept across restarts): the key of the players' personal pool styles.
-        internal string Id { get { return _nview != null && _nview.GetZDO() != null ? _nview.GetZDO().m_uid.ToString() : ""; } }
+        /// The sign's key for the players' personal pool styles. T-60 (user: "water style for users is not preserved after game restart"): the
+        /// world id (ZDOID) is NOT kept across restarts (the log showed 1:127823 -> 1:127788 -> 1:127991 for the same sign), so the key is its
+        /// own value in the ZDO (KeyId), written once by the owner; until then (and on the server) the same value is made from the position.
+        internal string Id { get { return _nview != null && _nview.GetZDO() != null ? KeyOf(_nview.GetZDO()) : ""; } }
+
+        internal static string KeyOf(ZDO z)
+        {
+            if (z == null) return "";
+            string k = z.GetString(KeyId, "");
+            return k.Length > 0 ? k : PosKey(z.GetPosition());
+        }
+
+        static string PosKey(Vector3 p)
+        {
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            return "p" + p.x.ToString("0.0", c) + "_" + p.y.ToString("0.0", c) + "_" + p.z.ToString("0.0", c);
+        }
+
+        /// The owner writes the key (once) and the liquid of the pool (when it changed) into the ZDO. Returns the number of values written.
+        int Stamp()
+        {
+            if (_nview == null || !_nview.IsValid() || !_nview.IsOwner()) return 0;
+            var zdo = _nview.GetZDO();
+            int n = 0;
+            if (zdo.GetString(KeyId, "").Length == 0) { zdo.Set(KeyId, PosKey(zdo.GetPosition())); n++; ModLog.Verbose("PoolSign: key " + zdo.GetString(KeyId, "") + " written for '" + SignName + "'"); }
+            string liquid = PoolFinder.LiquidName(_pool);
+            if (_pool != null && zdo.GetString(KeyLiquid, "") != liquid) { zdo.Set(KeyLiquid, liquid); n++; ModLog.Verbose("PoolSign: '" + SignName + "' names a " + liquid + " pool (written to the sign)"); }
+            return n;
+        }
+
+        // --- the pool it names (cached: found again when it unloads or was not found yet) ----------------------------------------
+        LiquidVolume _pool;
+        float _poolDist = -1f, _nextPoolLook;
+
+        /// Looks for the pool when none is known (not loaded yet when the sign loaded, or unloaded since). Returns 1 when the pool changed.
+        int LookForPool()
+        {
+            if (_pool != null || Time.time < _nextPoolLook) return 0;
+            _nextPoolLook = Time.time + 2f;
+            var v = PoolFinder.Find(transform.position, PoolReach, out _poolDist);
+            if (v == null) return 0;
+            _pool = v;
+            ModLog.Verbose("PoolSign: '" + SignName + "' names " + PoolLabel());
+            Stamp();
+            Changed("sign '" + SignName + "' found its pool");
+            return 1;
+        }
 
         ZNetView _nview;
         TMP_Text _text;
@@ -93,6 +140,7 @@ namespace DrainTarPit.Signs
         void Refresh()
         {
             if (_nview == null || !_nview.IsValid()) return;
+            LookForPool();
             var zdo = _nview.GetZDO();
             if (zdo.DataRevision == _lastRev) return;
             _lastRev = zdo.DataRevision;
@@ -103,6 +151,7 @@ namespace DrainTarPit.Signs
             Style = SignStyle.Parse(zdo.GetString(KeyStyle, ""), problems);
             if (problems.Count > 0) ModLog.VerboseWarn("PoolSign '" + SignName + "': style read with problems: " + string.Join("; ", problems));
             if (_previewStyle == null) Draw(SignName, Style);
+            Stamp();
             ModLog.Verbose("PoolSign: '" + SignName + "' updated from the world (revision " + _lastRev + ", style " + Style + ")");
         }
 
@@ -134,6 +183,7 @@ namespace DrainTarPit.Signs
             var zdo = _nview.GetZDO();
             zdo.Set(KeyName, name);
             zdo.Set(KeyStyle, style.Serialize());
+            Stamp();
             _previewName = null; _previewStyle = null;
             _lastRev = uint.MaxValue;
             Refresh();
@@ -152,19 +202,13 @@ namespace DrainTarPit.Signs
             return string.Concat(letters);
         }
 
-        // --- the pool it names -------------------------------------------------------------------------------------------
-        /// The pump pool under / next to the sign (null = none within PoolReach).
-        internal LiquidVolume Pool()
-        {
-            LiquidVolume v; float depth, surface; Vector3 at;
-            if (TarPits.TrySampleNear(transform.position, PoolReach, out v, out depth, out surface, out at, LiquidType.All) && TarPits.IsPumpPool(v)) return v;
-            return null;
-        }
+        /// The pool under / next to the sign: a pump pool (water or tar) or a tar pit (PoolFinder; null = none within PoolReach).
+        internal LiquidVolume Pool() { LookForPool(); return _pool; }
 
         internal string PoolLabel()
         {
-            var v = Pool();
-            return v == null ? "none within " + PoolReach + " m" : v.name + " (" + (TarPits.IsTar(v) ? "tar" : "water") + ") at " + v.transform.position.ToString("0.0");
+            var v = _pool;
+            return v == null ? "none within " + PoolReach + " m" : v.name + " (" + PoolFinder.LiquidName(v) + ") at " + v.transform.position.ToString("0.0") + (_poolDist > 0f ? ", " + _poolDist.ToString("0.0") + " m away" : ", under the sign");
         }
 
         // --- Hoverable / Interactable --------------------------------------------------------------------------------------

@@ -50,7 +50,7 @@ public class DTP_UiPreview : MonoBehaviour, ISignMenuHost, IPoolMenuHost
         _fakePools.Add(new PoolMenuEntry { Id = "1:101", Name = "Fishpond \U0001F41F", Style = s1.Serialize(), Pos = new Vector3(1366, 34, -3510), Portal = "Home", PortalDistance = 42f });
         var s2 = new SignStyle { Color = "#FF5533", Italic = true, Upper = true };
         _fakePools.Add(new PoolMenuEntry { Id = "1:102", Name = "Lava bath \U0001F525", Style = s2.Serialize(), Pos = new Vector3(-820, 51, 2304), Portal = "Ashlands camp", PortalDistance = 310f, MyStyle = "Ashlands" });
-        _fakePools.Add(new PoolMenuEntry { Id = "1:103", Name = "Tar works", Style = new SignStyle().Serialize(), Pos = new Vector3(4120, 40, -880), Portal = "", PortalDistance = 1250f });
+        _fakePools.Add(new PoolMenuEntry { Id = "1:103", Name = "Tar works", Style = new SignStyle().Serialize(), Pos = new Vector3(4120, 40, -880), Portal = "", PortalDistance = 1250f, Tar = true });
     }
 
     /// Opens the pool menu (P in the preview; also callable from the editor).

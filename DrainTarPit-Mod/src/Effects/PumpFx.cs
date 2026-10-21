@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using DrainTarPit.Building;
 using DrainTarPit.Logging;
+using DrainTarPit.Visuals;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Networking;
@@ -111,7 +112,8 @@ namespace DrainTarPit.Effects
             float delay = ModSettings.SyncPour.Value ? TarFlow.ClaimArrival(pump) : -1f;
             float tVisual = Mathf.Max(0f, delay);
             float tSound = Mathf.Max(0f, tVisual + ModSettings.PourSoundOffset.Value);
-            RunAfter(tVisual, () => { PourVisual(pos, dir, volume, liquid); if (atNozzle != null) atNozzle(); });
+            WaterStyleOption? style = liquid == Drain.PumpLiquid.Water ? WaterTint.ForPump(pump, pos) : (WaterStyleOption?)null;     // T-60: the pump's pool style, as this player sees it
+            RunAfter(tVisual, () => { PourVisual(pos, dir, volume, liquid, style); if (atNozzle != null) atNozzle(); });
             RunAfter(tSound, () => PourSound(pos, liquid));
             ModLog.Verbose("Pour: " + (delay >= 0f ? "follows the tar slug, reaches the nozzle in " + delay.ToString("0.00") + " s" : "no slug to follow, right away"));
         }
@@ -121,7 +123,7 @@ namespace DrainTarPit.Effects
             if (seconds <= 0.001f) what(); else TarFlow.Schedule(seconds, what);
         }
 
-        static void PourVisual(Vector3 pos, Vector3 dir, float volume, Drain.PumpLiquid liquid)
+        static void PourVisual(Vector3 pos, Vector3 dir, float volume, Drain.PumpLiquid liquid, WaterStyleOption? style = null)
         {
             if (!Enabled) return;
             try
@@ -130,7 +132,7 @@ namespace DrainTarPit.Effects
                 float amount = ModSettings.NozzleFlowAmount.Value;
                 if (amount <= 0.001f) { ModLog.Verbose("Pour: NozzleFlowAmount is 0, no stream (and no splash)"); return; }
                 Vector3 land; float fall;
-                Stream(pos, dir, frac, amount, liquid, out land, out fall);
+                Stream(pos, dir, frac, amount, liquid, out land, out fall, style);
                 if (liquid == Drain.PumpLiquid.Water) WaterSplashAt(land, fall, frac);
             }
             catch (System.Exception e) { Fail(e); }

@@ -64,11 +64,10 @@ namespace DrainTarPit.Visuals
         internal static WaterStyleOption StyleInUse { get { return Signs.PoolStyles.Default; } }   // T-023: the admin's world style, else this PC's config
 
         /// T-053: the material of the water style in use (null for Game or when the style could not be loaded): the hose water takes its colour from it.
-        internal static Material StyleLook()
-        {
-            var s = StyleInUse;
-            return s == WaterStyleOption.Game ? null : StyleMaterial(s);
-        }
+        internal static Material StyleLook() { return StyleLook(StyleInUse); }
+
+        /// T-60: the material of one water style (null for Game or when it could not be loaded): hose water / stream of one pump.
+        internal static Material StyleLook(WaterStyleOption s) { return s == WaterStyleOption.Game ? null : StyleMaterial(s); }
 
         /// T-050 (user: "reset tropical to its initial values"): throws the tuned copy of a style material away; the next pool update copies the
         /// style's material from the bundle again (its shipped values). Returns the number of copies thrown away (0 = the style was not loaded yet).
