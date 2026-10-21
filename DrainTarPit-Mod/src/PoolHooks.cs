@@ -46,6 +46,9 @@ namespace DrainTarPit
         /// A liquid volume is being destroyed (unloaded / removed).
         internal static event Action<LiquidVolume> VolumeDestroyed;
 
+        /// Sounds other mods bring (WaterAndTarPools: water_splash), found by PumpFxSound.Clip when DrainTarPit's bundle has no such clip.
+        internal static readonly Dictionary<string, AudioClip> Clips = new(StringComparer.OrdinalIgnoreCase);
+
         /// Extra `dtp` console sub-commands (name -> handler with the arguments after the name).
         internal static readonly Dictionary<string, Action<string[]>> Commands = new(StringComparer.OrdinalIgnoreCase);
 

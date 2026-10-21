@@ -9,6 +9,10 @@
     <!-- Set to your BepInEx/plugins/DrainTarPit folder to auto-copy after build -->
     <DeployDir></DeployDir>
     <PackageId>DrainTarPit</PackageId>
+    <!-- T-073: no debug symbols file and no local build paths in the DLL (virus scanners) -->
+    <DebugType>none</DebugType>
+    <Deterministic>true</Deterministic>
+    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="BepInEx"><HintPath>$(ValheimRefs)\BepInEx.dll</HintPath><Private>false</Private></Reference>
@@ -51,13 +55,6 @@
   <ItemGroup>
     <!-- Copy the built bundle to DrainTarPit/Assets/draintarpit; it is embedded in the DLL. -->
     <EmbeddedResource Include="Assets\draintarpit" LogicalName="draintarpit" Condition="Exists('Assets\draintarpit')" />
-    <!-- Recorded sounds: used when the asset bundle does not contain them (assets/audio/*.ogg in the bundle win). -->
-    <EmbeddedResource Include="audio\pump_up.ogg" LogicalName="pump_up.ogg" />
-    <EmbeddedResource Include="audio\oil_pumped.ogg" LogicalName="oil_pumped.ogg" />
-    <!-- cut from audio\source\pump-scratching.ogg (first half = piston going down, second half = going up) and water-splash.mp3 -->
-    <EmbeddedResource Include="audio\pump_scratch_down.ogg" LogicalName="pump_scratch_down.ogg" />
-    <EmbeddedResource Include="audio\pump_scratch_up.ogg" LogicalName="pump_scratch_up.ogg" />
-    <EmbeddedResource Include="audio\water_splash.ogg" LogicalName="water_splash.ogg" />
   </ItemGroup>
   <Target Name="Deploy" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(DeployDir)" />

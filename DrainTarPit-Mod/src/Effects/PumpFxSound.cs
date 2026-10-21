@@ -6,13 +6,12 @@ using DrainTarPit.Building;
 using DrainTarPit.Logging;
 using UnityEngine;
 using UnityEngine.Audio;
-using UnityEngine.Networking;
 using UnityEngine.Rendering;
 
 
 namespace DrainTarPit.Effects
 {
-    /// The sounds of the pump effects (PumpFx): the recordings (bundle or embedded .ogg), one voice per clip with tail fade, the synthesised stroke fallback.
+    /// The sounds of the pump effects (PumpFx): the recordings (asset bundles), one voice per clip with tail fade, the synthesised stroke fallback.
     internal static class PumpFxSound
     {
         internal const string PumpUp = "pump_up", OilPumped = "oil_pumped";
@@ -27,8 +26,9 @@ namespace DrainTarPit.Effects
 
         internal static bool Loading(string key) { return Pending.Contains(key); }
 
-        /// The recording `key` (pump_up / oil_pumped). Bundle first, then the embedded .ogg. null while it is still loading or
-        /// when it does not exist anywhere (Loading(key) tells these apart).
+        /// The recording `key`: from DrainTarPit's asset bundle, or one another mod handed in (PoolHooks.Clips: WaterAndTarPools' water splash).
+        /// null when it does not exist anywhere (logged once). T-073: nothing is written to disk any more - the .ogg files used to be embedded in the
+        /// DLL, written to the temp folder and read back with UnityWebRequest, which looks like a "dropper" to virus scanners; they are in the bundles now.
         internal static AudioClip Clip(string key)
         {
             AudioClip c;
@@ -39,43 +39,9 @@ namespace DrainTarPit.Effects
                 if (c != null) { Clips[key] = c; ModLog.Verbose("Sound '" + key + "' loaded from bundle (" + c.length.ToString("0.00") + " s)"); return c; }
                 NotInBundle.Add(key);
             }
-            if (!Pending.Contains(key) && !Failed.Contains(key) && Plugin.Instance != null)
-            {
-                Pending.Add(key);
-                Plugin.Instance.RunCoroutine(LoadEmbedded(key));
-            }
+            if (PoolHooks.Clips.TryGetValue(key, out c) && c != null) { Clips[key] = c; ModLog.Verbose("Sound '" + key + "' from WaterAndTarPools (" + c.length.ToString("0.00") + " s)"); return c; }
+            if (Failed.Add(key)) ModLog.Verbose("Sound '" + key + "' is not available (not in the bundle" + (key == WaterSplash ? ", WaterAndTarPools not installed" : "") + ")");
             return null;
-        }
-
-        // The .ogg is embedded in the DLL (EmbeddedResource audio\<key>.ogg). Unity can only decode it from a file, so it is
-        // written to the temp cache once and read back with UnityWebRequestMultimedia.
-        internal static IEnumerator LoadEmbedded(string key)
-        {
-            string file = null;
-            try
-            {
-                var asm = Assembly.GetExecutingAssembly();
-                string res = null;
-                foreach (var n in asm.GetManifestResourceNames()) if (n.EndsWith(key + ".ogg", System.StringComparison.OrdinalIgnoreCase)) { res = n; break; }
-                if (res == null) { Fail(key, "not in the bundle and no embedded " + key + ".ogg"); yield break; }
-                byte[] data;
-                using (var st = asm.GetManifestResourceStream(res))
-                using (var ms = new MemoryStream()) { st.CopyTo(ms); data = ms.ToArray(); }
-                file = Path.Combine(Application.temporaryCachePath, "DTP_" + key + ".ogg");
-                if (!File.Exists(file) || new FileInfo(file).Length != data.Length) File.WriteAllBytes(file, data);
-            }
-            catch (System.Exception e) { Fail(key, e.Message); yield break; }
-
-            using (var req = UnityWebRequestMultimedia.GetAudioClip(new System.Uri(file).AbsoluteUri, AudioType.OGGVORBIS))
-            {
-                yield return req.SendWebRequest();
-                if (req.result != UnityWebRequest.Result.Success) { Fail(key, req.error); yield break; }
-                var clip = DownloadHandlerAudioClip.GetContent(req);
-                if (clip == null) { Fail(key, "decoder returned no clip"); yield break; }
-                clip.name = "DTP_" + key;
-                Clips[key] = clip; Pending.Remove(key);
-                ModLog.Verbose("Sound '" + key + "' loaded from the embedded .ogg (" + clip.length.ToString("0.00") + " s)");
-            }
         }
 
         internal static void Fail(string key, string why)

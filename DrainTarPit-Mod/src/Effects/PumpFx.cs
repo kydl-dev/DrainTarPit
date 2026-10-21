@@ -19,9 +19,8 @@ namespace DrainTarPit.Effects
     ///   Stroke(at)  - 'pump_up' recording (the lever being pressed) and a puff of tar droplets at the pump (every stroke, every client that sees it)
     ///   Pour(pos, m3) - 'oil_pumped' recording + a stream of tar falling from the outlet pipe / nozzle, splashes where it lands and a puddle that
     ///                   spreads and fades; shown to the pumping player and (via the pump's ZDO) to every client near the pump
-    /// The recordings come from the asset bundle (assets/audio/pump_up.ogg, oil_pumped.ogg) or, when the bundle does not have
-    /// them, from the .ogg files embedded in the DLL (written to the temp cache and loaded with UnityWebRequest). If neither is
-    /// available a synthesised sound is used. Droplets are a code-built ParticleSystem. Everything is skipped on a
+    /// The recordings come from the asset bundle (assets/audio/*.ogg; the water splash from WaterAndTarPools' bundle). Without pump_up a
+    /// synthesised sound is used. Droplets are a code-built ParticleSystem. Everything is skipped on a
     /// dedicated server / -nographics (nothing to show or hear there; connected players get them on their own PCs) and while [General] EnableAll is off; sounds also need [Effects] SoundEffects.
     ///
     /// Split by responsibility (T-016): this class = the public entry points (Stroke, Pour, PourWhenArrives, Preload); PumpFxSound = recordings,
