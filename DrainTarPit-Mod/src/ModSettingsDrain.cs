@@ -59,6 +59,8 @@ internal static class ModSettingsDrain
             "On (default): the liquid rises to the rim and never higher; whatever would run over the rim disappears right there (no liquid running down the outside of the walls). " +
             "Off: the whole pool fills first; then the liquid runs over the rim, down the outside and away towards lower ground, where it is no longer tracked once it has spread thin. A gap in the walls is the lowest point of the rim, so the liquid leaves through it before the pool is full. " +
             "Liquid poured where there is no pool (flat ground, a slope, a dent shallower than 0.15 m) just runs downhill in both modes. Trees, rocks, pillars and bushes are obstacles the liquid flows around; a closed ring of anything high enough holds it.");
+        PoolFishStayIn = c.Bind("Drain", "PoolFishStayIn", true,
+            "Fish in a water pool the pump made stay in its water: a fish swimming into a wall stops there (fish go through the walls of built pieces), and a fish that jumps keeps its jump but cannot land outside the pool. Off = the game's own movement (fish can end up outside the pool). Fish in the sea / lakes are never touched.");
         AllowWater = c.Bind("Drain", "AllowWater", true,
             "Strainers built in water pump water, from the sea / a lake (endless) or from a water pool the pump made (finite). A strainer is locked to what its tip sits in when it is built (tar or water) and its whole pipe system only ever moves that. The water is poured into a real water volume where the stream lands (see DepositWater). Off = strainers in water do nothing (tar is unaffected).");
         MinWaterDepth = c.Bind("Drain", "MinWaterDepth", 0.3f,

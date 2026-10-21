@@ -26,6 +26,7 @@ namespace DrainTarPit.Drain
 
         sealed class State
         {
+            public Vector3 LastWet = new Vector3(float.NaN, 0f, 0f); public int Stops, Returns;                  // T-61: last point inside the pool's water, how often the fish was held in
             public bool InPool; public float Surface = -10000f; public int Countdown, Misses; public string Pool = "";
             public float NextReport, NextTry; public int LevelAsks, DryAsks, WaypointTries, WaypointOk, Flees, GameCalls, Foreign, SeaOverrides; public Vector3 OurTarget = new Vector3(float.NaN, 0f, 0f); public string LastTry = "";
         }
@@ -212,12 +213,53 @@ namespace DrainTarPit.Drain
                 try
                 {
                     State st;
-                    if (__instance == null || !States.TryGetValue(__instance, out st) || !st.InPool || Time.time < st.NextReport) return;
+                    if (__instance == null || !States.TryGetValue(__instance, out st) || !st.InPool) return;
+                    KeepIn(__instance, st);
+                    if (Time.time < st.NextReport) return;
                     st.NextReport = Time.time + ReportEvery;
+                    if (st.Stops + st.Returns > 0) ModLog.Verbose("Fish " + __instance.name + " @" + __instance.GetInstanceID() + " held in " + st.Pool + ": stopped at the edge " + st.Stops + " steps, put back into the water " + st.Returns + "x");
+                    st.Stops = 0; st.Returns = 0;
                     Report(__instance, st);
                 }
                 catch (System.Exception e) { ModLog.VerboseWarn("PoolFish report: " + e.Message); }
             }
+        }
+
+        // T-61 (user: "is there a way to block fishes from going through the walls of pool and landing outside? also from jumping out of the pool"):
+        // the game moves a fish with its rigidbody, and built walls do not stop it. After the fish's own update (only the owner, who moves it):
+        // when the point EdgeLook ahead of it (horizontal speed) is outside the pool's water, its horizontal speed is taken away and it picks a new
+        // target (it turns back from the edge; a jump keeps going up and down, but not over the wall); when the fish already is outside the water,
+        // it is put back at the last point it was inside. A pool that has no water there any more lets the fish go (the game takes over).
+        const float EdgeLook = 0.35f;            // m ahead of the fish that must still be pool water
+
+        /// Holds a fish in its pool. Returns 0 = nothing to do, 1 = stopped at the edge, 2 = put back into the water.
+        static int KeepIn(Fish f, State st)
+        {
+            if (ModSettings.PoolFishStayIn == null || !ModSettings.PoolFishStayIn.Value) return 0;
+            var nv = Nview(f); var b = Body(f);
+            if (nv == null || !nv.IsValid() || !nv.IsOwner() || b == null) return 0;
+            Vector3 pos = b.position;
+            float s; string pool;
+            if (PoolSurface(new Vector3(pos.x, st.Surface, pos.z), out s, out pool))
+            {
+                if (pos.y <= st.Surface + 0.05f) st.LastWet = pos;               // in the water (not in the air of a jump): a safe point
+                Vector3 v = b.linearVelocity, flat = new Vector3(v.x, 0f, v.z);
+                if (flat.sqrMagnitude < 0.0001f) return 0;
+                var ahead = pos + flat.normalized * EdgeLook;
+                if (PoolSurface(new Vector3(ahead.x, st.Surface, ahead.z), out s, out pool)) return 0;
+                b.linearVelocity = new Vector3(0f, v.y, 0f);                     // the wall / the dry edge: no further that way
+                if (HaveWaypoint(f) && Waypoint(f) == st.OurTarget) SwimTimer(f) = 0f;   // new target next step (DriveTarget)
+                if (st.Stops++ == 0) ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " stopped at the edge of " + st.Pool + " at " + pos.ToString("0.0") + " (heading out " + flat.ToString("0.0") + ")");
+                return 1;
+            }
+            if (float.IsNaN(st.LastWet.x) || !PoolSurface(new Vector3(st.LastWet.x, st.Surface, st.LastWet.z), out s, out pool))
+            { ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " is outside the water of " + st.Pool + " and there is no water to put it back into: the game takes over"); return 0; }
+            b.position = st.LastWet; f.transform.position = st.LastWet;
+            b.linearVelocity = Vector3.zero;
+            HaveWaypoint(f) = false;
+            st.Returns++;
+            ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " was outside the water of " + st.Pool + " at " + pos.ToString("0.0") + ", put back at " + st.LastWet.ToString("0.0"));
+            return 2;
         }
 
         // T-46 (log 20:21, fish report "water level now 29.8, out of water True" right after the fish's update): the sea's WaterVolume trigger reaches
