@@ -44,7 +44,7 @@ namespace DrainTarPit.Signs
                     Name = Loc.Token("dtp_piece_sign"),
                     Description = Loc.Token("dtp_piece_sign_desc"),
                     PieceTable = PieceTables.Hammer,
-                    Category = PieceCategories.Misc,
+                    Category = Building.KyCategory.For(PrefabName),     // T-66: the user's own build menu category
                     Requirements = new[] { new RequirementConfig("Wood", 3, 0, true), new RequirementConfig("Coal", 1, 0, true) },
                 };
                 PieceManager.Instance.AddPiece(new CustomPiece(prefab, true, cfg));

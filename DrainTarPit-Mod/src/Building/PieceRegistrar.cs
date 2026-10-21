@@ -71,7 +71,7 @@ namespace DrainTarPit.Building
                     Name = Loc.Token(key),
                     Description = Loc.Token(key + "_desc") + PieceTilt.HelpText(),
                     PieceTable = PieceTables.Hammer,
-                    Category = PieceCategories.Misc,
+                    Category = KyCategory.For(prefab.name),            // T-66: the user's own build menu category
                     Requirements = reqs,
                 };
                 PieceManager.Instance.AddPiece(new CustomPiece(prefab, true, cfg));
