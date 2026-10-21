@@ -197,6 +197,7 @@ namespace DrainTarPit.Drain
                                 " at " + __instance.transform.position.ToString("0.0"));
                         if (!inPool && st.InPool && Mathf.Approximately(InWater(__instance), st.Surface)) InWater(__instance) = -10000f;   // our level, not the game's: out of water again
                         st.InPool = inPool; st.Surface = surface; st.Pool = pool;
+                        if (!inPool) Rescue(__instance, st);
                     }
                     if (st.InPool && WaterVol(__instance) != null) { WaterVol(__instance) = null; st.SeaOverrides++; }   // the pool, not the sea, decides
                     if (st.InPool) InWater(__instance) = st.Surface;
@@ -242,7 +243,7 @@ namespace DrainTarPit.Drain
             float s; string pool;
             if (PoolSurface(new Vector3(pos.x, st.Surface, pos.z), out s, out pool))
             {
-                if (pos.y <= st.Surface + 0.05f) st.LastWet = pos;               // in the water (not in the air of a jump): a safe point
+                if (pos.y <= st.Surface + 0.05f && Inner(pos, st.Surface)) st.LastWet = pos;   // in the water, away from the edge (not in the air of a jump): a safe point
                 Vector3 v = b.linearVelocity, flat = new Vector3(v.x, 0f, v.z);
                 if (flat.sqrMagnitude < 0.0001f) return 0;
                 var ahead = pos + flat.normalized * EdgeLook;
@@ -252,14 +253,72 @@ namespace DrainTarPit.Drain
                 if (st.Stops++ == 0) ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " stopped at the edge of " + st.Pool + " at " + pos.ToString("0.0") + " (heading out " + flat.ToString("0.0") + ")");
                 return 1;
             }
-            if (float.IsNaN(st.LastWet.x) || !PoolSurface(new Vector3(st.LastWet.x, st.Surface, st.LastWet.z), out s, out pool))
-            { ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " is outside the water of " + st.Pool + " and there is no water to put it back into: the game takes over"); return 0; }
-            b.position = st.LastWet; f.transform.position = st.LastWet;
+            // T-61b (log 02:46: two fish that had just loaded at the edge got out, their last point had gone dry): the last safe point if it is
+            // still well inside the water, else the closest point well inside the water (within ReturnSearch), else the game takes over
+            Vector3 back = st.LastWet;
+            if (float.IsNaN(back.x) || !Inner(back, st.Surface))
+            {
+                float d = FindWater(pos, st.Surface, ReturnSearch, out back);
+                if (d < 0f) { ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " is outside the water of " + st.Pool + " and no water within " + ReturnSearch + " m to put it back into: the game takes over"); return 0; }
+                ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + ": its last point in the water is not usable, the closest water well inside the pool is " + d.ToString("0.0") + " m away");
+                st.LastWet = back;
+            }
+            b.position = back; f.transform.position = back;
             b.linearVelocity = Vector3.zero;
             HaveWaypoint(f) = false;
             st.Returns++;
-            ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " was outside the water of " + st.Pool + " at " + pos.ToString("0.0") + ", put back at " + st.LastWet.ToString("0.0"));
+            ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " was outside the water of " + st.Pool + " at " + pos.ToString("0.0") + ", put back at " + back.ToString("0.0"));
             return 2;
+        }
+
+        const float InnerMargin = 0.6f;          // a safe point has pool water this far around it (4 directions)
+        const float ReturnSearch = 6f;           // m around a fish that got out where water is looked for
+
+        /// Pool water at p AND InnerMargin around it (the edge of the water moves while the pool settles, a point right at it can go dry).
+        static bool Inner(Vector3 p, float surfaceHint)
+        {
+            float s; string pool;
+            var q = new Vector3(p.x, surfaceHint, p.z);
+            return PoolSurface(q, out s, out pool) && PoolSurface(q + Vector3.right * InnerMargin, out s, out pool) && PoolSurface(q - Vector3.right * InnerMargin, out s, out pool) &&
+                   PoolSurface(q + Vector3.forward * InnerMargin, out s, out pool) && PoolSurface(q - Vector3.forward * InnerMargin, out s, out pool);
+        }
+
+        /// The closest safe point (Inner) within `radius` of p, at a swimming depth (1 m under the surface, at most half the water depth).
+        /// Returns its horizontal distance, -1 = none.
+        static float FindWater(Vector3 p, float surfaceHint, float radius, out Vector3 at)
+        {
+            at = p;
+            for (float r = 0.5f; r <= radius + 0.001f; r += 0.5f)
+                for (int i = 0; i < 16; i++)
+                {
+                    float a = i * Mathf.PI / 8f;
+                    var q = new Vector3(p.x + Mathf.Cos(a) * r, surfaceHint, p.z + Mathf.Sin(a) * r);
+                    if (!Inner(q, surfaceHint)) continue;
+                    float surface, depth = PoolDepth(q.x, q.z, surfaceHint, out surface);
+                    if (depth < 0.2f) continue;
+                    at = new Vector3(q.x, surface - Mathf.Min(1f, depth * 0.5f), q.z);
+                    return r;
+                }
+            return -1f;
+        }
+
+        // T-61b: a fish that got out before (earlier version, or the game took it over) and lies on dry land next to a pump pool it was spawned
+        // in is put back into that pool. Only the owner; looked at every RecheckEvery steps of the fish (the fixed-update prefix).
+        static int Rescue(Fish f, State st)
+        {
+            if (ModSettings.PoolFishStayIn == null || !ModSettings.PoolFishStayIn.Value || WaterVol(f) != null || !f.IsOutOfWater()) return 0;
+            var nv = Nview(f); var b = Body(f);
+            if (nv == null || !nv.IsValid() || !nv.IsOwner() || b == null || Time.time < st.NextTry) return 0;
+            st.NextTry = Time.time + 1f;
+            var spawn = SpawnPoint(f);
+            float s; string pool;
+            if (!PoolSurface(spawn, out s, out pool) || (new Vector2(spawn.x, spawn.z) - new Vector2(b.position.x, b.position.z)).magnitude > 20f) return 0;
+            Vector3 back;
+            if (FindWater(b.position, s, ReturnSearch, out back) < 0f && FindWater(spawn, s, 3f, out back) < 0f) return 0;
+            var was = b.position;
+            b.position = back; f.transform.position = back; b.linearVelocity = Vector3.zero; HaveWaypoint(f) = false;
+            ModLog.Verbose("Fish " + f.name + " @" + f.GetInstanceID() + " lay outside pump pool " + pool + " at " + was.ToString("0.0") + " (spawned in it), put back into the water at " + back.ToString("0.0"));
+            return 1;
         }
 
         // T-46 (log 20:21, fish report "water level now 29.8, out of water True" right after the fish's update): the sea's WaterVolume trigger reaches
