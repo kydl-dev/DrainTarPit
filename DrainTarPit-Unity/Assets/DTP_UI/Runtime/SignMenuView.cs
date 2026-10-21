@@ -92,7 +92,7 @@ namespace DrainTarPit.Ui
 
             _content.Add(UiControls.Heading(_host.T("dtp_ui_colour")));
             System.Action<string> setBase;
-            _content.Add(UiControls.ColorPicker(_style.Color, h => { _style.Color = h; RebuildLetters(); Changed("colour"); }, out setBase));
+            _content.Add(UiControls.ColorPicker(_style.Color, BaseColour, out setBase));
 
             _content.Add(UiControls.Heading(_host.T("dtp_ui_letters")));
             _content.Add(UiControls.Note(_host.T("dtp_ui_letters_note")));
@@ -107,7 +107,7 @@ namespace DrainTarPit.Ui
                 UiControls.Button(_host.T("dtp_ui_gradient"), Gradient),
                 UiControls.Button(_host.T("dtp_ui_clear"), ClearLetters)));
             System.Action<string> setLetter;
-            _content.Add(UiControls.ColorPicker(_letterColour, h => { _letterColour = h; }, out setLetter));
+            _content.Add(UiControls.ColorPicker(_letterColour, LetterColour, out setLetter));
 
             _content.Add(UiControls.Heading(_host.T("dtp_ui_pref")));
             _content.Add(UiControls.Line(
@@ -159,6 +159,28 @@ namespace DrainTarPit.Ui
         void SelectAll() { _selected.Clear(); int n = SignStyle.SplitLetters(_name).Count; for (int i = 0; i < n; i++) _selected.Add(i); RebuildLetters(); }
 
         List<int> Sel() { var l = new List<int>(_selected); l.Sort(); return l; }
+
+        // T-67 (user: "clicking on the colors under the general Colors or the Letter-Colors does not actually change the color"; log 10:31:
+        // col changed every time, but every letter had its own colour from an old gradient, which covers the text colour; and the letter
+        // colour was only used by Paint). Text colour: when EVERY letter has its own colour they are cleared, so the new colour shows.
+        // Letter colour: selected letters take it at once (preset, sliders, hex), Paint still works.
+        void BaseColour(string h)
+        {
+            _style.Color = h;
+            int n = SignStyle.SplitLetters(_name).Count, own = 0;
+            for (int i = 0; i < n; i++) if (_style.Letters.ContainsKey(i)) own++;
+            if (n > 0 && own == n) { _style.Letters.Clear(); Status(_host.T("dtp_ui_letters_reset")); UiLog.Verbose("SignMenuView: all " + n + " letters had their own colour, cleared for the text colour " + h); }
+            RebuildLetters(); Changed("colour " + h);
+        }
+
+        void LetterColour(string h)
+        {
+            _letterColour = h;
+            var sel = Sel();
+            if (sel.Count == 0) { UiLog.Verbose("SignMenuView: letter colour " + h + " picked, no letter selected (Paint / Gradient use it)"); return; }
+            foreach (int i in sel) _style.Letters[i] = h;
+            RebuildLetters(); Changed("letter colour " + h + " on " + sel.Count + " selected letter(s)");
+        }
 
         void Paint()
         {
