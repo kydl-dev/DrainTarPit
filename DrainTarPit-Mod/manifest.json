@@ -2,7 +2,7 @@
   "name": "DrainTarPit",
   "version_number": "1.0.0",
   "website_url": "",
-  "description": "Drain tar pits and move water with a hand pump and hoses. Put a strainer in tar or water, pump with E, and the liquid pours from the nozzle into holes, moats or walled pools. Only the liquid is removed; items in the pit stay.",
+  "description": "A hand pump with hoses to drain tar pits. Put a strainer in the tar, pump with E and watch the level drop while the tar pours from the nozzle. Items in the pit stay. Add WaterAndTarPools to keep the tar in pools and pump water.",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2202",
     "ValheimModding-Jotunn-2.30.2"
