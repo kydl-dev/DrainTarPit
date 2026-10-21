@@ -10,7 +10,7 @@ namespace DrainTarPit.Ui
     {
         public static readonly Dictionary<string, string> En = new Dictionary<string, string>
         {
-            { "dtp_ui_sign_title", "Pool sign" }, { "dtp_ui_pool", "Pool: {0}" },
+            { "dtp_ui_sign_title", "Pool sign" },
             { "dtp_ui_name", "Name" }, { "dtp_ui_emoji", "Emoji" },
             { "dtp_ui_emoji_note", "Emoji always use the game's emoji font, whatever font the name has." },
             { "dtp_ui_text", "Text" }, { "dtp_ui_font", "Font" }, { "dtp_ui_font_default", "Default" },
@@ -43,7 +43,7 @@ namespace DrainTarPit.Ui
 
         public static readonly Dictionary<string, string> De = new Dictionary<string, string>
         {
-            { "dtp_ui_sign_title", "Beckenschild" }, { "dtp_ui_pool", "Becken: {0}" },
+            { "dtp_ui_sign_title", "Beckenschild" },
             { "dtp_ui_name", "Name" }, { "dtp_ui_emoji", "Emoji" },
             { "dtp_ui_emoji_note", "Emoji nutzen immer die Emoji-Schrift des Spiels, egal welche Schrift der Name hat." },
             { "dtp_ui_text", "Text" }, { "dtp_ui_font", "Schrift" }, { "dtp_ui_font_default", "Standard" },

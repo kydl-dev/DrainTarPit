@@ -22,7 +22,7 @@ namespace DrainTarPit.Effects
     /// The recordings come from the asset bundle (assets/audio/pump_up.ogg, oil_pumped.ogg) or, when the bundle does not have
     /// them, from the .ogg files embedded in the DLL (written to the temp cache and loaded with UnityWebRequest). If neither is
     /// available a synthesised sound is used. Droplets are a code-built ParticleSystem. Everything is skipped on a
-    /// dedicated server / -nographics and when [Effects] Effects = false.
+    /// dedicated server / -nographics (nothing to show or hear there; connected players get them on their own PCs) and while [General] EnableAll is off; sounds also need [Effects] SoundEffects.
     ///
     /// Split by responsibility (T-016): this class = the public entry points (Stroke, Pour, PourWhenArrives, Preload); PumpFxSound = recordings,
     /// voices and the synthesised fallback; PumpFxStream = the spurt / splashes / puddle / droplets particle systems.
@@ -32,7 +32,7 @@ namespace DrainTarPit.Effects
         static AudioClip _stroke;                // synthesised fallback of the lever sound
 
         static bool _disabled;      // set after an error; runtime only, the config file is left alone
-        static bool Enabled { get { return !_disabled && ModSettings.Effects.Value && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
+        static bool Enabled { get { return !_disabled && ModSettings.On && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }   // T-068: sounds have their own switch (PumpFxSound.Sound)
 
         /// When the piston moves during one stroke, from the moment PumpFx.Stroke is called: it starts rising after StartIn seconds, rises for Up
         /// seconds (lever pushed down: Push clip / first part of a Cycle loop), then falls for Down seconds (Pull / rest of the loop) and is at its
@@ -160,6 +160,7 @@ namespace DrainTarPit.Effects
                 // No sound AT THE NOZZLE for water: its sound is the recorded water_splash where the stream lands (WaterSplashAt, user 2026-10-20).
                 // The synthesised splash that used to play here (and as the oil fallback) was removed on purpose - never bring it back.
                 if (liquid == Drain.PumpLiquid.Water) { ModLog.Verbose("Pour: no nozzle sound for water (the splash plays where it lands)"); return; }
+                if (!ModSettings.TarSplashSound.Value) { ModLog.Verbose("Pour: tar pour sound off ([Effects] TarSplashSound)"); return; }
                 var clip = Clip(OilPumped);            // oil_pumped: the liquid coming out of the outlet pipe
                 if (clip == null) return;              // no recording available: no sound (there is no synthesised fallback)
                 Sound(pos, clip, 1f, 0f, true);

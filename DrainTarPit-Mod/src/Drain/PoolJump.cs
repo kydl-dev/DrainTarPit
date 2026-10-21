@@ -29,7 +29,7 @@ namespace DrainTarPit.Drain
         /// A jump press of the local player. Returns 1 when it started a lift.
         internal static int Pressed(Player p)
         {
-            if (ModSettings.PoolJumpBoost == null || !ModSettings.PoolJumpBoost.Value || p == null || p != Player.m_localPlayer || p.IsDead()) return 0;
+            if (ModSettings.PoolJumpBoost == null || !ModSettings.PoolJumpBoost.Value || !ModSettings.On || p == null || p != Player.m_localPlayer || p.IsDead()) return 0;
             Vector3 pos = p.transform.position;
             LiquidVolume v; float depth, surface;
             if (!TarPits.TrySample(pos, out v, out depth, out surface, LiquidType.All) || !TarPits.IsPumpPool(v) || depth < MinDepth || surface < pos.y + 0.2f)

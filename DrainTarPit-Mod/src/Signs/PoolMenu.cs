@@ -21,6 +21,14 @@ namespace DrainTarPit.Signs
 
         internal static bool IsOpen { get { return _open != null; } }
 
+        /// Closes the menu if it is open (T-068: the mod was switched off). Returns 1 when a menu was closed.
+        internal static int Shut(string why)
+        {
+            if (_open == null) return 0;
+            _open.Close(why);
+            return 1;
+        }
+
         /// Every frame (Plugin.Update): the menu key opens / closes; a new list from the server redraws it; Escape closes.
         internal static void Tick()
         {

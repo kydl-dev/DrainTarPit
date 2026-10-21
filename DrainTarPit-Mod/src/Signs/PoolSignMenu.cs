@@ -24,6 +24,14 @@ namespace DrainTarPit.Signs
 
         internal static bool IsOpen { get { return _open != null; } }
 
+        /// Closes the menu if it is open (T-068: the mod was switched off). Returns 1 when a menu was closed.
+        internal static int Shut(string why)
+        {
+            if (_open == null) return 0;
+            _open.Close(why);
+            return 1;
+        }
+
         /// Opens the menu for `sign`. Returns 1 when it is open, 0 when UI Toolkit is not available (logged).
         internal static int Open(PoolSign sign)
         {
@@ -53,7 +61,6 @@ namespace DrainTarPit.Signs
 
         // --- ISignMenuHost -------------------------------------------------------------------------------------------------
         public string T(string key, params string[] args) { return Loc.T(key, args); }
-        public string PoolLabel { get { var v = _sign != null ? _sign.Pool() : null; return v != null ? v.name.Replace("(Clone)", "") : Loc.T("dtp_sign_pool_none"); } }
         public IList<string> Fonts { get { return SignFonts.All(); } }
         public int MaxLetters { get { return PoolSign.MaxName; } }
         public void Preview(string name, SignStyle style) { if (_sign != null) _sign.Preview(name, style); }

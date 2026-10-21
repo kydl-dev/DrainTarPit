@@ -6,47 +6,46 @@ using UnityEngine;
 
 namespace DrainTarPit;
 
-/// All BepInEx config entries in one place. Bound once from Plugin.Awake.
-internal static class ModSettings
+/// <summary>
+/// All settings in one place. T-068 (user, config review 2026-10-21): what a player may change is a BepInEx config entry (bound once from
+/// Plugin.Awake); everything else is a Tunable with the value the user chose: not in the config file, changeable at runtime only from the
+/// user's own KydlTools mod. Split over partial files: ModSettingsDrain ([Drain]), ModSettingsPools (pools / water, moving to WaterAndTarPools),
+/// ModSettingsPump ([Pump]), ModSettingsHose (the two hose categories).
+/// </summary>
+internal static partial class ModSettings
 {
-    // [General] / [Visuals]
+    // [General] / [DebugLog]
+    public static ConfigEntry<bool> EnableAll;
     public static ConfigEntry<bool> DebugLog;
-    public static ConfigEntry<string> TestOutDir;
-    public static ConfigEntry<int> ConfigVersion;
-    public static ConfigEntry<string> ShaderName;
-    public static ConfigEntry<bool> UseMaskMap;
-    public static ConfigEntry<float> AlbedoBrightness;
+    /// Is the mod switched on ([General] EnableAll)? Off = inert: no pumping, no effects, no menus; built pieces stay in the world.
+    public static bool On { get { return EnableAll == null || EnableAll.Value; } }
+
     // [World Hose Visuals] / [Build Time Hose Visuals] (ModSettingsHose)
     public static ConfigEntry<WorldHoseStyleOption> WorldHoseStyle;
     public static ConfigEntry<float> WorldHoseOpacity;
     public static ConfigEntry<HoseStyleOption> BuildHoseStyle;
     public static ConfigEntry<float> BuildHoseOpacity;
-    public static ConfigEntry<bool> TarFlow;
-    public static ConfigEntry<float> TarFlowSpeed;
-    public static ConfigEntry<float> TarSlugLength;
-    public static ConfigEntry<float> NozzleFlowAmount;
-    public static ConfigEntry<bool> NozzlePuddle;
-    public static ConfigEntry<float> NozzlePressure;
-    public static ConfigEntry<float> NozzleFlowSeconds;
-    public static ConfigEntry<bool> SyncPour;
-    public static ConfigEntry<float> PourSoundOffset;
 
     // [Building]
     public static ConfigEntry<KeyCode> TiltKey;
     public static ConfigEntry<KeyCode> RollKey;
     public static ConfigEntry<KeyCode> TiltResetKey;
     public static ConfigEntry<float> TiltStep;
-    public static ConfigEntry<float> PieceHealth;
-    public static ConfigEntry<bool> Effects;
-    public static ConfigEntry<float> EffectsVolume;
-    public static ConfigEntry<float> SoundTailSeconds;
-    public static ConfigEntry<bool> DrySound;
-    public static ConfigEntry<bool> ScratchSounds;
-    public static ConfigEntry<bool> WaterSplashSound;
-    public static ConfigEntry<float> WaterSplashOffset;
-    public static ConfigEntry<bool> PumpDroplets;
 
-    // [Drain]
+    // [Effects]
+    public static ConfigEntry<bool> SoundEffects;
+    public static ConfigEntry<float> EffectsVolume;
+    public static ConfigEntry<bool> ScratchSounds;
+    public static ConfigEntry<bool> TarSplashSound;
+    public static ConfigEntry<bool> TarSlugFlow;
+    public static ConfigEntry<float> LiquidFlowSpeed;
+    public static ConfigEntry<float> NozzleFlowAmount;
+    public static ConfigEntry<bool> NozzlePuddle;
+    public static ConfigEntry<float> NozzlePressure;
+    public static ConfigEntry<float> NozzleFlowSeconds;
+    public static ConfigEntry<float> PourSoundOffset;
+
+    // [Drain] (ModSettingsDrain)
     public static ConfigEntry<float> VolumePerStroke;
     public static ConfigEntry<float> DrainRadius;
     public static ConfigEntry<float> StrainerSearchRadius;
@@ -54,84 +53,47 @@ internal static class ModSettings
     public static ConfigEntry<float> MinTarDepth;
     public static ConfigEntry<int> MaxChainPieces;
     public static ConfigEntry<float> SnapTolerance;
-    public static ConfigEntry<float> PitFlowBoost;
-    public static ConfigEntry<float> PitFlowBoostSeconds;
     public static ConfigEntry<float> RefillMinutes;
-    public static ConfigEntry<bool> DepositTar;
-    public static ConfigEntry<bool> PoolWalls;
-    public static ConfigEntry<bool> PoolOverflow;
-    public static ConfigEntry<bool> PoolRimDisappear;
-    public static ConfigEntry<bool> PoolFishStayIn;
-    public static ConfigEntry<bool> PoolJumpBoost;
-    public static ConfigEntry<int> PoolJumpPresses;
-    public static ConfigEntry<float> PoolJumpHeight;
-    public static ConfigEntry<bool> AllowWater;
-    public static ConfigEntry<float> MinWaterDepth;
-    public static ConfigEntry<bool> DepositWater;
-    public static ConfigEntry<float> WaterPoolSize;
-    public static ConfigEntry<float> WaterCellSize;
-    public static ConfigEntry<float> WaterDepthLook;
-    public static ConfigEntry<WaterStyleOption> WaterStyle;
-    public static ConfigEntry<bool> PoolShedFilm;
-    public static ConfigEntry<float> PoolFilmDepth;
-    public static ConfigEntry<float> WaterFlow;
-    public static ConfigEntry<bool> PoolRunoff;
-    public static ConfigEntry<bool> PoolMeshFix;
-    public static ConfigEntry<int> PoolMeshReach;
-    public static ConfigEntry<bool> PoolFilmEvaporates;
-    public static ConfigEntry<KeyCode> EditorKey;
-    public static ConfigEntry<KeyCode> PoolMenuKey;      // T-023 pool menu (ModSettingsDrain binds it)
-    public static ConfigEntry<float> SignBoardBrightness, SignTextBrightness;   // T-59b pool sign brightness (ModSettingsDrain binds them)
 
-    // [Pump]
-    public static ConfigEntry<float> StaminaPerStroke;
-    public static ConfigEntry<float> HoldToCycleSeconds;
-    public static ConfigEntry<float> CycleStrokeSeconds;
-    public static ConfigEntry<bool> FacePump;
-    public static ConfigEntry<float> StandYawOffset;
-    public static ConfigEntry<string> AttachBool;
-    public static ConfigEntry<string> AttachClipOverride;
-    public static ConfigEntry<float> MaxPumpDistance;
-    public static ConfigEntry<bool> HandIK;
-    public static ConfigEntry<float> HandIKBlendSeconds;
-    public static ConfigEntry<float> GripSpread;
-    public static ConfigEntry<float> GripUp;
-    public static ConfigEntry<float> GripForward;
-    public static ConfigEntry<bool> HandRotate;
-    public static ConfigEntry<float> FingerCurl;
-    public static ConfigEntry<float> GripPalmOffset;
-    public static ConfigEntry<float> ThumbCurl;
-    public static ConfigEntry<float> ThumbSpread;
-    public static ConfigEntry<bool> FreezeIdle;
-    public static ConfigEntry<bool> BendToReach;
-    public static ConfigEntry<float> MaxBackBend;
-    public static ConfigEntry<float> MaxKneeBend;
-    public static ConfigEntry<float> HipLock;
-    public static ConfigEntry<float> BendSmooth;
-    public static ConfigEntry<float> ClipBlendSeconds;
-    public static ConfigEntry<float> StandHeight;
-    public static ConfigEntry<float> StandForward;
-    public static ConfigEntry<float> StandSide;
+    // [Pump] (ModSettingsPump: AutoReach in the config, the rest Tunables)
     public static ConfigEntry<bool> AutoReach;
-    public static ConfigEntry<float> MaxAutoStep;
-    public static ConfigEntry<float> MaxAutoRaise;
+
+    // --- fixed values (Tunables): not in the config file, KydlTools can change them for testing --------------------------------------------
+    public static readonly Tunable<string> TestOutDir = new("DebugLog", "TestOutDir", "",
+        "Folder where the console tests (dtp ptest ...) write their report DrainTarPit.PoolTests.txt. Empty = the BepInEx config folder.");
+    public static readonly Tunable<string> ShaderName = new("Visuals", "ShaderName", "Custom/Piece",
+        "Valheim shader the pump / hose materials are swapped to; falls back to Custom/Piece, then Standard.");
+    public static readonly Tunable<bool> UseMaskMap = new("Visuals", "UseMaskMap", true,
+        "Use the packed mask textures for metallic / smoothness (off = scalar values).");
+    public static readonly Tunable<float> AlbedoBrightness = new("Visuals", "AlbedoBrightness", 1.5f,
+        "Brightens the colour textures of all pump / hose pieces (gamma lift). Read when the pieces are prepared (game start).");
+    public static readonly Tunable<float> PieceHealth = new("Building", "PieceHealth", 400f,
+        "Health of the hoses, strainer, nozzle and pool sign; the pump has twice this. Structural support is not changed.");
+    public static readonly Tunable<float> SoundTailSeconds = new("Effects", "SoundTailSeconds", 0.3f,
+        "The lever sound (pump_up) is faded out this many seconds after its loudest moment.");
+    public static readonly Tunable<bool> DrySound = new("Effects", "DrySound", true,
+        "Pump sounds go to the game's Effects mixer group (no outdoor reverb), with the game's sound-effects volume.");
+    public static readonly Tunable<bool> PumpDroplets = new("Effects", "PumpDroplets", false,
+        "Puff of droplets at the pump's outlet on every stroke.");
+    public static readonly Tunable<bool> SyncPour = new("Effects", "SyncPour", true,
+        "Stream, splashes, puddle, pour sound and deposit happen when the slug of that stroke reaches the nozzle.");
+    public static readonly Tunable<float> TarSlugLength = new("Effects", "TarSlugLength", 2f,
+        "Length (m) of the liquid slug in the hoses.");
+    public static readonly Tunable<float> PitFlowBoost = new("Drain", "PitFlowBoost", 9f,
+        "While a pit is pumped its tar flows towards the hole faster: multiplies the pit's viscosity value (9 = about 3x faster).");
+    public static readonly Tunable<float> PitFlowBoostSeconds = new("Drain", "PitFlowBoostSeconds", 20f,
+        "How long (s) after the last stroke a pit keeps PitFlowBoost.");
+    public static readonly Tunable<KeyCode> EditorKey = new("Visuals", "EditorKey", KeyCode.F8,
+        "Opens / closes the live water editor.");
 
     public static void Bind(ConfigFile c)
     {
         var savedLines = ModSettingsCommaFix.Capture(c);     // before the first Bind: each Bind saves the file with what BepInEx parsed
-        ShaderName = c.Bind("Visuals", "ShaderName", "Custom/Piece",
-            "Valheim shader the pump/hose materials are swapped to. Falls back to Custom/Piece, then Standard.");
-        UseMaskMap = c.Bind("Visuals", "UseMaskMap", true,
-            "Use the packed mask textures for metallic/smoothness. Turn off if metal/gloss looks wrong; scalar values are used instead.");
-        AlbedoBrightness = c.Bind("Visuals", "AlbedoBrightness", 1.6f,
-            new ConfigDescription(
-                "Brightens the colour textures of all pump / hose pieces (gamma lift). 1 = original, 1.6 = a bit brighter, 2.5 = much brighter.",
-                new AcceptableValueRange<float>(1f, 3f)));
+        EnableAll = c.Bind("General", "EnableAll", true,
+            "Switches the whole mod on / off while playing. Off: no pumping, no liquid moving, no sounds or effects from this mod; pieces already built stay in the world and can still be built.");
+        DebugLog = c.Bind("DebugLog", "Enable", false,
+            "Writes detailed lines about everything the mod does to the BepInEx log (for bug reports). Leave off while playing normally.");
         ModSettingsHose.Bind(c);                                  // [World Hose Visuals] / [Build Time Hose Visuals]
-        DebugLog = c.Bind("General", "DebugLog", false,
-            "Verbose logging (bundle contents, shader properties, per-material fixes, drain/pump events). Turn off once everything works.");
-        TestOutDir = c.Bind("General", "TestOutDir", "",
-            "Folder where the console tests (dtp ptest ...) write their report DrainTarPit.PoolTests.txt. Empty = the BepInEx config folder. The console command 'dtp ptest out <folder>' sets it.");
 
         TiltKey = c.Bind("Building", "TiltKey", KeyCode.LeftAlt,
             "Hold while scrolling to tilt the held piece up/down (pitch) instead of turning it. Keyboard/mouse only.");
@@ -142,146 +104,72 @@ internal static class ModSettings
         TiltStep = c.Bind("Building", "TiltStep", 45f,
             new ConfigDescription("Degrees per scroll step for pitch/roll.", new AcceptableValueRange<float>(5f, 90f)));
 
-        PieceHealth = c.Bind("Building", "PieceHealth", 200f,
-            new ConfigDescription(
-                "Health of the hoses, strainer and nozzle (the pump has twice this). Pieces never collapse from missing support, rain or fire; they only break when hit.",
-                new AcceptableValueRange<float>(10f, 5000f)));
-        Effects = c.Bind("Effects", "Effects", true,
-            "Droplet effects and pump / splash sounds. Turn off if you do not want them (they are skipped automatically on dedicated servers).");
+        SoundEffects = c.Bind("Effects", "SoundEffects", true,
+            "All sounds of this mod (pump strokes, the liquid coming out of the nozzle). Off = the mod makes no sound at all.");
         EffectsVolume = c.Bind("Effects", "EffectsVolume", 0.6f,
-            new ConfigDescription("Volume of the pump and splash sounds (0 = silent).",
+            new ConfigDescription("Volume of the pump sounds and of the tar coming out of the nozzle (0 = silent).",
                 new AcceptableValueRange<float>(0f, 1f)));
-        SoundTailSeconds = c.Bind("Effects", "SoundTailSeconds", 0.3f,
-            new ConfigDescription(
-                "The lever sound (pump_up) is faded out this many seconds after its loudest moment, which cuts the long reverb-like tail that sounded like an echo. 0 = play the whole recording.",
-                new AcceptableValueRange<float>(0f, 2f)));
-        DrySound = c.Bind("Effects", "DrySound", true,
-            "Play the pump sounds without the game's outdoor reverb. The game's SFX mixer adds a strong reverb outdoors that turned every lever hit into an echo " +
-            "(measured in a recording: an attenuated copy of the hit about 0.3 s later). On = the sounds go to the game's Effects group (no reverb) and still follow " +
-            "the game's sound-effects volume. Off = routed like vanilla sound effects (with that reverb).");
         ScratchSounds = c.Bind("Effects", "ScratchSounds", true,
-            "Pump stroke sound in three parts: a scratch while the piston rises, a scratch while it falls, and the lever hit (pump_up) when it reaches the bottom. " +
-            "Off = the single pump_up recording from the start of the stroke (the sound before 2026-10-20).");
-        WaterSplashSound = c.Bind("Effects", "WaterSplashSound", true,
-            "Play a water splash where the pumped water comes down (pool, ground, anything it hits). Off = water pours silently.");
-        WaterSplashOffset = c.Bind("Effects", "WaterSplashOffset", -0.3f,
-            new ConfigDescription("Seconds added to the moment the water splash plays (negative = earlier). The moment itself is worked out from the stream: " +
-                "the time the first droplets need to reach the water surface / ground. Default -0.3 = the value that sounded right in game (user, 2026-10-20).",
-                new AcceptableValueRange<float>(-1f, 1f)));
-
-        PumpDroplets = c.Bind("Effects", "PumpDroplets", false,
-            "Puff of tar droplets at the pump's outlet on every stroke. Off by default: the outlet is always fitted with a hose, so the droplets showed up as oil dripping between the pump's top pipe and the first hose (the tar is already shown moving through the hoses, see TarFlow).");
-
-        TarFlow = c.Bind("Effects", "TarFlow", true,
-            "Show a slug of tar travelling through the hoses on every pump stroke (strainer -> pump -> nozzle).");
-        TarFlowSpeed = c.Bind("Effects", "TarFlowSpeed", 3.5f,
-            new ConfigDescription("Speed (m/s) of the tar slug through the hoses.",
+            "Pump stroke sound in three parts: a scratch while the piston rises, a scratch while it falls, and the lever hit when it reaches the bottom. Off = only the lever hit.");
+        TarSplashSound = c.Bind("Effects", "TarSplashSound", true,
+            "Play the sound of tar pouring out of the nozzle. Off = tar pours silently.");
+        TarSlugFlow = c.Bind("Effects", "TarSlugFlow", true,
+            "Show a slug of tar travelling through the hoses on every pump stroke (strainer -> pump -> nozzle; see-through hoses).");
+        LiquidFlowSpeed = c.Bind("Effects", "LiquidFlowSpeed", 3.5f,
+            new ConfigDescription("Speed (m/s) of the liquid slug through the hoses (tar and water).",
                 new AcceptableValueRange<float>(0.5f, 10f)));
-        TarSlugLength = c.Bind("Effects", "TarSlugLength", 2f,
-            new ConfigDescription("Length (m) of the tar slug. Longer = the hose looks fuller while pumping.",
-                new AcceptableValueRange<float>(0.2f, 6f)));
-
         NozzleFlowAmount = c.Bind("Effects", "NozzleFlowAmount", 1f,
             new ConfigDescription(
-                "How much tar visibly pours out of the nozzle on every stroke (a falling stream, splashes where it lands and a puddle that fades). 0 = off, 1 = default, 4 = a lot. Shown to every player near the pump.",
+                "How much liquid visibly pours out of the nozzle on every stroke (a falling stream, splashes where it lands and a puddle that fades). 0 = off, 1 = default, 4 = a lot. Shown to every player near the pump.",
                 new AcceptableValueRange<float>(0f, 4f)));
-
         NozzlePuddle = c.Bind("Effects", "NozzlePuddle", true,
-            "Show a small dark puddle on the ground where the stream lands (it spreads and fades after a few seconds). Turn off for just the stream and splashes.");
-
+            "Show a small puddle on the ground where the stream lands (it spreads and fades after a few seconds). Off = just the stream and splashes.");
         NozzlePressure = c.Bind("Effects", "NozzlePressure", 4.5f,
             new ConfigDescription(
-                "Speed (m/s) the tar leaves the nozzle with. Higher = the stream shoots further away from the nozzle before it falls (a nozzle pointing sideways throws it in an arc). 0.5 = it just drips out.",
+                "Speed (m/s) the liquid leaves the nozzle with. Higher = the stream shoots further away from the nozzle before it falls (a nozzle pointing sideways throws it in an arc). 0.5 = it just drips out.",
                 new AcceptableValueRange<float>(0.5f, 12f)));
         NozzleFlowSeconds = c.Bind("Effects", "NozzleFlowSeconds", 0.45f,
             new ConfigDescription(
                 "How long (seconds) the stream keeps running after each press (a short, strong spurt that fades out). Lower = it stops sooner after the last press.",
                 new AcceptableValueRange<float>(0.1f, 3f)));
-
-        SyncPour = c.Bind("Effects", "SyncPour", true,
-            "The stream, splashes, puddle, oil_pumped sound and the tar deposit happen at the moment the tar slug of that stroke reaches the nozzle (needs TarFlow). Off = they happen as soon as the pit has been drained, i.e. while the slug is still travelling through the hoses.");
         PourSoundOffset = c.Bind("Effects", "PourSoundOffset", 0f,
             new ConfigDescription(
-                "Fine tuning (seconds) of the oil_pumped sound against the stream at the nozzle. Negative = the sound comes earlier, positive = later. Use it if your audio output has a delay (Bluetooth, large buffers). The silence at the start of the recording is already skipped.",
+                "Fine tuning (seconds) of the pour sound against the stream at the nozzle. Negative = the sound comes earlier, positive = later. Use it if your audio output has a delay (Bluetooth, large buffers).",
                 new AcceptableValueRange<float>(-0.5f, 0.5f)));
 
-        ModSettingsDrain.Bind(c);
+        BindDrain(c);
+        BindPools(c);
+        BindPump(c);
 
-        ModSettingsPump.Bind(c);
-
-        ModSettingsCommaFix.Apply(c, savedLines);       // after every Bind, before Migrate saves the file: "3,5" typed by hand means 3.5, not 35
-        Migrate(c);
+        ModSettingsCommaFix.Apply(c, savedLines);       // after every Bind: "3,5" typed by hand means 3.5, not 35
+        DropRemoved(c);
 
         // hoses: a change (config manager, file reload) is applied live, see MaterialFixer.Tick
         ModSettingsHose.Hook();
-        WaterDepthLook.SettingChanged += (s, e) => PoolWater.RequestRefresh();
-        WaterStyle.SettingChanged += (s, e) => { ModLog.Verbose("Config: WaterStyle = " + WaterStyle.Value + ", every water pool gets it"); PoolWater.RequestRefresh(); };
-        PoolMeshFix.SettingChanged += (s, e) => PoolMesh.Refresh();
-        SignBoardBrightness.SettingChanged += (s, e) => ModLog.Verbose("Config: SignBoardBrightness = " + SignBoardBrightness.Value + ", " + Signs.PoolSign.BrightnessChanged() + " sign(s) redrawn");
-        SignTextBrightness.SettingChanged += (s, e) => ModLog.Verbose("Config: SignTextBrightness = " + SignTextBrightness.Value + ", " + Signs.PoolSign.BrightnessChanged() + " sign(s) redrawn");
-        PoolMeshReach.SettingChanged += (s, e) => PoolMesh.Refresh();
-        WaterFlow.SettingChanged += (s, e) => TarPool.ApplyWaterFlow();       // live: existing water pools + the prefabs for new ones
+        HookPools();
+        EnableAll.SettingChanged += (s, e) => ModLog.Info("Config: EnableAll = " + EnableAll.Value + (EnableAll.Value ? ", the mod is on" : ", the mod is inert (no pumping, effects or menus)"));
         PoolMesh.Refresh();
+        ModLog.Verbose("Config: bound (EnableAll " + EnableAll.Value + ", debug log " + DebugLog.Value + ")");
     }
 
-    /// 0.5.0 raised several defaults (a config file keeps the old default as a saved value, so they would never apply) and removed
-    /// the Tar-item options. Values that still equal the OLD default are moved to the new default once; anything you changed
-    /// yourself is left alone. Entries that no longer exist are dropped from the file.
-    static void Migrate(ConfigFile c)
+    /// Entries that are not bound any more (removed or fixed in code) are dropped from the file, so the file only lists what can be changed.
+    /// Returns the number of dropped entries.
+    static int DropRemoved(ConfigFile c)
     {
+        int dropped = 0;
         try
         {
-            ConfigVersion = c.Bind("General", "ConfigVersion", 0,
-                new ConfigDescription("Internal: used to carry old config files over to new defaults. Do not change.", null, new ConfigurationManagerAttributes { Browsable = false }));
-            if (ConfigVersion.Value < 1)
-            {
-                if (Mathf.Approximately(VolumePerStroke.Value, 1.5f)) VolumePerStroke.Value = 6f;
-                if (Mathf.Approximately(DrainRadius.Value, 2.5f)) DrainRadius.Value = 4f;
-                if (Mathf.Approximately(TarFlowSpeed.Value, 2.5f)) TarFlowSpeed.Value = 3.5f;
-                if (Mathf.Approximately(TarSlugLength.Value, 1.2f)) TarSlugLength.Value = 2f;
-                ConfigVersion.Value = 1;
-            }
-            if (ConfigVersion.Value < 2)
-            {
-                // pump posture: hips held still, the upper body does the work (little knee bend, more back bend)
-                if (Mathf.Approximately(MaxKneeBend.Value, 0.25f)) MaxKneeBend.Value = 0.08f;
-                if (Mathf.Approximately(MaxBackBend.Value, 35f)) MaxBackBend.Value = 45f;
-                ConfigVersion.Value = 2;
-            }
-            // entries of removed options (DropTarItems / TarItemsPerCubicMeter / ClearHoses) are dropped from the file; the property is not public in every BepInEx build
+            // the property is not public in every BepInEx build
             var orphans = typeof(ConfigFile).GetProperty("OrphanedEntries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
             var dict = orphans != null ? orphans.GetValue(c, null) as System.Collections.IDictionary : null;
-            // v4 (2026-10-20) is carried over BEFORE v3 on purpose: the old [Visuals] HoseStyle / HoseOpacity values become Build Hose Style / Opacity;
-            // v3 (ClearHoses = false of a very old file) then still wins over the saved HoseStyle, as it always did.
-            if (ConfigVersion.Value < 4) ModSettingsHose.CarryOld(dict);
-            if (ConfigVersion.Value < 3)
-            {
-                // 0.7.0: [Visuals] ClearHoses (true / false) became the HoseStyle dropdown (today Build Hose Style); carry the old choice over once
-                if (dict != null)
-                    foreach (System.Collections.DictionaryEntry e in dict)
-                    {
-                        var def = e.Key as ConfigDefinition;
-                        if (def != null && def.Section == "Visuals" && def.Key == "ClearHoses" && string.Equals(e.Value as string, "false", System.StringComparison.OrdinalIgnoreCase))
-                            BuildHoseStyle.Value = HoseStyleOption.Solid;
-                    }
-                ConfigVersion.Value = 3;
-            }
-            if (ConfigVersion.Value < 4) ConfigVersion.Value = 4;
-            if (ConfigVersion.Value < 5)
-            {
-                // v5 (user, 2026-10-20): PoolRimDisappear is on by default (liquid over the rim ran down the outside of see-through walls); every
-                // older file gets it once, a later "off" is kept
-                ModLog.Verbose("Config migration v5: PoolRimDisappear " + PoolRimDisappear.Value + " -> True (new default)");
-                PoolRimDisappear.Value = true;
-                ConfigVersion.Value = 5;
-            }
-            if (dict != null) dict.Clear();
+            if (dict != null) { dropped = dict.Count; dict.Clear(); }
             c.Save();
+            if (dropped > 0) ModLog.Info("Config: " + dropped + " entry(ies) that are no longer settings were removed from the file");
         }
-        catch (System.Exception e) { ModLog.Warn("Config migration skipped: " + e.Message); }
+        catch (System.Reflection.TargetInvocationException e) { ModLog.Warn("Config: old entries could not be removed: " + e.InnerException?.Message); }
+        catch (System.IO.IOException e) { ModLog.Warn("Config: the file could not be saved after removing old entries: " + e.Message); }
+        return dropped;
     }
-
-    sealed class ConfigurationManagerAttributes { public bool? Browsable; }
 }
 
 /// Entries of an enum config value show up as a drop-down menu in the config manager (and list their values in the .cfg file).
@@ -290,6 +178,6 @@ internal enum HoseStyleOption { Transparent, Solid }
 /// [World Hose Visuals] World Hose Style: Default = every hose shows the look it was built with; Transparent / Solid = all hoses in the world, for now.
 internal enum WorldHoseStyleOption { Default, Transparent, Solid }
 
-/// [Visuals] WaterStyle (user, 2026-10-20): Game = the game's own water shader with the saved / built-in look; the others = the mod's own pool water
-/// shader (Unity, DTP/PoolWater, all procedural) with a preset material from the bundle.
+/// Water pool look: Game = the game's own water shader with the saved / built-in look; the others = the mod's own pool water shader
+/// (Unity, DTP/PoolWater, all procedural) with a preset material from the bundle.
 internal enum WaterStyleOption { Game, Tropical, Lake, Ashlands }

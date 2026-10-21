@@ -235,6 +235,7 @@ namespace DrainTarPit.Signs
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
             int open = 0;
+            if (!ModSettings.On) { ModLog.Verbose("PoolSign: E ignored, [General] EnableAll is off"); return open == 1; }   // T-068: inert
             if (!hold)
             {
                 ModLog.Verbose("PoolSign: E on '" + SignName + "' by " + (user != null ? user.GetHoverName() : "?") + ", pool " + PoolLabel());

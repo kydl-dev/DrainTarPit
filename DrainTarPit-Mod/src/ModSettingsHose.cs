@@ -7,7 +7,7 @@ using static DrainTarPit.ModSettings;
 namespace DrainTarPit;
 
 /// <summary>
-/// The hose look config (user, 2026-10-20: the old [Visuals] HoseStyle / HoseOpacity split in two categories). The entries are fields of ModSettings.
+/// The hose look config (two categories). The entries are fields of ModSettings.
 ///   [World Hose Visuals]      how the hoses ALREADY IN THE WORLD are shown. Applies at once to every loaded hose (config manager or a saved .cfg) and on
 ///                             every load. It never touches what a hose has stored, and it does not decide the look of a hose being built.
 ///   [Build Time Hose Visuals] the look a hose gets at the moment it is built. Stored on that hose (its ZDO) and never changed afterwards by anything;
@@ -43,32 +43,5 @@ internal static class ModSettingsHose
         WorldHoseOpacity.SettingChanged += (s, e) => { ModLog.Verbose("Config: World Hose Opacity = " + WorldHoseOpacity.Value.ToString("0.00") + ", all loaded hoses are shown again"); MaterialFixer.RequestWorldRefresh(); };
         BuildHoseStyle.SettingChanged += (s, e) => { ModLog.Verbose("Config: Build Hose Style = " + BuildHoseStyle.Value + ", for hoses built from now on"); MaterialFixer.RequestRefresh(); };
         BuildHoseOpacity.SettingChanged += (s, e) => { ModLog.Verbose("Config: Build Hose Opacity = " + BuildHoseOpacity.Value.ToString("0.00") + ", for hoses built from now on"); MaterialFixer.RequestRefresh(); };
-    }
-
-    /// Config version 4 (called by ModSettings.Migrate for files below v4, which then sets the version): the values of the old [Visuals] HoseStyle /
-    /// HoseOpacity (orphaned entries of the file) become Build Hose Style / Opacity once. Returns how many values were carried over.
-    public static int CarryOld(System.Collections.IDictionary orphans)
-    {
-        int moved = 0;
-        if (orphans != null)
-            foreach (System.Collections.DictionaryEntry e in orphans)
-            {
-                var def = e.Key as ConfigDefinition; var raw = e.Value as string;
-                if (def == null || def.Section != "Visuals" || raw == null) continue;
-                if (def.Key == "HoseStyle")
-                {
-                    try { BuildHoseStyle.Value = (HoseStyleOption)System.Enum.Parse(typeof(HoseStyleOption), raw.Trim(), true); moved++; }
-                    catch (System.ArgumentException) { ModLog.Warn("Config: old HoseStyle '" + raw + "' not understood, Build Hose Style stays " + BuildHoseStyle.Value); }
-                }
-                else if (def.Key == "HoseOpacity")
-                {
-                    float o;
-                    if (float.TryParse(raw.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out o)) { BuildHoseOpacity.Value = UnityEngine.Mathf.Clamp01(o); moved++; }
-                    else ModLog.Warn("Config: old HoseOpacity '" + raw + "' not understood, Build Hose Opacity stays " + BuildHoseOpacity.Value.ToString("0.00"));
-                }
-            }
-        ModLog.Info("Config: [Visuals] HoseStyle / HoseOpacity moved to [" + BuildSection + "] (" + moved + " value(s) carried over: Build Hose Style " +
-            BuildHoseStyle.Value + ", Build Hose Opacity " + BuildHoseOpacity.Value.ToString("0.00") + ")");
-        return moved;
     }
 }

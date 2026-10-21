@@ -134,6 +134,7 @@ namespace DrainTarPit.Pump
         {
             if (hold) return false;          // continuous pumping reads the button itself (Update), not Interact(hold)
             var p = user as Player;
+            if (!ModSettings.On) { if (p != null) p.Message(MessageHud.MessageType.Center, Loc.T("dtp_mod_off")); ModLog.Verbose("Pump: E ignored, [General] EnableAll is off"); return false; }   // T-068: inert
             if (StandPoint == null || p == null)       // no stand point in the prefab: old behaviour, no mounting
             {
                 if (StandPoint == null) ModLog.Warn("Pump: prefab has no 'stand_point' - mounting disabled.");

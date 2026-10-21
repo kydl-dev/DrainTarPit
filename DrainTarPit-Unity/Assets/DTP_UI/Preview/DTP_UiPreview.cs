@@ -149,7 +149,6 @@ public class DTP_UiPreview : MonoBehaviour, ISignMenuHost, IPoolMenuHost
 
     // --- ISignMenuHost ------------------------------------------------------------------------------------------------------
     public string T(string key, params string[] args) { return UiStrings.English(key, args); }
-    public string PoolLabel { get { return "DTP_WaterPool2 (preview)"; } }
     public IList<string> Fonts
     {
         get

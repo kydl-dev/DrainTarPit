@@ -20,7 +20,7 @@ namespace DrainTarPit.Visuals
     /// material from. While the window is open the player cannot move (Player.TakeInput = false) and the camera does not follow the mouse.
     /// NOT tested in game.
     /// </summary>
-    internal static class WaterEditor
+    internal static partial class WaterEditor
     {
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
         const int WinId = 0x44545057;
@@ -209,7 +209,7 @@ namespace DrainTarPit.Visuals
             Entry(ModSettings.WaterFlow, "water flow (viscosity x tar)", 1f, 64f);
             Entry(ModSettings.PitFlowBoost, "flow boost while pouring (x)", 1f, 100f);
             Entry(ModSettings.PitFlowBoostSeconds, "boost lasts after the last stroke (s)", 0f, 300f);
-            GUILayout.Label("flow between two cells grows with the square root of the viscosity; the boost is multiplied on top of the water flow for the next strokes. read at world load: WaterCellSize " + ModSettings.WaterCellSize.Value.ToString("0.##", Inv) + " m, WaterPoolSize " + ModSettings.WaterPoolSize.Value.ToString("0.#", Inv) + " m (change in the config, reload the world)");
+            GUILayout.Label("flow between two cells grows with the square root of the viscosity; the boost is multiplied on top of the water flow for the next strokes. read at world load: WaterCellSize " + ModSettings.LiquidCellSize.Value.ToString("0.##", Inv) + " m, WaterPoolSize " + ModSettings.WaterPoolSize.Value.ToString("0.#", Inv) + " m (change in the config, reload the world)");
         }
 
         static void DrawPoolInfo()
@@ -417,33 +417,6 @@ namespace DrainTarPit.Visuals
             else if (focused) Buf[ctl] = cur;
             GUILayout.EndHorizontal();
             return nv;
-        }
-
-        static void Entry(BepInEx.Configuration.ConfigEntry<float> e, string label, float lo, float hi)
-        {
-            if (e == null) return;
-            float nv = Number("cfg." + e.Definition.Key, label, e.Value, lo, hi);
-            nv = Mathf.Clamp(nv, lo, hi);
-            if (!Mathf.Approximately(nv, e.Value)) { WaterEditorLog.Change(CfgName(e), WaterEditorLog.F(e.Value), WaterEditorLog.F(nv)); e.Value = nv; }
-        }
-
-        static void Entry(BepInEx.Configuration.ConfigEntry<int> e, string label, int lo, int hi)
-        {
-            if (e == null) return;
-            int nv = Mathf.Clamp(Mathf.RoundToInt(Number("cfg." + e.Definition.Key, label, e.Value, lo, hi)), lo, hi);
-            if (nv != e.Value) { WaterEditorLog.Change(CfgName(e), e.Value.ToString(Inv), nv.ToString(Inv)); e.Value = nv; }
-        }
-
-        static void Entry(BepInEx.Configuration.ConfigEntry<bool> e, string label)
-        {
-            if (e == null) return;
-            bool nv = GUILayout.Toggle(e.Value, label);
-            if (nv != e.Value) { WaterEditorLog.Change(CfgName(e), e.Value ? "on" : "off", nv ? "on" : "off"); e.Value = nv; }
-        }
-
-        static string CfgName(BepInEx.Configuration.ConfigEntryBase e)
-        {
-            return "config [" + e.Definition.Section + "] " + e.Definition.Key;
         }
     }
 }

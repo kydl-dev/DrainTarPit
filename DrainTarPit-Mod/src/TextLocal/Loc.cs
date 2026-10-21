@@ -51,7 +51,7 @@ namespace DrainTarPit.TextLocal
             { "dtp_err_not_in_water", "The strainer is not in water" },
             { "dtp_err_above_water", "The strainer is above the water" },
             { "dtp_err_nozzle_in_water", "The nozzle is in water - move it out of the water" },
-            { "dtp_err_water_off", "Water pumping is switched off in the config" },
+            { "dtp_err_water_off", "Water pumping is switched off in the config" }, { "dtp_mod_off", "DrainTarPit is switched off ([General] EnableAll)" },
             { "dtp_liquid_tar", "tar" }, { "dtp_liquid_water", "water" },
             { "dtp_ready_liquid", "Ready to pump {0}" },
             // hoses
@@ -110,7 +110,7 @@ namespace DrainTarPit.TextLocal
             { "dtp_err_not_in_water", "Das Sieb steckt nicht im Wasser" },
             { "dtp_err_above_water", "Das Sieb hängt über dem Wasser" },
             { "dtp_err_nozzle_in_water", "Die Düse steckt im Wasser - bring sie aus dem Wasser" },
-            { "dtp_err_water_off", "Wasserpumpen ist in der Konfiguration ausgeschaltet" },
+            { "dtp_err_water_off", "Wasserpumpen ist in der Konfiguration ausgeschaltet" }, { "dtp_mod_off", "DrainTarPit ist ausgeschaltet ([General] EnableAll)" },
             { "dtp_liquid_tar", "Teer" }, { "dtp_liquid_water", "Wasser" },
             { "dtp_ready_liquid", "Bereit zum Pumpen: {0}" },
             { "dtp_side_intake", "Einlass" }, { "dtp_side_outlet", "Auslass" },

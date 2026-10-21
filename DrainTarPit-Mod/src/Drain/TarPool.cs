@@ -125,7 +125,7 @@ namespace DrainTarPit.Drain
             go.name = legacyName ?? (water ? (legacy ? LegacyWaterPrefabName : WaterPrefabName) : legacy ? LegacyTarPrefabName : PrefabName);
             var lv = go.GetComponentInChildren<LiquidVolume>(true);
             // water pools use finer cells: the surface mesh ends at a grid point, so the gap between the liquid and a wall is up to one cell wide
-            float cell = !legacy ? ModSettings.WaterCellSize.Value : CellScale;
+            float cell = !legacy ? ModSettings.LiquidCellSize.Value : CellScale;
             int width = legacyWidth > 0 ? legacyWidth : legacy ? (water ? 48 : LegacyTarGridWidth) : Mathf.Clamp(Mathf.RoundToInt(ModSettings.WaterPoolSize.Value / cell), 16, 128);
             Set(lv, "m_width", width);
             Set(lv, "m_scale", cell);

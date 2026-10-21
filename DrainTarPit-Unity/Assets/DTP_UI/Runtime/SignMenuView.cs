@@ -9,7 +9,6 @@ namespace DrainTarPit.Ui
     public interface ISignMenuHost
     {
         string T(string key, params string[] args);     // localized text
-        string PoolLabel { get; }                       // the pool the sign names (shown at the top)
         IList<string> Fonts { get; }                    // every font that can be chosen ("" = default is added by the view)
         int MaxLetters { get; }
         void Preview(string name, SignStyle style);     // show the not-yet-saved look on the sign
@@ -65,7 +64,6 @@ namespace DrainTarPit.Ui
         void Build()
         {
             _content.Clear();
-            _content.Add(UiControls.Note(_host.T("dtp_ui_pool", _host.PoolLabel)));
 
             _content.Add(UiControls.Heading(_host.T("dtp_ui_name")));
             _content.Add(UiControls.TextField(_name, _host.MaxLetters * 2, v => { _name = v; RebuildLetters(); Changed("name"); }));

@@ -52,10 +52,10 @@ namespace DrainTarPit.Effects
         static Material _mat;
         static readonly Dictionary<WaterStyleOption, Material> WaterMats = new();       // T-60: one hose water material per water style
 
-        // Bug #3: an error used to set ModSettings.TarFlow.Value = false, which BepInEx saved into the config file (the switch stayed off after a restart).
+        // Bug #3: an error used to set ModSettings.TarSlugFlow.Value = false, which BepInEx saved into the config file (the switch stayed off after a restart).
         // It is now a runtime-only switch like PumpFx._disabled: the config file is never touched, the next game launch tries again.
         static bool _disabled;
-        static bool Enabled { get { return !_disabled && ModSettings.Effects.Value && ModSettings.TarFlow.Value && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
+        static bool Enabled { get { return !_disabled && ModSettings.On && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
 
         static void EnsureHost()
         {
@@ -75,7 +75,7 @@ namespace DrainTarPit.Effects
         public static float ClaimArrival(DtpPiece pump)
         {
             if (pump == null) { ModLog.Verbose("TarFlow: pour not matched, no pump"); return -1f; }
-            float speed = Mathf.Max(0.1f, ModSettings.TarFlowSpeed.Value), now = Time.time;
+            float speed = Mathf.Max(0.1f, ModSettings.LiquidFlowSpeed.Value), now = Time.time;
             int stale = 0;
             for (int i = 0; i < Slugs.Count; i++)
             {
@@ -126,6 +126,9 @@ namespace DrainTarPit.Effects
         /// its slug is shown, but no pour will follow it.
         public static void Stroke(DtpPiece pump, bool takesTar = true, PumpLiquid liquid = PumpLiquid.Tar)
         {
+            // T-068: the slug of each liquid has its own switch ([Effects] TarSlugFlow / WaterSlugFlow)
+            bool slugOn = liquid == PumpLiquid.Water ? ModSettings.WaterSlugFlow == null || ModSettings.WaterSlugFlow.Value : ModSettings.TarSlugFlow.Value;
+            if (!slugOn) { ModLog.Verbose("TarFlow: " + liquid + " slug not shown (" + (liquid == PumpLiquid.Water ? "WaterSlugFlow" : "TarSlugFlow") + " off)"); return; }
             if (!Enabled || pump == null)
             { ModLog.Verbose("TarFlow: stroke not shown (" + (pump == null ? "no pump" : _disabled ? "switched off after an error this session" : "TarFlow / Effects off or no graphics") + ")"); return; }
             GameObject go = null; Mesh mesh = null;
@@ -344,7 +347,7 @@ namespace DrainTarPit.Effects
         internal static void Tick()
         {
             if (Pending.Count > 0) RunDue();                                // before the meshes: the pour starts in the frame the head reaches the nozzle
-            float speed = ModSettings.TarFlowSpeed.Value, len = ModSettings.TarSlugLength.Value;
+            float speed = ModSettings.LiquidFlowSpeed.Value, len = ModSettings.TarSlugLength.Value;
             const float radius = 0.042f;                                    // bore radius is 0.048
             for (int i = Slugs.Count - 1; i >= 0; i--)
             {

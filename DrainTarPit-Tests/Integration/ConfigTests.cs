@@ -18,7 +18,6 @@ namespace DrainTarPit.Tests.Integration
     public class ConfigTests
     {
         const string Settings = "DrainTarPit.ModSettings";
-        const int LatestConfigVersion = 5; // ModSettings.Migrate: raise this together with a new migration step and add a test for the step
         string _dir, _path;
 
         [SetUp]
@@ -60,7 +59,7 @@ namespace DrainTarPit.Tests.Integration
 
             var text = File.ReadAllText(_path);
             Assert.That(File.Exists(_path), Is.True);
-            foreach (var section in new[] { "[General]", "[Visuals]", "[Effects]", "[Building]", "[Drain]", "[Pump]" })
+            foreach (var section in new[] { "[General]", "[DebugLog]", "[Visuals]", "[Effects]", "[Building]", "[Drain]", "[Pools]", "[Pump]" })
                 Assert.That(text, Does.Contain(section));
         }
 
@@ -71,22 +70,15 @@ namespace DrainTarPit.Tests.Integration
 
             Assert.That(Value("VolumePerStroke"), Is.EqualTo(6f));
             Assert.That(Value("DrainRadius"), Is.EqualTo(4f));
-            Assert.That(Value("TarFlowSpeed"), Is.EqualTo(3.5f));
-            Assert.That(Value("TarSlugLength"), Is.EqualTo(2f));
-            Assert.That((float)Value("MaxBackBend"), Is.EqualTo(45f));
-            Assert.That((float)Value("MaxKneeBend"), Is.EqualTo(0.08f).Within(1e-6f));
-            Assert.That(Value("PieceHealth"), Is.EqualTo(200f));
-            Assert.That(Value("MaxChainPieces"), Is.EqualTo(24));
+            Assert.That(Value("LiquidFlowSpeed"), Is.EqualTo(3.5f));
+            Assert.That(Value("MaxChainPieces"), Is.EqualTo(40));
+            Assert.That(Value("RefillMinutes"), Is.EqualTo(60f));
+            Assert.That((bool)Value("EnableAll"), Is.EqualTo(true));
+            Assert.That((bool)Value("SoundEffects"), Is.EqualTo(true));
+            Assert.That((bool)Value("TarSplashSound"), Is.EqualTo(true));
+            Assert.That((bool)Value("AutoReach"), Is.EqualTo(true));
             Assert.That(Value("TiltKey"), Is.EqualTo(KeyCode.LeftAlt));
             Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
-        }
-
-        [Test]
-        public void Bind_NoFileYet_SetsTheConfigVersionToTheLatestMigration()
-        {
-            BindFile();
-
-            Assert.That(Value("ConfigVersion"), Is.EqualTo(LatestConfigVersion));
         }
 
         [Test]
@@ -109,7 +101,6 @@ namespace DrainTarPit.Tests.Integration
             BindFile("");
 
             Assert.That(Value("VolumePerStroke"), Is.EqualTo(6f));
-            Assert.That(Value("ConfigVersion"), Is.EqualTo(LatestConfigVersion));
         }
 
         [Test]
@@ -121,98 +112,7 @@ namespace DrainTarPit.Tests.Integration
             Assert.That(Value("VolumePerStroke"), Is.EqualTo(6f));
         }
 
-        // ---------------------------------------------------------------- migration (ModSettings.Migrate)
-
-        [Test]
-        public void Migrate_FileFromBeforeVersion1WithOldDefaults_UpgradesThemToTheNewDefaults()
-        {
-            BindFile(Cfg("[Drain]", "VolumePerStroke = 1.5", "DrainRadius = 2.5", "[Effects]", "TarFlowSpeed = 2.5", "TarSlugLength = 1.2"));
-
-            Assert.That(Value("VolumePerStroke"), Is.EqualTo(6f));
-            Assert.That(Value("DrainRadius"), Is.EqualTo(4f));
-            Assert.That(Value("TarFlowSpeed"), Is.EqualTo(3.5f));
-            Assert.That(Value("TarSlugLength"), Is.EqualTo(2f));
-        }
-
-        [Test]
-        public void Migrate_FileFromBeforeVersion1WithCustomValues_KeepsTheUsersChoice()
-        {
-            BindFile(Cfg("[Drain]", "VolumePerStroke = 2", "DrainRadius = 2.5"));
-
-            Assert.That(Value("VolumePerStroke"), Is.EqualTo(2f), "not an old default, so it is the user's own value");
-            Assert.That(Value("DrainRadius"), Is.EqualTo(4f), "this one was still the old default");
-        }
-
-        [Test]
-        public void Migrate_FileFromBeforeVersion2WithOldPumpPosture_UpgradesIt()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 1", "[Pump]", "MaxKneeBend = 0.25", "MaxBackBend = 35"));
-
-            Assert.That((float)Value("MaxKneeBend"), Is.EqualTo(0.08f).Within(1e-6f));
-            Assert.That((float)Value("MaxBackBend"), Is.EqualTo(45f));
-        }
-
-        [Test]
-        public void Migrate_FileAlreadyAtVersion2_DoesNotTouchAnOldLookingValue()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 2", "[Pump]", "MaxBackBend = 35"));
-
-            Assert.That((float)Value("MaxBackBend"), Is.EqualTo(35f), "migrations run once per version");
-        }
-
-        [Test]
-        public void Migrate_OrphanedClearHosesFalse_BecomesBuildHoseStyleSolid()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 2", "[Visuals]", "ClearHoses = false", "HoseStyle = Transparent"));
-
-            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
-        }
-
-        [Test]
-        public void Migrate_AlreadyAtVersion3_IgnoresAClearHosesLeftover()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 3", "[Visuals]", "ClearHoses = false", "HoseStyle = Transparent"));
-
-            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Transparent"));
-        }
-
-        [Test]
-        public void Migrate_Version3HoseLook_MovesToBuildTimeHoseVisuals()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 3", "[Visuals]", "HoseStyle = Transparent", "HoseOpacity = 0,3"));
-
-            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Transparent"));
-            Assert.That((float)Value("BuildHoseOpacity"), Is.EqualTo(0.3f).Within(1e-6f), "decimal comma is accepted too");
-            Assert.That(Value("WorldHoseStyle").ToString(), Is.EqualTo("Default"), "the world style is new: it starts at Default (each hose its own look)");
-            var text = File.ReadAllText(_path);
-            Assert.That(text, Does.Contain("[Build Time Hose Visuals]"));
-            Assert.That(text, Does.Contain("[World Hose Visuals]"));
-            Assert.That(text, Does.Not.Match(@"(?m)^HoseStyle\s*="), "the old key is dropped from the saved file");
-        }
-
-        [Test]
-        public void Migrate_AlreadyAtVersion4_IgnoresAnOldHoseStyleLeftover()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 4", "[Visuals]", "HoseStyle = Transparent"));
-
-            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
-        }
-
-        [Test]
-        public void Migrate_FromVersion4_TurnsPoolRimDisappearOnOnce()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 4", "[Drain]", "PoolRimDisappear = false"));
-
-            Assert.That((bool)Value("PoolRimDisappear"), Is.EqualTo(true));
-        }
-
-        [Test]
-        public void Migrate_AlreadyAtVersion5_KeepsPoolRimDisappearOff()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 5", "[Drain]", "PoolRimDisappear = false"));
-
-            Assert.That((bool)Value("PoolRimDisappear"), Is.EqualTo(false));
-        }
+        // ---------------------------------------------------------------- T-068 config review (user, 2026-10-21)
 
         [Test]
         public void Bind_NoFileYet_PoolRimDisappearIsOn()
@@ -233,20 +133,76 @@ namespace DrainTarPit.Tests.Integration
         }
 
         [Test]
-        public void Migrate_RemovedOptionsInTheFile_AreDroppedFromTheSavedFile()
+        public void Bind_NoFileYet_FixedValuesAreNotInTheFile()
         {
-            BindFile(Cfg("[General]", "ConfigVersion = 2", "[Visuals]", "ClearHoses = false"));
+            var cfg = BindFile();
+            cfg.Save();
+            var text = File.ReadAllText(_path);
 
-            Assert.That(File.ReadAllText(_path), Does.Not.Contain("ClearHoses"));
+            foreach (var key in new[] { "AlbedoBrightness", "ShaderName", "UseMaskMap", "PoolMeshFix", "PoolMeshReach", "SignBoardBrightness", "SignTextBrightness",
+                                        "WaterStyle", "EditorKey", "PieceHealth", "DrySound", "PumpDroplets", "SoundTailSeconds", "SyncPour", "TarSlugLength",
+                                        "WaterSplashOffset", "AllowWater", "PitFlowBoost", "PoolFilmDepth", "AttachBool", "AttachClipOverride", "StaminaPerStroke",
+                                        "HandIK", "MaxAutoStep", "TestOutDir", "ConfigVersion", "TarFlowSpeed", "WaterCellSize" })
+                Assert.That(text, Does.Not.Match(@"(?m)^" + key + @"\s*="), key + " must not be in the player's config");
         }
 
         [Test]
-        public void Migrate_FromVersion0_EndsAtTheLatestVersionAndSavesIt()
+        public void Bind_FixedValues_HaveTheChosenValues()
         {
-            BindFile(Cfg("[General]", "ConfigVersion = 0"));
+            BindFile();
 
-            Assert.That(Value("ConfigVersion"), Is.EqualTo(LatestConfigVersion));
-            Assert.That(File.ReadAllText(_path), Does.Match(@"ConfigVersion\s*=\s*" + LatestConfigVersion));
+            Assert.That(Fixed("AlbedoBrightness"), Is.EqualTo(1.5f));
+            Assert.That(Fixed("PieceHealth"), Is.EqualTo(400f));
+            Assert.That(Fixed("SignBoardBrightness"), Is.EqualTo(1.5f));
+            Assert.That(Fixed("SignTextBrightness"), Is.EqualTo(1.2f));
+            Assert.That(Fixed("PoolMeshReach"), Is.EqualTo(6));
+            Assert.That(Fixed("SoundTailSeconds"), Is.EqualTo(0.3f));
+            Assert.That(Fixed("TarSlugLength"), Is.EqualTo(2f));
+            Assert.That(Fixed("WaterSplashOffset"), Is.EqualTo(-0.3f));
+            Assert.That(Fixed("PumpDroplets"), Is.EqualTo(false));
+            Assert.That(Fixed("SyncPour"), Is.EqualTo(true));
+            Assert.That(Fixed("AttachBool"), Is.EqualTo("attach_chair"));
+        }
+
+        static object Fixed(string field) { var t = ModAssembly.GetStatic(Settings, field); return t.GetType().GetProperty("Value").GetValue(t, null); }
+
+        [Test]
+        public void Bind_OldEntriesInTheFile_AreDroppedFromTheSavedFile()
+        {
+            BindFile(Cfg("[General]", "ConfigVersion = 5", "DebugLog = true", "[Visuals]", "AlbedoBrightness = 2", "ClearHoses = false", "[Effects]", "Effects = true", "TarFlow = true"));
+
+            var text = File.ReadAllText(_path);
+            foreach (var key in new[] { "ConfigVersion", "AlbedoBrightness", "ClearHoses", "TarFlow", "Effects", "DebugLog" })
+                Assert.That(text, Does.Not.Match(@"(?m)^" + key + @"\s*="), key);
+        }
+
+        [Test]
+        public void Bind_VolumePerStroke_IsLimitedTo5To30()
+        {
+            BindFile(Cfg("[Drain]", "VolumePerStroke = 100"));
+
+            Assert.That((float)Value("VolumePerStroke"), Is.EqualTo(30f));
+        }
+
+        [Test]
+        public void Bind_RefillMinutes_IsLimitedTo10To120()
+        {
+            BindFile(Cfg("[Drain]", "RefillMinutes = 0"));
+
+            Assert.That((float)Value("RefillMinutes"), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void Bind_Descriptions_DoNotTalkAboutOlderVersions()
+        {
+            var cfg = BindFile();
+
+            foreach (var def in cfg.Keys)
+            {
+                string d = cfg[def].Description.Description;
+                foreach (var word in new[] { "old behaviour", "previous", "replaces the old", "before 20", "was the 0.", "(user", "2026" })
+                    Assert.That(d, Does.Not.Contain(word), def.Section + "/" + def.Key);
+            }
         }
 
         // ---------------------------------------------------------------- bad input
@@ -258,14 +214,6 @@ namespace DrainTarPit.Tests.Integration
 
             Assert.That(Value("VolumePerStroke"), Is.EqualTo(6f));
             Assert.That(Value("DrainRadius"), Is.EqualTo(3f), "a bad neighbour must not spoil a good value");
-        }
-
-        [Test]
-        public void Bind_UnknownOldHoseStyleName_KeepsTheBuildDefault()
-        {
-            BindFile(Cfg("[General]", "ConfigVersion = 3", "[Visuals]", "HoseStyle = Banana"));
-
-            Assert.That(Value("BuildHoseStyle").ToString(), Is.EqualTo("Solid"));
         }
 
         [Test]

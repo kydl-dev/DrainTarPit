@@ -195,6 +195,8 @@ namespace DrainTarPit.Effects
         internal static void Sound(Vector3 pos, AudioClip clip, float gain, float tailSeconds, bool skipLead, Span span)
         {
             if (clip == null) { ModLog.Verbose("Sound: nothing played, the clip is not loaded (yet)"); return; }
+            // T-068 (user: "if set to off, then it should disable any audio effects from this mod"): every sound of the mod goes through here
+            if (ModSettings.SoundEffects != null && !ModSettings.SoundEffects.Value) { ModLog.Verbose("Sound: '" + clip.name + "' not played ([Effects] SoundEffects off)"); return; }
             SfxVoice old;
             if (Voices.TryGetValue(clip, out old)) { if (old != null && old.Src != null && (old.PeakT < 0f || old.Src.time >= old.PeakT)) old.FadeOut(0.08f); Voices.Remove(clip); }   // only a copy that is already past its main hit is faded; one still building up to it plays on
             var go = new GameObject("DTP_sfx");
