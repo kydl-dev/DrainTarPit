@@ -78,13 +78,12 @@ namespace DrainTarPit.Tests.Integration
             Assert.That(Regex.Match(heading, @"\d+\.\d+\.\d+").Value, Is.EqualTo(Str("version_number")));
         }
 
-        // PROJECT_RULES.md rule 3: the mod is unreleased, the version is 1.0.0 and is never bumped until the user says so.
-        // When the user releases, change this test together with the rule.
+        // PROJECT_RULES.md rule 3: released (1.0.0 on 2026-10-21); the version only has to match Plugin.cs and the CHANGELOG and never go below 1.0.0.
         [Test]
-        public void Manifest_Version_WhileTheModIsUnreleased_IsExactlyOneZeroZero()
+        public void Manifest_Version_IsAtLeastTheFirstRelease()
         {
-            Assert.That(Str("version_number"), Is.EqualTo("1.0.0"));
-            Assert.That(PluginConst("ModVersion"), Is.EqualTo("1.0.0"));
+            Assert.That(new System.Version(Str("version_number")), Is.GreaterThanOrEqualTo(new System.Version(1, 0, 0)));
+            Assert.That(PluginConst("ModVersion"), Is.EqualTo(Str("version_number")));
         }
 
         [Test]
