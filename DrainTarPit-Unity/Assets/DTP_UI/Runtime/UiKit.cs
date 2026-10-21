@@ -168,14 +168,16 @@ namespace DrainTarPit.Ui
         }
 
         // --- window ---------------------------------------------------------------------------------------------------------------
-        /// A movable window (drag the title bar): fixed 70% of the screen high (taller content scrolls), 760 wide (at most 60%), centred.
+        /// A movable window (drag the title bar): fixed 70% of the screen high (taller content scrolls), 760 wide (at most 60%), its right side
+        /// 5% from the right screen edge (user: so the sign stays visible while it is edited).
         internal static VisualElement Window(string title, string footer, System.Action onClose, out UiScroll body)
         {
             var w = new VisualElement { name = "dtp-window" };
             w.style.position = Position.Absolute;
             w.style.width = 760; w.style.maxWidth = Length.Percent(60);
             w.style.height = Length.Percent(70);
-            w.style.left = Length.Percent(30); w.style.top = Length.Percent(15);
+            w.style.right = Length.Percent(5); w.style.left = StyleKeyword.Auto; w.style.top = Length.Percent(15);
+            UiLog.Verbose("UiKit: window '" + title + "' opened 5% from the right edge, 15% from the top");
             w.style.backgroundColor = Panel;
             Radius(w, 8);
             Borders(w, 2, Border);
@@ -214,7 +216,8 @@ namespace DrainTarPit.Ui
             handle.RegisterCallback<PointerDownEvent>(e =>
             {
                 if (e.button != 0 || e.target is Button) return;
-                dragging = true; start = e.position; origin = new Vector2(target.resolvedStyle.left, target.resolvedStyle.top);
+                dragging = true; start = e.position; origin = new Vector2(target.layout.x, target.layout.y);   // placed by right %: take the laid-out position
+                target.style.right = StyleKeyword.Auto;                                                        // from now on placed by left / top
                 handle.CapturePointer(e.pointerId);
             });
             handle.RegisterCallback<PointerMoveEvent>(e =>
