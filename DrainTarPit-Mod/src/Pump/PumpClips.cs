@@ -30,7 +30,7 @@ namespace DrainTarPit.Pump
         public static Effects.PumpFx.StrokeTiming TapTiming()
         {
             float push = PlayerPumpAnimations.Length("pumppush"), pull = PlayerPumpAnimations.Length("pumppull");
-            if (push <= 0.05f || pull <= 0.05f) Logging.ModLog.Verbose("Pump timing: player clips not found (push " + push.ToString("0.00") + " s, pull " + pull.ToString("0.00") + " s), the pump clip lengths are used");
+            if (push <= 0.05f || pull <= 0.05f) Kydl.Common.ModLog.Verbose("Pump timing: player clips not found (push " + push.ToString("0.00") + " s, pull " + pull.ToString("0.00") + " s), the pump clip lengths are used");
             return new Effects.PumpFx.StrokeTiming { StartIn = 0f, Up = push > 0.05f ? push : FallbackPush, Down = pull > 0.05f ? pull : FallbackPull };
         }
 
@@ -38,7 +38,7 @@ namespace DrainTarPit.Pump
         public static Effects.PumpFx.StrokeTiming CycleTiming(float startIn)
         {
             float len = PlayerPumpAnimations.Length("pumpcycle");
-            if (len < 0.2f) { Logging.ModLog.Verbose("Pump timing: player cycle clip not found, [Pump] CycleStrokeSeconds " + ModSettings.CycleStrokeSeconds.Value.ToString("0.00") + " s used"); len = ModSettings.CycleStrokeSeconds.Value; }
+            if (len < 0.2f) { Kydl.Common.ModLog.Verbose("Pump timing: player cycle clip not found, [Pump] CycleStrokeSeconds " + ModSettings.CycleStrokeSeconds.Value.ToString("0.00") + " s used"); len = ModSettings.CycleStrokeSeconds.Value; }
             return new Effects.PumpFx.StrokeTiming { StartIn = Mathf.Max(0f, startIn), Up = len * CycleTopAt, Down = len * (1f - CycleTopAt) };
         }
     }

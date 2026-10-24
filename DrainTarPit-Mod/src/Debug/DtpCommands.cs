@@ -1,6 +1,6 @@
 using System.Linq;
 using DrainTarPit.Drain;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.Pump;
 using DrainTarPit.Visuals;
 using Jotunn.Entities;

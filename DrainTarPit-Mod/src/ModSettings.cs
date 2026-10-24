@@ -1,6 +1,6 @@
 using BepInEx.Configuration;
 using DrainTarPit.Drain;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.Visuals;
 using UnityEngine;
 

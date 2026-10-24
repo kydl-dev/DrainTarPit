@@ -2,7 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using BepInEx.Configuration;
-using DrainTarPit.Logging;
+using Kydl.Common;
 
 namespace DrainTarPit;
 

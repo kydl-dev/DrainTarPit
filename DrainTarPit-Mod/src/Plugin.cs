@@ -4,7 +4,7 @@ using BepInEx;
 using DrainTarPit.Building;
 using DrainTarPit.Debug;
 using DrainTarPit.Effects;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.TextLocal;
 using DrainTarPit.Visuals;
 using HarmonyLib;
@@ -30,7 +30,7 @@ namespace DrainTarPit
         void Awake()
         {
             Instance = this;
-            ModLog.Init(Logger);                    // first line of the session: "{date&time} - NEW LOG SESSION STARTS HERE"
+            ModLog.Init(Logger, ModName, () => ModSettings.DebugLog != null && ModSettings.DebugLog.Value);                    // first line of the session: "{date&time} - NEW LOG SESSION STARTS HERE"
             ModLog.Info(ModName + " " + ModVersion + " loaded (dll built " + File.GetLastWriteTime(Assembly.GetExecutingAssembly().Location).ToString("yyyy-MM-dd HH:mm:ss") + ")");
             ModSettings.Bind(Config);
             WatchConfigFile();

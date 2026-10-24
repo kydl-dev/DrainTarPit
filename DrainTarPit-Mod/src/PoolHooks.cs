@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using DrainTarPit.Building;
 using DrainTarPit.Drain;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using UnityEngine;
 
 // T-069 (user, 2026-10-21): the pools, water and pool signs are the separate WaterAndTarPools mod, which needs DrainTarPit installed. It uses

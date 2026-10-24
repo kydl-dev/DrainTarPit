@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using HarmonyLib;
 using UnityEngine;
 using static DrainTarPit.Drain.TarPits;

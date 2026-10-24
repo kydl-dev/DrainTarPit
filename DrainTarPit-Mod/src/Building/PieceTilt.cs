@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using BepInEx;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.TextLocal;
 using HarmonyLib;
 using UnityEngine;

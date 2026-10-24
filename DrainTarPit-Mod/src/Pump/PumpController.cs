@@ -3,7 +3,7 @@ using System.Reflection;
 using DrainTarPit.Building;
 using DrainTarPit.Drain;
 using DrainTarPit.Effects;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.TextLocal;
 using HarmonyLib;
 using UnityEngine;

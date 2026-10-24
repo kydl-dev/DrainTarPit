@@ -69,4 +69,9 @@
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\build" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(USERPROFILE)\AppData\Roaming\com.kesomannen.gale\valheim\profiles\test\BepInEx\plugins\DrainTarPit" />
   </Target>
+  <ItemGroup>
+    <!-- 2026-10-24: the SHARED log of all the user's mods (E:\Projects\Valheim\Claude\shared\Kydl.Common\ModLog.cs: debug switch, 2.5 s repeat
+         filter, CHECK OFF warnings via ModLog.Check). Replaces the mod's own Logging\ModLog.cs. -->
+    <Compile Include="..\..\Claude\shared\Kydl.Common\ModLog.cs" Link="Kydl\Common\ModLog.cs" />
+  </ItemGroup>
 </Project>

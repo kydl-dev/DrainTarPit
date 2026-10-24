@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using DrainTarPit.Building;
 using DrainTarPit.Drain;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.Visuals;
 using UnityEngine;
 using UnityEngine.Rendering;

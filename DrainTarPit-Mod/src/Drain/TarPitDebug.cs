@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using HarmonyLib;
 using UnityEngine;
 using static DrainTarPit.Drain.TarPits;

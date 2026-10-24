@@ -1,6 +1,6 @@
 using System.Globalization;
 using BepInEx.Configuration;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.Visuals;
 using static DrainTarPit.ModSettings;
 

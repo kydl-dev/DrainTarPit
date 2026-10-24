@@ -1,6 +1,6 @@
 using System.Text;
 using DrainTarPit.Building;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.Visuals;
 using UnityEngine;
 

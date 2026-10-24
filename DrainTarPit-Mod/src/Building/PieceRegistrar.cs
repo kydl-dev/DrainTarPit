@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using DrainTarPit.Logging;
+using Kydl.Common;
 using DrainTarPit.Pump;
 using DrainTarPit.TextLocal;
 using DrainTarPit.Visuals;
@@ -14,6 +14,9 @@ namespace DrainTarPit.Building
     internal static class PieceRegistrar
     {
         static readonly List<GameObject> IconPrefabs = new();
+        /// Prefab names of the pieces added to the Hammer (read by Testing/InGameTests); ExpectedPieces = the Register calls below.
+        internal static readonly List<string> Registered = new();
+        internal const int ExpectedPieces = 6;
 
         public static void RegisterAll()
         {
@@ -31,6 +34,7 @@ namespace DrainTarPit.Building
                 Register("assets/prefabs/dtp_hose_elbow90.prefab", "dtp_piece_elbow", false, new[] { Req("LeatherScraps", 2), Req("Tar", 2) });
             }
             catch (System.Exception e) { ModLog.Error("RegisterAll failed: " + e); }
+            ModLog.Check("PieceRegistrar: pieces registered", Registered.Count, ExpectedPieces, 0, "");
             if (!PieceSetup.Headless) Plugin.Instance.RunCoroutine(RefreshIcons());     // no icons on a dedicated server
         }
 
@@ -75,7 +79,8 @@ namespace DrainTarPit.Building
                     Requirements = reqs,
                 };
                 PieceManager.Instance.AddPiece(new CustomPiece(prefab, true, cfg));
-                ModLog.Info("Registered piece " + prefab.name);
+                Registered.Add(prefab.name);
+                ModLog.Info("Registered piece " + prefab.name + " (" + Registered.Count + " of " + ExpectedPieces + ")");
             }
             catch (System.Exception e) { ModLog.Error("Failed to register '" + assetPath + "': " + e); }
         }
