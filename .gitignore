@@ -70,3 +70,11 @@ Desktop.ini
 /DrainTarPit-Unity/ref/
 /DrainTarPit-Mod/ref/
 /DrainTarPit-Mod/build/
+
+# --- GameProbe test sessions: reports, errors, timelines are tracked; big raw files are not ---
+/_testruns/**/LogOutput.log
+/_testruns/**/log-live.log
+/_testruns/**/*.png
+# release-gate output (report + zip): rebuilt by _agent/tools/release-gate.ps1
+/*-Mod/release/*/release-gate.*
+/*-Mod/release/*/_stage/
