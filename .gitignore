@@ -87,3 +87,11 @@ Desktop.ini
 /*-Mod/build/*.dll
 /*-Tests/.nuget/
 /recording-obs-check-audio/
+
+# --- not published anywhere in the tree (user, 2026-10-29) ---
+CLAUDE.md
+.claude/
+/Claude outputs/
+/model.png
+/model-nobg.png
+*.dll
