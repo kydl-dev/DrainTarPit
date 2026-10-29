@@ -78,3 +78,12 @@ Desktop.ini
 # release-gate output (report + zip): rebuilt by _agent/tools/release-gate.ps1
 /*-Mod/release/*/release-gate.*
 /*-Mod/release/*/_stage/
+
+# --- not published to GitHub (user, 2026-10-29) ---
+/_testruns/
+/_agent/
+/.claude/
+/CLAUDE.md
+/*-Mod/build/*.dll
+/*-Tests/.nuget/
+/recording-obs-check-audio/

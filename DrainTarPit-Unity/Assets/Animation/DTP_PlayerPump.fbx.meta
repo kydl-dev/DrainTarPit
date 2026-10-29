@@ -33,7 +33,7 @@ ModelImporter:
     - serializedVersion: 16
       name: DTP_Player_PumpEnter
       takeName: DTP_Player_PumpEnter
-      internalID: -8089662920167928985
+      internalID: 7308802626603657216
       firstFrame: 0
       lastFrame: 15
       wrapMode: 0
@@ -62,7 +62,7 @@ ModelImporter:
     - serializedVersion: 16
       name: DTP_Player_PumpIdle
       takeName: DTP_Player_PumpIdle
-      internalID: -6239053797110298272
+      internalID: -2829279691184200371
       firstFrame: 0
       lastFrame: 30
       wrapMode: 0
@@ -91,7 +91,7 @@ ModelImporter:
     - serializedVersion: 16
       name: DTP_Player_PumpCycle
       takeName: DTP_Player_PumpCycle
-      internalID: 4234322977922547710
+      internalID: -7171566447465284389
       firstFrame: 0
       lastFrame: 36
       wrapMode: 0
@@ -120,7 +120,7 @@ ModelImporter:
     - serializedVersion: 16
       name: DTP_Player_PumpPush
       takeName: DTP_Player_PumpPush
-      internalID: -8433569557771122006
+      internalID: 7259320275636014177
       firstFrame: 0
       lastFrame: 15
       wrapMode: 0
@@ -149,7 +149,7 @@ ModelImporter:
     - serializedVersion: 16
       name: DTP_Player_PumpPull
       takeName: DTP_Player_PumpPull
-      internalID: -8212958973357436871
+      internalID: -7712661012301177924
       firstFrame: 0
       lastFrame: 19
       wrapMode: 0
@@ -178,7 +178,7 @@ ModelImporter:
     - serializedVersion: 16
       name: DTP_Player_PumpExit
       takeName: DTP_Player_PumpExit
-      internalID: 1141212694404378506
+      internalID: -6378508170743438394
       firstFrame: 0
       lastFrame: 15
       wrapMode: 0
