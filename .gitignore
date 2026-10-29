@@ -95,3 +95,4 @@ CLAUDE.md
 /model.png
 /model-nobg.png
 *.dll
+/*-Mod/Release/*.zip
