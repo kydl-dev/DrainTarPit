@@ -1,0 +1,8 @@
+{
+  "name": "DrainTarPit",
+  "description": "DrainTarPit: starts clean, its pieces are registered, it is listed in the KY hub (KydlCore D-084: every mod ships a suite)",
+  "requireMods": [ { "guid": "com.kydldev.DrainTarPit" } ],
+  "configOverrides": [],
+  "resetBetweenTests": true,
+  "tests": [ "startup-clean", "hub-page" ]
+}

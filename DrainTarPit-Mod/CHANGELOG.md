@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0
+
+- Breaking: needs the KydlCore mod (hard dependency; the mod manager installs it). The shared UI code, the input lock, the log and the KY-Items build category now come from KydlCore instead of a copy inside this mod.
+- All settings are on the **DrainTarPit > Settings** tab of the KY hub (F6), with the same controls as the config file.
+- English only: the German texts were dropped.
+- The pool menu and the pool sign texts live in WaterAndTarPools now.
+
 ## 1.0.0 - Initial release
 
 - Hand pump, intake strainer hose, outlet nozzle hose, 1 m / 2 m hoses and a hose elbow (Hammer > KY-Items).

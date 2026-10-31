@@ -19,20 +19,32 @@ internal static partial class ModSettings
     public static ConfigEntry<bool> DebugLog;
     /// Is the mod switched on ([General] EnableAll)? Off = inert: no pumping, no effects, no menus; built pieces stay in the world.
     public static bool On { get { return EnableAll == null || EnableAll.Value; } }
+    /// Each functionality below is on when the mod is on AND its own [Section] Enable is on.
+    public static bool BuildingOn { get { return On && (BuildingEnable == null || BuildingEnable.Value); } }
+    public static bool EffectsOn { get { return On && (EffectsEnable == null || EffectsEnable.Value); } }
+    public static bool DrainOn { get { return On && (DrainEnable == null || DrainEnable.Value); } }
+    /// Hose looks: with the section switched off the defaults apply (World: every hose shows the look it was built with; Build: solid).
+    public static WorldHoseStyleOption EffWorldStyle { get { return WorldHoseEnable == null || WorldHoseEnable.Value ? WorldHoseStyle.Value : WorldHoseStyleOption.Default; } }
+    public static HoseStyleOption EffBuildStyle { get { return BuildHoseEnable == null || BuildHoseEnable.Value ? BuildHoseStyle.Value : (HoseStyleOption)BuildHoseStyle.DefaultValue; } }
+    public static float EffBuildOpacity { get { return BuildHoseEnable == null || BuildHoseEnable.Value ? BuildHoseOpacity.Value : (float)BuildHoseOpacity.DefaultValue; } }
 
     // [World Hose Visuals] / [Build Time Hose Visuals] (ModSettingsHose)
+    public static ConfigEntry<bool> WorldHoseEnable;
+    public static ConfigEntry<bool> BuildHoseEnable;
     public static ConfigEntry<WorldHoseStyleOption> WorldHoseStyle;
     public static ConfigEntry<float> WorldHoseOpacity;
     public static ConfigEntry<HoseStyleOption> BuildHoseStyle;
     public static ConfigEntry<float> BuildHoseOpacity;
 
     // [Building]
+    public static ConfigEntry<bool> BuildingEnable;
     public static ConfigEntry<KeyCode> TiltKey;
     public static ConfigEntry<KeyCode> RollKey;
     public static ConfigEntry<KeyCode> TiltResetKey;
     public static ConfigEntry<float> TiltStep;
 
     // [Effects]
+    public static ConfigEntry<bool> EffectsEnable;
     public static ConfigEntry<bool> SoundEffects;
     public static ConfigEntry<float> EffectsVolume;
     public static ConfigEntry<bool> ScratchSounds;
@@ -46,6 +58,7 @@ internal static partial class ModSettings
     public static ConfigEntry<float> PourSoundOffset;
 
     // [Drain] (ModSettingsDrain)
+    public static ConfigEntry<bool> DrainEnable;
     public static ConfigEntry<float> VolumePerStroke;
     public static ConfigEntry<float> DrainRadius;
     public static ConfigEntry<float> StrainerSearchRadius;
@@ -55,7 +68,7 @@ internal static partial class ModSettings
     public static ConfigEntry<float> SnapTolerance;
     public static ConfigEntry<float> RefillMinutes;
 
-    // [Pump] (ModSettingsPump: AutoReach in the config, the rest Tunables)
+    // [General] AutoReach (ModSettingsPump; the other pump values are Tunables)
     public static ConfigEntry<bool> AutoReach;
 
     // --- fixed values (Tunables): not in the config file, KydlTools can change them for testing --------------------------------------------
@@ -107,6 +120,8 @@ internal static partial class ModSettings
             "Writes detailed lines about everything the mod does to the BepInEx log (for bug reports). Leave off while playing normally.");
         ModSettingsHose.Bind(c);                                  // [World Hose Visuals] / [Build Time Hose Visuals]
 
+        BuildingEnable = c.Bind("Building", "Enable", true,
+            "Tilting and rolling the held piece while building (the keys below). Off = pieces are placed flat, the keys do nothing.");
         TiltKey = c.Bind("Building", "TiltKey", KeyCode.LeftAlt,
             "Hold while scrolling to tilt the held piece up/down (pitch) instead of turning it. Keyboard/mouse only.");
         RollKey = c.Bind("Building", "RollKey", KeyCode.LeftControl,
@@ -116,6 +131,8 @@ internal static partial class ModSettings
         TiltStep = c.Bind("Building", "TiltStep", 45f,
             new ConfigDescription("Degrees per scroll step for pitch/roll.", new AcceptableValueRange<float>(5f, 90f)));
 
+        EffectsEnable = c.Bind("Effects", "Enable", true,
+            "Everything you see and hear when pumping: the sounds, the liquid slug in the hoses, the stream out of the nozzle. Off = the pump works silently and nothing is shown.");
         SoundEffects = c.Bind("Effects", "SoundEffects", true,
             "All sounds of this mod (pump strokes, the liquid coming out of the nozzle). Off = the mod makes no sound at all.");
         EffectsVolume = c.Bind("Effects", "EffectsVolume", 0.6f,

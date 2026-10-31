@@ -31,7 +31,7 @@ namespace DrainTarPit.Effects
         static AudioClip _stroke;                // synthesised fallback of the lever sound
 
         static bool _disabled;      // set after an error; runtime only, the config file is left alone
-        static bool Enabled { get { return !_disabled && ModSettings.On && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }   // T-068: sounds have their own switch (PumpFxSound.Sound)
+        static bool Enabled { get { return !_disabled && ModSettings.EffectsOn && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }   // T-068: sounds have their own switch (PumpFxSound.Sound)
 
         /// When the piston moves during one stroke, from the moment PumpFx.Stroke is called: it starts rising after StartIn seconds, rises for Up
         /// seconds (lever pushed down: Push clip / first part of a Cycle loop), then falls for Down seconds (Pull / rest of the loop) and is at its

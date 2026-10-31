@@ -19,6 +19,8 @@ internal static class ModSettingsHose
 
     public static void Bind(ConfigFile c)
     {
+        WorldHoseEnable = c.Bind(WorldSection, "Enable", true,
+            "Use the settings below for the hoses already built in the world. Off = every hose shows the look it was built with.");
         WorldHoseStyle = c.Bind(WorldSection, "World Hose Style", WorldHoseStyleOption.Default,
             "How all hoses (straight + elbow) already built in the world are shown. Default = each hose shows the style and opacity it was built with " +
             "(its own Build Hose Style / Build Hose Opacity). Transparent = every hose see-through with World Hose Opacity. Solid = every hose opaque. " +
@@ -26,6 +28,8 @@ internal static class ModSettingsHose
         WorldHoseOpacity = c.Bind(WorldSection, "World Hose Opacity", 0.45f,
             new ConfigDescription("Opacity of all hoses in the world while World Hose Style = Transparent (0 = invisible, 1 = solid). Applies right away.",
                 new AcceptableValueRange<float>(0f, 1f)));
+        BuildHoseEnable = c.Bind(BuildSection, "Enable", true,
+            "Use the settings below for the look of hoses you build. Off = new hoses are built solid.");
         BuildHoseStyle = c.Bind(BuildSection, "Build Hose Style", HoseStyleOption.Solid,
             "Style of a hose at the moment you build it: Transparent (the tar / water can be seen moving through it) or Solid. Stored on that hose for good. " +
             "A change only affects hoses built from then on; hoses already built keep the style they were built with.");
@@ -39,6 +43,8 @@ internal static class ModSettingsHose
     /// next hose built) get the new look; already built hoses are not touched.
     public static void Hook()
     {
+        WorldHoseEnable.SettingChanged += (s, e) => { ModLog.Verbose("Config: World Hose Visuals Enable = " + WorldHoseEnable.Value + ", all loaded hoses are shown again"); MaterialFixer.RequestWorldRefresh(); };
+        BuildHoseEnable.SettingChanged += (s, e) => { ModLog.Verbose("Config: Build Time Hose Visuals Enable = " + BuildHoseEnable.Value + ", for hoses built from now on"); MaterialFixer.RequestRefresh(); };
         WorldHoseStyle.SettingChanged += (s, e) => { ModLog.Verbose("Config: World Hose Style = " + WorldHoseStyle.Value + ", all loaded hoses are shown again"); MaterialFixer.RequestWorldRefresh(); };
         WorldHoseOpacity.SettingChanged += (s, e) => { ModLog.Verbose("Config: World Hose Opacity = " + WorldHoseOpacity.Value.ToString("0.00") + ", all loaded hoses are shown again"); MaterialFixer.RequestWorldRefresh(); };
         BuildHoseStyle.SettingChanged += (s, e) => { ModLog.Verbose("Config: Build Hose Style = " + BuildHoseStyle.Value + ", for hoses built from now on"); MaterialFixer.RequestRefresh(); };

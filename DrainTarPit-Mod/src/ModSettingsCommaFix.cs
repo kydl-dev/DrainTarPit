@@ -21,6 +21,7 @@ internal static class ModSettingsCommaFix
     /// The config file's lines as they were before binding (null when there is no file yet).
     internal static string[] Capture(ConfigFile c)
     {
+        // Stryker disable once all : a missing file or a null config throws inside the try and the catch returns null as well (same result)
         try { return c != null && !string.IsNullOrEmpty(c.ConfigFilePath) && File.Exists(c.ConfigFilePath) ? File.ReadAllLines(c.ConfigFilePath) : null; }
         catch (System.Exception e) { ModLog.Warn("Config comma check skipped: " + e.Message); return null; }
     }
@@ -29,8 +30,11 @@ internal static class ModSettingsCommaFix
     {
         try
         {
+            // Stryker disable once all : without this guard the null case throws into the catch below, which only adds a log line
             if (c == null || lines == null) return;
+            // Stryker disable once String : the name used before the first [section] header can never match a bound entry
             string section = "";
+            // Stryker disable Statement : every skip below is repeated by a later check (ContainsKey / entry type / TryParse) that rejects the same line
             foreach (var line in lines)
             {
                 var sm = Section.Match(line);
@@ -41,7 +45,9 @@ internal static class ModSettingsCommaFix
                 if (!c.ContainsKey(def)) continue;
                 var entry = c[def];
                 if (entry.SettingType != typeof(float) && entry.SettingType != typeof(double)) continue;
+                // Stryker restore Statement
                 double meant;
+                // Stryker disable once all : the regex lets only an optional minus, digits and a comma through, so TryParse cannot fail
                 if (!double.TryParse(m.Groups["v"].Value.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out meant)) continue;
                 var was = entry.BoxedValue;
                 entry.BoxedValue = entry.SettingType == typeof(float) ? (object)(float)meant : meant;

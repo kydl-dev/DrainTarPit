@@ -45,12 +45,8 @@ Chain the hoses with their snap points. Tilt a held piece with **Alt + scroll** 
 
 ## Requirements
 
-BepInEx and Jotunn. **Everyone on the server needs the mod.** English and German; other languages show English.
+KydlCore (the F6 hub and the shared UI), BepInEx and Jotunn. **Everyone on the server needs the mod.** English only.
 
 ## Known limits
 
 - The pour at the nozzle (stream, splashes, puddle) is shown to every player who has the pump loaded, but only while someone is pumping.
-
-## License
-
-MIT, see [LICENSE](LICENSE). You are free to use and modify this mod. If you redistribute it or a modified version, keep the copyright notice and credit **kydl-dev** as the original author.

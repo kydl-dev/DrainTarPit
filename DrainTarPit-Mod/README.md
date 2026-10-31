@@ -45,7 +45,7 @@ Chain the hoses with their snap points. Tilt a held piece with **Alt + scroll** 
 
 ## Requirements
 
-BepInEx and Jotunn. **Everyone on the server needs the mod.** English and German; other languages show English.
+KydlCore (the F6 hub and the shared UI), BepInEx and Jotunn. **Everyone on the server needs the mod.** English only.
 
 ## Known limits
 

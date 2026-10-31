@@ -55,7 +55,7 @@ namespace DrainTarPit.Effects
         // Bug #3: an error used to set ModSettings.TarSlugFlow.Value = false, which BepInEx saved into the config file (the switch stayed off after a restart).
         // It is now a runtime-only switch like PumpFx._disabled: the config file is never touched, the next game launch tries again.
         static bool _disabled;
-        static bool Enabled { get { return !_disabled && ModSettings.On && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
+        static bool Enabled { get { return !_disabled && ModSettings.EffectsOn && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
 
         static void EnsureHost()
         {

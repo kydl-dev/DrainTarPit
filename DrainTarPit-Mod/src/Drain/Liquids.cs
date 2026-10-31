@@ -1,4 +1,4 @@
-using DrainTarPit.TextLocal;
+using Kydl.Common;
 using HarmonyLib;
 using UnityEngine;
 

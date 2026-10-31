@@ -7,6 +7,8 @@ internal static partial class ModSettings
 {
     static void BindDrain(ConfigFile c)
     {
+        DrainEnable = c.Bind("Drain", "Enable", true,
+            "Pumping liquid out of pits and pools. Off = a stroke moves nothing (the pump and the hoses can still be built and used).");
         VolumePerStroke = c.Bind("Drain", "VolumePerStroke", 6f,
             new ConfigDescription(
                 "Cubic meters of liquid moved per pump stroke. Use the console command `dtp pits` to see how big the pits are.",

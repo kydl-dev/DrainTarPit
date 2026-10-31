@@ -5,7 +5,6 @@ using DrainTarPit.Building;
 using DrainTarPit.Debug;
 using DrainTarPit.Effects;
 using Kydl.Common;
-using DrainTarPit.TextLocal;
 using DrainTarPit.Visuals;
 using HarmonyLib;
 using Jotunn.Managers;
@@ -16,12 +15,13 @@ namespace DrainTarPit
 {
     [BepInPlugin(ModGuid, ModName, ModVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
+    [BepInDependency(KydlCore.Plugin.ModGuid, "0.1.0")]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
     public class Plugin : BaseUnityPlugin
     {
         public const string ModGuid = "com.kydldev.DrainTarPit";
         public const string ModName = "DrainTarPit";
-        public const string ModVersion = "1.0.0";
+        public const string ModVersion = "2.0.0";
         public const string BundleName = "draintarpit";
 
         internal static Plugin Instance;
@@ -34,7 +34,7 @@ namespace DrainTarPit
             ModLog.Info(ModName + " " + ModVersion + " loaded (dll built " + File.GetLastWriteTime(Assembly.GetExecutingAssembly().Location).ToString("yyyy-MM-dd HH:mm:ss") + ")");
             ModSettings.Bind(Config);
             WatchConfigFile();
-            Loc.Register();
+            Loc.Register(DtpText.WithKeys());          // English only (the tilt help names the configured keys)
 
             Bundle = LoadBundle();
             if (Bundle == null) { ModLog.Error("Could not load asset bundle '" + BundleName + "'."); return; }
@@ -44,10 +44,6 @@ namespace DrainTarPit
             PrefabManager.OnVanillaPrefabsAvailable += PieceRegistrar.RegisterAll;
             CommandManager.Instance.AddConsoleCommand(new DtpCommands());
             new Harmony(ModGuid).PatchAll(Assembly.GetExecutingAssembly());
-            Ui.UiLog.VerboseSink = s => ModLog.Verbose(s);     // the shared UI code (Unity project) logs through the mod's log, debug lines only with DebugLog
-            Ui.UiLog.WarnSink = s => ModLog.Warn(s);
-            Ui.UiLog.ErrorSink = s => ModLog.Error(s);
-            Ui.UiInputLock.Install();               // T-023: the character does not move while a menu of the user's mods (UI Toolkit) is open
             ModLog.Info("WaterAndTarPools " + (PoolHooks.PoolsInstalled ? "is loaded (" + PoolHooks.PoolsMod + ")" : "is loaded after this mod or not installed (pools / water come with it)"));
         }
 

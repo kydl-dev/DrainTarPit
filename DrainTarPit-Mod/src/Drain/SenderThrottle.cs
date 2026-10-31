@@ -41,6 +41,7 @@ namespace DrainTarPit.Drain
             LastReason = "sender " + sender + (seen ? " after " + (now - last).ToString("0.000") + " s" : " (first request)") + ": allowed" +
                 (pruned > 0 ? ", " + pruned + " idle senders dropped" : "");
             float stored;
+            // Stryker disable once all : self-check of the invariant above (the entry was just written), cannot be false
             return _last.TryGetValue(sender, out stored) && stored == now;
         }
 
@@ -52,6 +53,7 @@ namespace DrainTarPit.Drain
             foreach (var kv in _last) if (now - kv.Value >= PruneAfter) idle.Add(kv.Key);
             foreach (var k in idle) _last.Remove(k);
             int dropped = before - _last.Count;
+            // Stryker disable once all : self-check of the invariant (every idle key is removed exactly once), the -1 branch cannot happen
             return dropped == idle.Count ? dropped : -1;
         }
     }

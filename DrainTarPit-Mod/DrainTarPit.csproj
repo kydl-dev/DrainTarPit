@@ -1,77 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    DrainTarPit mod. Everything shared by the user's mods (references from Claude\ref, net48, no debug symbols, the shared code Kydl.Common, the KydlCore
+    reference, copy to Assets + build + the Gale test profile, embedded bundle) comes from Claude\shared\Kydl.Mod.props / .targets.
+    Only what is special about this mod is below.
+    Build: dotnet build "DrainTarPit-Mod\DrainTarPit.csproj" -c Release
+  -->
+  <Import Project="..\..\Claude\shared\Kydl.Mod.props" />
+
   <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <!-- Folder with the game/BepInEx/Jotunn DLLs (your refs folder). Override: dotnet build -p:ValheimRefs=C:\path\refs -->
-    <ValheimRefs Condition="'$(ValheimRefs)' == ''">$(MSBuildThisFileDirectory)ref</ValheimRefs>
-    <!-- Set to your BepInEx/plugins/DrainTarPit folder to auto-copy after build -->
-    <DeployDir></DeployDir>
+    <AssemblyName>DrainTarPit</AssemblyName>
+    <RootNamespace>DrainTarPit</RootNamespace>
     <PackageId>DrainTarPit</PackageId>
-    <!-- T-073: no debug symbols file and no local build paths in the DLL (virus scanners) -->
-    <DebugType>none</DebugType>
-    <Deterministic>true</Deterministic>
-    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+    <!-- AssetBundle built by the Unity project; embedded into the DLL when Assets\draintarpit exists -->
+    <BundleName>draintarpit</BundleName>
+    <!-- 2.0.0: the UI kit, the input lock, the KY hub and the KY-Items registry come from KydlCore.dll (a hard dependency), not from a copy in this DLL -->
+    <KydlUseCore>true</KydlUseCore>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="BepInEx"><HintPath>$(ValheimRefs)\BepInEx.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="0Harmony"><HintPath>$(ValheimRefs)\0Harmony.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Jotunn"><HintPath>$(ValheimRefs)\Jotunn.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="assembly_valheim"><HintPath>$(ValheimRefs)\assembly_valheim.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="assembly_guiutils"><HintPath>$(ValheimRefs)\assembly_guiutils.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Mono.Cecil">
-      <HintPath>$(ValheimRefs)\Mono.Cecil.dll</HintPath><Private>false</Private>
-    </Reference>
-    <Reference Include="netstandard">
-      <HintPath>$(ValheimRefs)\netstandard.dll</HintPath><Private>false</Private>
-    </Reference>
-    <Reference Include="SoftReferenceableAssets"><HintPath>$(ValheimRefs)\SoftReferenceableAssets.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="assembly_utils"><HintPath>$(ValheimRefs)\assembly_utils.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine"><HintPath>$(ValheimRefs)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ValheimRefs)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ValheimRefs)\UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(ValheimRefs)\UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ValheimRefs)\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ValheimRefs)\UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ValheimRefs)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
-    <!-- WaterEditor (live water editor, IMGUI) -->
-    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(ValheimRefs)\UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ValheimRefs)\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
-    <!-- T-023 pool signs: TextMeshPro text on the sign, UI Toolkit menus -->
-    <Reference Include="Unity.TextMeshPro"><HintPath>$(ValheimRefs)\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UI"><HintPath>$(ValheimRefs)\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UIModule"><HintPath>$(ValheimRefs)\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UIElementsModule"><HintPath>$(ValheimRefs)\UnityEngine.UIElementsModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.TextCoreFontEngineModule"><HintPath>$(ValheimRefs)\UnityEngine.TextCoreFontEngineModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.TextCoreTextEngineModule"><HintPath>$(ValheimRefs)\UnityEngine.TextCoreTextEngineModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UnityWebRequestModule"><HintPath>$(ValheimRefs)\UnityEngine.UnityWebRequestModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(ValheimRefs)\UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <!-- T-56R: the UI code lives in the Unity project (previewed there, Assets/DTP_UI/Preview) and is compiled into the mod from there -->
-    <Compile Include="..\DrainTarPit-Unity\Assets\DTP_UI\Runtime\*.cs" Link="UiShared\%(Filename)%(Extension)" />
-  </ItemGroup>
-  <ItemGroup>
-    <!-- Copy the built bundle to DrainTarPit/Assets/draintarpit; it is embedded in the DLL. -->
-    <EmbeddedResource Include="Assets\draintarpit" LogicalName="draintarpit" Condition="Exists('Assets\draintarpit')" />
-  </ItemGroup>
-  <Target Name="Deploy" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
-    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(DeployDir)" />
-  </Target>
 
-
-
-  <!-- Copy dll after build -->
-  <Target Name="CopyDll" AfterTargets="Build">
-    <MakeDir Directories="$(MSBuildProjectDirectory)\Assets;$(MSBuildProjectDirectory)\build" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\Assets" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\build" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(USERPROFILE)\AppData\Roaming\com.kesomannen.gale\valheim\profiles\test\BepInEx\plugins\DrainTarPit" />
-  </Target>
-  <ItemGroup>
-    <!-- 2026-10-24: the SHARED log of all the user's mods (E:\Projects\Valheim\Claude\shared\Kydl.Common\ModLog.cs: debug switch, 2.5 s repeat
-         filter, CHECK OFF warnings via ModLog.Check). Replaces the mod's own Logging\ModLog.cs. -->
-    <Compile Include="..\..\Claude\shared\Kydl.Common\ModLog.cs" Link="Kydl\Common\ModLog.cs" />
-  </ItemGroup>
+  <Import Project="..\..\Claude\shared\Kydl.Mod.targets" />
 </Project>

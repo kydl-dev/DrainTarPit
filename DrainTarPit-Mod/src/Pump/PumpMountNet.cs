@@ -1,4 +1,4 @@
-using DrainTarPit.TextLocal;
+using Kydl.Common;
 using UnityEngine;
 
 namespace DrainTarPit.Pump

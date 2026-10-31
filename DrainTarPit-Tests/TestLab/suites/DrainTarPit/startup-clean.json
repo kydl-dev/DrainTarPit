@@ -1,0 +1,10 @@
+{
+  "name": "startup-clean",
+  "description": "The mod's own InGameTests pass in a TestLab world and nothing logged an error",
+  "timeout": 60,
+  "steps": [
+    { "do": "wait", "seconds": 6 },
+    { "do": "hook", "name": "DrainTarPit.selftest", "contains": "PASS", "notContains": "FAIL", "label": "InGameTests" }
+  ],
+  "asserts": [ { "check": "noErrors", "source": "DrainTarPit" } ]
+}

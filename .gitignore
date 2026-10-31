@@ -96,3 +96,8 @@ CLAUDE.md
 /model-nobg.png
 *.dll
 /*-Mod/Release/*.zip
+
+# --- test-quality output (coverage + Stryker reports), rebuilt by _agent/tools/test-quality.ps1 ---
+/*-Tests/_quality/
+*.exe
+*.zip

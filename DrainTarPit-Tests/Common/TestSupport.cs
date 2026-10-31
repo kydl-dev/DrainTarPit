@@ -25,13 +25,15 @@ namespace DrainTarPit.Tests
         /// The project root (the repo root): parent of DrainTarPit-Tests.
         public static string ProjectRoot { get { return Directory.GetParent(TestsRoot).FullName; } }
         public static string ModDir { get { return Path.Combine(ProjectRoot, "DrainTarPit-Mod"); } }
-        public static string AgentDir { get { return Path.Combine(ProjectRoot, "_agent"); } }
 
-        /// Game / BepInEx / Jotunn DLLs. DTP_REF_DIR overrides (e.g. the real installed Valheim\valheim_Data\Managed).
-        public static string RefDir { get { return Env("DTP_REF_DIR") ?? Path.Combine(ModDir, "ref"); } }
+        /// Game / BepInEx / Jotunn DLLs: the central E:\Projects\Valheim\Claude\ref. KYDL_REF_DIR overrides (e.g. the installed game's Managed folder).
+        public static string RefDir { get { return Env("KYDL_REF_DIR") ?? Path.GetFullPath(Path.Combine(ProjectRoot, "..", "Claude", "ref")); } }
 
-        /// The built mod ("the real one", PROJECT_RULES rule 6). DTP_MOD_DLL overrides.
-        public static string ModDll { get { return Env("DTP_MOD_DLL") ?? Path.Combine(ModDir, "build", "DrainTarPit.dll"); } }
+        /// The built mod (the copy in build\ is the real one). KYDL_MOD_DLL overrides.
+        public static string ModDll { get { return Env("KYDL_MOD_DLL") ?? Path.Combine(ModDir, "build", "DrainTarPit.dll"); } }
+
+        /// KydlCore.dll, which every mod requires: the built KydlCore next to this project (E:\Projects\Valheim\KydlCore). KYDL_CORE_DLL overrides.
+        public static string CoreDll { get { return Env("KYDL_CORE_DLL") ?? Path.GetFullPath(Path.Combine(ProjectRoot, "..", "KydlCore", "KydlCore-Mod", "build", "KydlCore.dll")); } }
 
         static string Env(string name)
         {
@@ -41,8 +43,8 @@ namespace DrainTarPit.Tests
     }
 
     /// <summary>
-    /// Loads the built mod DLL and reaches its internal static members by reflection (the mod keeps its logic internal, and the policy is
-    /// to test without changing production source for tests). Game assemblies are never loaded unless a test touches a type that needs them.
+    /// Loads the built mod DLL and reaches its internal static members by reflection (the mod keeps its logic internal; production code is
+    /// not changed for tests). Game assemblies are only loaded when a test touches a type that needs them.
     /// </summary>
     internal static class ModAssembly
     {
@@ -70,6 +72,14 @@ namespace DrainTarPit.Tests
             return f.GetValue(null);
         }
 
+        public static object GetStaticProperty(string typeName, string property)
+        {
+            var p = Type(typeName).GetProperty(property, All);
+            if (p == null) throw new MissingMemberException(typeName, property);
+            try { return p.GetValue(null); }
+            catch (TargetInvocationException e) { throw e.InnerException ?? e; }
+        }
+
         public static void SetStatic(string typeName, string field, object value)
         {
             var f = Type(typeName).GetField(field, All);
@@ -79,23 +89,16 @@ namespace DrainTarPit.Tests
 
         public static object Call(string typeName, string method, params object[] args)
         {
-            var types = new Type[args.Length];
-            for (int i = 0; i < args.Length; i++) types[i] = args[i] == null ? typeof(object) : args[i].GetType();
-            var m = Type(typeName).GetMethod(method, All, null, types, null) ?? FindByName(typeName, method, args.Length);
+            MethodInfo m = null;
+            foreach (var c in Type(typeName).GetMethods(All))
+                if (c.Name == method && c.GetParameters().Length == args.Length) { m = c; break; }
             if (m == null) throw new MissingMethodException(typeName, method);
             try { return m.Invoke(null, args); }
             catch (TargetInvocationException e) { throw e.InnerException ?? e; }
         }
-
-        static MethodInfo FindByName(string typeName, string method, int argc)
-        {
-            foreach (var m in Type(typeName).GetMethods(All))
-                if (m.Name == method && m.GetParameters().Length == argc) return m;
-            return null;
-        }
     }
 
-    /// Makes the test process find game / BepInEx / Jotunn assemblies in the ref folder when something asks for them.
+    /// Makes the test process find game / BepInEx / Jotunn assemblies in the ref folder, and KydlCore.dll in KydlCore's build folder, when something asks for them.
     [SetUpFixture]
     public sealed class GameAssemblyResolver
     {
@@ -109,7 +112,8 @@ namespace DrainTarPit.Tests
         {
             var name = new AssemblyName(args.Name).Name;
             var path = Path.Combine(TestPaths.RefDir, name + ".dll");
-            return File.Exists(path) ? Assembly.LoadFrom(path) : null;
+            if (File.Exists(path)) return Assembly.LoadFrom(path);
+            return name == "KydlCore" && File.Exists(TestPaths.CoreDll) ? Assembly.LoadFrom(TestPaths.CoreDll) : null;
         }
     }
 }

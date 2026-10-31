@@ -2,7 +2,6 @@ using System.Text;
 using DrainTarPit.Building;
 using Kydl.Common;
 using DrainTarPit.Effects;
-using DrainTarPit.TextLocal;
 using UnityEngine;
 
 namespace DrainTarPit.Drain
@@ -123,7 +122,7 @@ namespace DrainTarPit.Drain
         public static StrokeResult Stroke(DtpPiece pump, ZNetView pumpView)
         {
             var r = new StrokeResult();
-            if (!ModSettings.On) { r.Message = Loc.T("dtp_mod_off"); ModLog.Verbose("Stroke refused: [General] EnableAll is off"); return r; }   // T-068: inert
+            if (!ModSettings.DrainOn) { r.Message = Loc.T(ModSettings.On ? "dtp_drain_off" : "dtp_mod_off"); ModLog.Verbose("Stroke refused: " + (ModSettings.On ? "[Drain] Enable is off" : "[General] EnableAll is off")); return r; }   // T-068: inert
             var c = Evaluate(pump);
             if (c.Problem != null) { r.Message = c.Problem; return r; }
             r.Valid = true;

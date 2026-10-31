@@ -62,9 +62,9 @@ namespace DrainTarPit.Building
                 if (z == null) { ModLog.Verbose("Hose " + name + ": no ZDO, look not stamped"); return; }
                 if (z.GetInt(ZHoseStyle, -1) < 0 && nv.IsOwner())
                 {
-                    z.Set(ZHoseStyle, (int)ModSettings.BuildHoseStyle.Value);
-                    z.Set(ZHoseOpacity, ModSettings.BuildHoseOpacity.Value);
-                    ModLog.Verbose("Hose " + name + ": built with " + ModSettings.BuildHoseStyle.Value + " / opacity " + ModSettings.BuildHoseOpacity.Value.ToString("0.00") + " (stored for good)");
+                    z.Set(ZHoseStyle, (int)ModSettings.EffBuildStyle);
+                    z.Set(ZHoseOpacity, ModSettings.EffBuildOpacity);
+                    ModLog.Verbose("Hose " + name + ": built with " + ModSettings.EffBuildStyle + " / opacity " + ModSettings.EffBuildOpacity.ToString("0.00") + " (stored for good)");
                 }
                 ShowHoseLook();
             }
@@ -79,14 +79,14 @@ namespace DrainTarPit.Building
             var nv = GetComponent<ZNetView>();
             var z = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             int stamped = z != null ? z.GetInt(ZHoseStyle, -1) : -1;
-            var world = ModSettings.WorldHoseStyle.Value;
+            var world = ModSettings.EffWorldStyle;
             HoseStyleOption style; float opacity; string why;
             if (world == WorldHoseStyleOption.Transparent) { style = HoseStyleOption.Transparent; opacity = ModSettings.WorldHoseOpacity.Value; why = "World Hose Style Transparent"; }
             else if (world == WorldHoseStyleOption.Solid) { style = HoseStyleOption.Solid; opacity = 1f; why = "World Hose Style Solid"; }
-            else if (stamped >= 0) { style = (HoseStyleOption)stamped; opacity = z.GetFloat(ZHoseOpacity, ModSettings.BuildHoseOpacity.Value); why = "its own build look"; }
+            else if (stamped >= 0) { style = (HoseStyleOption)stamped; opacity = z.GetFloat(ZHoseOpacity, ModSettings.EffBuildOpacity); why = "its own build look"; }
             else
             {   // not stamped yet (its owner stamps it): show what the prefab gives, i.e. the current build look (also undoes an earlier World override)
-                style = ModSettings.BuildHoseStyle.Value; opacity = ModSettings.BuildHoseOpacity.Value; why = "no build look stored yet, current build look";
+                style = ModSettings.EffBuildStyle; opacity = ModSettings.EffBuildOpacity; why = "no build look stored yet, current build look";
             }
             int changed = MaterialFixer.ApplyLook(gameObject, style, opacity);
             ModLog.Verbose("Hose " + name + ": shown " + style + (style == HoseStyleOption.Transparent ? " " + opacity.ToString("0.00") : "") + " (" + why + ", " + changed + " renderer(s) changed)");

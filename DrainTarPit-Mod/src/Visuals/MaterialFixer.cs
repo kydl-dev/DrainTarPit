@@ -196,7 +196,7 @@ namespace DrainTarPit.Visuals
 
         static bool IsHose(string n) { return n.Contains("Hose_Straight") || n.Contains("Elbow"); }
 
-        static bool WantsClear { get { return ModSettings.BuildHoseStyle.Value == HoseStyleOption.Transparent && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
+        static bool WantsClear { get { return ModSettings.EffBuildStyle == HoseStyleOption.Transparent && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null; } }
 
         /// Registers a straight hose / elbow prefab and gives it the current look. Call after Apply.
         public static void MakeHosesClear(GameObject prefab)
@@ -258,7 +258,7 @@ namespace DrainTarPit.Visuals
             {
                 _worldRefreshPending = false;
                 int shown = Building.DtpPiece.ShowAllHoseLooks();
-                ModLog.Info("World Hose Style " + ModSettings.WorldHoseStyle.Value + (ModSettings.WorldHoseStyle.Value == WorldHoseStyleOption.Transparent ? " (opacity " +
+                ModLog.Info("World Hose Style " + ModSettings.EffWorldStyle + (ModSettings.EffWorldStyle == WorldHoseStyleOption.Transparent ? " (opacity " +
                     ModSettings.WorldHoseOpacity.Value.ToString("0.00") + ")" : "") + ": " + shown + " loaded hose(s) shown again");
             }
             if (!_refreshPending) return;
@@ -273,7 +273,7 @@ namespace DrainTarPit.Visuals
                 if (HosePrefabs.Count == 0) return;                                  // nothing registered yet (dedicated server, or before the pieces exist)
                 int changed = 0;
                 foreach (var prefab in HosePrefabs) if (prefab != null) changed += ApplyHoseStyle(prefab);
-                ModLog.Info("Build Hose Style " + ModSettings.BuildHoseStyle.Value + (WantsClear ? " (opacity " + ModSettings.BuildHoseOpacity.Value.ToString("0.00") + ")" : "") + " will be used for hoses built from now on (" + changed + " prefab renderer(s) changed); hoses already built keep the look they were built with.");
+                ModLog.Info("Build Hose Style " + ModSettings.EffBuildStyle + (WantsClear ? " (opacity " + ModSettings.EffBuildOpacity.ToString("0.00") + ")" : "") + " will be used for hoses built from now on (" + changed + " prefab renderer(s) changed); hoses already built keep the look they were built with.");
             }
             catch (System.Exception e) { ModLog.Warn("Could not refresh the hose look: " + e.Message); }
         }
@@ -288,7 +288,7 @@ namespace DrainTarPit.Visuals
 
         /// Puts the wall material of every renderer under `root` (a hose PREFAB) in line with [Build Time Hose Visuals]: the see-through copy for Transparent, the
         /// original for Solid. Returns how many renderers changed.
-        static int ApplyHoseStyle(GameObject root) { return ApplyLook(root, ModSettings.BuildHoseStyle.Value, ModSettings.BuildHoseOpacity.Value); }
+        static int ApplyHoseStyle(GameObject root) { return ApplyLook(root, ModSettings.EffBuildStyle, ModSettings.EffBuildOpacity); }
 
         /// Same, for an explicit style / opacity (a placed hose re-applies the look it was built with).
         public static int ApplyLook(GameObject root, HoseStyleOption style, float opacity)

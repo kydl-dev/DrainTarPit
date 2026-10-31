@@ -59,7 +59,7 @@ namespace DrainTarPit.Tests.Integration
 
             var text = File.ReadAllText(_path);
             Assert.That(File.Exists(_path), Is.True);
-            foreach (var section in new[] { "[General]", "[DebugLog]", "[Effects]", "[Building]", "[Drain]", "[Pump]" })
+            foreach (var section in new[] { "[General]", "[DebugLog]", "[Effects]", "[Building]", "[Drain]", "[World Hose Visuals]", "[Build Time Hose Visuals]" })
                 Assert.That(text, Does.Contain(section));
         }
 

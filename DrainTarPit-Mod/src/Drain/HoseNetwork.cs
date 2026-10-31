@@ -1,5 +1,5 @@
+using Kydl.Common;
 using DrainTarPit.Building;
-using DrainTarPit.TextLocal;
 using UnityEngine;
 
 namespace DrainTarPit.Drain

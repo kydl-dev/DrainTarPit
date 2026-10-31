@@ -1,3 +1,4 @@
+using Kydl.Common;
 using BepInEx.Configuration;
 
 namespace DrainTarPit;
@@ -40,7 +41,7 @@ internal static partial class ModSettings
 
     static void BindPump(ConfigFile c)
     {
-        AutoReach = c.Bind("Pump", "AutoReach", true,
+        AutoReach = c.Bind("General", "AutoReach", true,
             "While pumping, move the player just far enough towards the lever (and, only if that is not enough, up) for both hands to reach the handle at the top of the stroke. Turn off to use StandHeight / StandForward only.");
     }
 }

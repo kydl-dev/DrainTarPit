@@ -10,6 +10,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- per-sender rate limit of the drain / deposit RPCs (bug #9): pure, the clock is passed in -->
-    <Compile Include="..\..\DrainTarPit-Mod\src\Drain\SenderThrottle.cs" Link="Mod\SenderThrottle.cs" />
+    <Compile Include="..\..\DrainTarPit-Mod\src\Drain\SenderThrottle.cs" Link="Mod\SenderThrottle.cs" Condition="'$(KydlQuality)' != 'true'" />
   </ItemGroup>
 </Project>

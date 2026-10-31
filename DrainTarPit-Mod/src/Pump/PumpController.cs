@@ -4,7 +4,6 @@ using DrainTarPit.Building;
 using DrainTarPit.Drain;
 using DrainTarPit.Effects;
 using Kydl.Common;
-using DrainTarPit.TextLocal;
 using HarmonyLib;
 using UnityEngine;
 

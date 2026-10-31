@@ -3,7 +3,6 @@ using System.Reflection;
 using System.Reflection.Emit;
 using BepInEx;
 using Kydl.Common;
-using DrainTarPit.TextLocal;
 using HarmonyLib;
 using UnityEngine;
 
@@ -48,7 +47,7 @@ namespace DrainTarPit.Building
 
         public static void HandleInput(Player p, bool takeInput, int rotationBefore)
         {
-            if (!takeInput || !IsDtpGhost(p)) return;
+            if (!takeInput || !ModSettings.BuildingOn || !IsDtpGhost(p)) return;
             var input = UnityInput.Current;
 
             if (input.GetKeyDown(ModSettings.TiltResetKey.Value))

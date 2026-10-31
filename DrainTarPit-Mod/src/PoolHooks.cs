@@ -10,6 +10,7 @@ using UnityEngine;
 // DrainTarPit's internal code directly (logging, settings, the pit sampling, the UI kit); the user's KydlTools mod too.
 [assembly: InternalsVisibleTo("WaterAndTarPools")]
 [assembly: InternalsVisibleTo("KydlTools")]
+[assembly: InternalsVisibleTo("DrainTarPit.UnitTests")]
 
 namespace DrainTarPit
 {
